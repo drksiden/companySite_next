@@ -1,29 +1,37 @@
 'use client';
 
-import { motion, useAnimation } from 'framer-motion';
+import { motion, useAnimationControls } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { Card, CardContent } from '@/components/ui/card';
 import { partners } from '@/data/partners'; // Убедитесь, что путь к данным верный
 
 export function PartnersCarousel() {
-  const controls = useAnimation();
+  const controls = useAnimationControls();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const animate = async () => {
-      await controls.start({
-        x: '-100%',
-        transition: { duration: 20, ease: 'linear', repeat: Infinity },
-      });
       controls.set({ x: 0 });
+      await controls.start({
+        x: `-${partners.length * 280}px`,
+        transition: {
+          x: {
+            repeat: Infinity,
+            repeatType: 'loop',
+            duration: partners.length * 2,
+            ease: 'linear',
+          },
+        },
+      });
     };
     animate();
   }, [controls]);
 
   return (
-    <section className="py-12 px-4 bg-muted w-full">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-semibold text-foreground mb-8 text-center">
+    <section className="py-16 px-6 bg-muted w-full">
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-10 text-center">
           Наши партнёры
         </h2>
         <div className="overflow-hidden">
@@ -31,22 +39,26 @@ export function PartnersCarousel() {
             ref={ref}
             animate={controls}
             className="flex"
-            style={{ width: `${partners.length * 200}px` }}
+            style={{ minWidth: `${partners.length * 280 * 2}px` }}
           >
             {[...partners, ...partners].map((partner, index) => (
               <motion.div
                 key={`${partner.id}-${index}`}
-                className="flex flex-col items-center justify-center p-4 mx-4"
+                className="flex-shrink-0 w-[280px] p-4"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               >
-                <Image
-                  src={partner.logo}
-                  alt={partner.name}
-                  width={150}
-                  height={96}
-                  className="h-24 w-auto object-contain grayscale hover:grayscale-0 transition duration-300"
-                />
+                <Card className="bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <CardContent className="flex items-center justify-center p-6">
+                    <Image
+                      src={partner.logo}
+                      alt={partner.name}
+                      width={220}
+                      height={140}
+                      className="h-36 w-auto object-contain grayscale hover:grayscale-0 transition duration-300"
+                    />
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </motion.div>
