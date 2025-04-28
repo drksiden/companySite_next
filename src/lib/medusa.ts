@@ -1,34 +1,18 @@
 import Medusa from '@medusajs/medusa-js';
+import type { StoreProductCategoriesResponse, StoreProductsListResponse } from '@medusajs/medusa';
 
-const medusa = new Medusa({
-  baseUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000',
-  maxRetries: 3,
-});
+const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000';
 
-export async function getProducts() {
-  const { products } = await medusa.products.list();
-  return products;
-}
+export const medusaClient = new Medusa({ baseUrl: BACKEND_URL });
 
-export async function getProductBySlug(slug: string) {
-  const { products } = await medusa.products.list({ handle: slug });
-  return products[0] || null;
-}
+// Fetch categories with subcategories
+export const fetchCategories = async (): Promise<StoreProductCategoriesResponse> => {
+  return medusaClient.productCategories.list({ include_descendants_tree: true });
+};
 
-export async function getCategories() {
-  const { product_categories } = await medusa.productCategories.list();
-  return product_categories;
-}
-
-export async function getProductsByCategory(categorySlug: string) {
-  const { products } = await medusa.products.list({ category_id: [categorySlug] });
-  return products;
-}
-
-export async function getProductsByManufacturer(manufacturerSlug: string) {
-  // Предполагаем, что производитель — это кастомное поле или фильтр
-  const { products } = await medusa.products.list({ 'metadata.manufacturer_slug': manufacturerSlug });
-  return products;
-}
-
-export default medusa;
+// Fetch products with optional category filter
+export const fetchProducts = async (categoryId?: string): Promise<StoreProductsListResponse> => {
+  return medusaClient.products.list(
+    categoryId ? { category_id: [categoryId] } : undefined
+  );
+};

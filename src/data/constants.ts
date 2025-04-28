@@ -4,7 +4,7 @@ export const COMPANY_NAME_SHORT = "Азия NTB";
 export const COMPANY_NAME_SHORT_EN = "Asia NTB";
 export const COMPANY_ADDRESS = "г.Алматы, ул.Толе Би, д.280, Этаж №13";
 // Контакты Персональные
-export const ALEXEY_PHONE = "+7 (701) 711-01-78"; // Номер Алексея
+export const ALEXEY_PHONE = "+7 (707) 382-43-45"; // Номер Алексея
 export const ALEXEY_EMAIL = "alekseysmolnikov1986@gmail.com";
 
 export const OLEG_PHONE = "+7 (707) 382-43-45"; // Номер Олега

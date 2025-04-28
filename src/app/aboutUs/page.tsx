@@ -28,7 +28,7 @@ const AboutUs: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="w-full max-w-md mx-auto md:max-w-none"
           >
-            <img
+            <Image
               src="/images/about/company_image.jpg" // Замените изображение
               alt={`Офис ${COMPANY_NAME}`}
               className="rounded-xl shadow-xl w-full h-auto object-cover aspect-[4/3]"
@@ -52,7 +52,7 @@ const AboutUs: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
-                  ТОО `{COMPANY_NAME}` (ранее ТОО "Азия НТ") является ведущим поставщиком и интегратором современных
+                  ТОО `{COMPANY_NAME}` является ведущим поставщиком и интегратором современных
                   систем безопасности и автоматизации в Казахстане. Мы специализируемся на комплексных решениях для
                   объектов любой сложности.
                 </p>

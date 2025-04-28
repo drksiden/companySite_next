@@ -1,21 +1,16 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Mail, Phone, MapPin, Facebook, Instagram, Youtube } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
   COMPANY_NAME,
   COMPANY_ADDRESS,
   ALEXEY_PHONE,
   ALEXEY_EMAIL,
-  OLEG_PHONE,
   OLEG_EMAIL,
   COMPANY_CITY_PHONE1,
   COMPANY_CITY_PHONE2,
-  facebookUrl,
-  instagramUrl,
-  youtubeUrl,
 } from '@/data/constants';
 
 export function Footer() {
@@ -72,8 +67,9 @@ export function Footer() {
                 )}
               </div>
             </li>
+            <Separator className="bg-border mb-4" />
             <li>
-              <span className="font-medium text-foreground block mb-2">Алексей</span>
+              {/* <span className="font-medium text-foreground block mb-2">Алексей</span> */}
               <div className="space-y-2 text-muted-foreground">
                 {ALEXEY_PHONE && (
                   <div className="flex items-center">
@@ -93,17 +89,9 @@ export function Footer() {
                 )}
               </div>
             </li>
+            <Separator className="bg-border mb-4" />
             <li>
-              <span className="font-medium text-foreground block mb-2">Олег</span>
               <div className="space-y-2 text-muted-foreground">
-                {OLEG_PHONE && (
-                  <div className="flex items-center">
-                    <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                    <a href={`tel:${OLEG_PHONE.replace(/\D/g, '')}`} className="hover:text-primary transition-all duration-300">
-                      {OLEG_PHONE}
-                    </a>
-                  </div>
-                )}
                 {OLEG_EMAIL && (
                   <div className="flex items-center">
                     <Mail className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
@@ -114,7 +102,7 @@ export function Footer() {
                 )}
               </div>
             </li>
-            <li className="pt-2">
+            <li>
               <Separator className="bg-border mb-4" />
               <div className="flex items-start">
                 <MapPin className="w-5 h-5 mr-2 text-muted-foreground shrink-0 mt-0.5" />
@@ -122,50 +110,6 @@ export function Footer() {
               </div>
             </li>
           </ul>
-        </div>
-        <div>
-          <h4 className="text-lg font-semibold text-foreground mb-4">Мы в соцсетях</h4>
-          <div className="flex space-x-4">
-            {facebookUrl && (
-              <motion.a
-                href={facebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="text-muted-foreground hover:text-primary transition-all duration-300"
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <Facebook size={24} />
-              </motion.a>
-            )}
-            {instagramUrl && (
-              <motion.a
-                href={instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="text-muted-foreground hover:text-primary transition-all duration-300"
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <Instagram size={24} />
-              </motion.a>
-            )}
-            {youtubeUrl && (
-              <motion.a
-                href={youtubeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="YouTube"
-                className="text-muted-foreground hover:text-primary transition-all duration-300"
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <Youtube size={24} />
-              </motion.a>
-            )}
-          </div>
         </div>
       </div>
       <Separator className="bg-border mt-10" />

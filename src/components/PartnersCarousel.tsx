@@ -3,7 +3,6 @@
 import { motion, useAnimationControls } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
 import { partners } from '@/data/partners'; // Убедитесь, что путь к данным верный
 
 export function PartnersCarousel() {
@@ -48,17 +47,13 @@ export function PartnersCarousel() {
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               >
-                <Card className="bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  <CardContent className="flex items-center justify-center p-6">
-                    <Image
+                <Image
                       src={partner.logo}
                       alt={partner.name}
                       width={220}
                       height={140}
                       className="h-36 w-auto object-contain grayscale hover:grayscale-0 transition duration-300"
                     />
-                  </CardContent>
-                </Card>
               </motion.div>
             ))}
           </motion.div>
