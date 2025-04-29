@@ -66,10 +66,7 @@ const navItems = [
     href: '/catalog', 
     label: 'Каталог',
     children: [
-      { href: '/catalog/cables', label: 'Кабели' },
-      { href: '/catalog/connectors', label: 'Разъемы' },
-      { href: '/catalog/accessories', label: 'Аксессуары' },
-      { href: '/catalog/tools', label: 'Инструменты' },
+      { href: '/catalog/cables', label: 'Охранные системы' },
     ]
   },
   { href: '/services', label: 'Услуги' },
@@ -278,7 +275,7 @@ export function Header() {
         </Link>
         {(isActive || isHovered) && (
           <motion.div
-            className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full"
+            className="bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full"
             initial="hidden"
             animate="visible"
             variants={underlineVariants}
@@ -302,15 +299,26 @@ export function Header() {
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Логотип */}
           <Link href="/" className="flex items-center">
+            {/* Светлая тема — тёмный логотип */}
             <Image
-              src="/images/logos/teko-logo.svg"
+              src="/images/logos/ant-logo-light.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="h-8 sm:h-10 w-auto"
+              className="block dark:hidden h-8 sm:h-10 w-auto"
+              priority
+            />
+            {/* Тёмная тема — светлый логотип */}
+            <Image
+              src="/images/logos/ant-logo-dark.svg"
+              alt={COMPANY_NAME_SHORT}
+              width={140}
+              height={40}
+              className="hidden dark:block h-8 sm:h-10 w-auto"
               priority
             />
           </Link>
+
 
           {/* Поисковая строка - только на больших экранах */}
           <div className="hidden md:flex items-center ml-6 mr-auto">

@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { COMPANY_NAME } from '../constants';
-import { Card, CardHeader, CardContent, CardTitle } from '@shadcn/ui'; // Import ShadCN components
+import Image from 'next/image';
+import { COMPANY_NAME } from '@/data/constants';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card'; // Import ShadCN components
 
 const AboutUs: React.FC = () => {
   return (
@@ -31,8 +32,10 @@ const AboutUs: React.FC = () => {
             <Image
               src="/images/about/company_image.jpg" // Замените изображение
               alt={`Офис ${COMPANY_NAME}`}
+              width={1024}
+              height={678}
               className="rounded-xl shadow-xl w-full h-auto object-cover aspect-[4/3]"
-              loading="lazy"
+              priority
             />
           </motion.div>
 
