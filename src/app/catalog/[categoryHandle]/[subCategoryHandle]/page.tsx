@@ -1,5 +1,3 @@
-// @/app/catalog/[categoryHandle]/page.tsx
-
 import { fetchCategoryByHandle, fetchProducts } from '@/lib/medusaClient';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
@@ -8,24 +6,26 @@ import { Catalog } from '@/components/Catalog';
 export async function generateMetadata({
   params,
 }: {
-  params: { categoryHandle: string };
+  params: { categoryHandle: string; subCategoryHandle: string };
 }): Promise<Metadata> {
-  const { product_category } = await fetchCategoryByHandle(params.categoryHandle);
+  const { subCategoryHandle } = params;
+  const { product_category } = await fetchCategoryByHandle(subCategoryHandle);
+
   return {
-    title: product_category?.name || 'Категория',
-    description: product_category?.description || 'Описание категории',
+    title: product_category?.name || 'Подкатегория',
+    description: product_category?.description || 'Описание подкатегории',
   };
 }
 
-export default async function CategoryPage({
+export default async function SubCategoryPage({
   params,
 }: {
-  params: { categoryHandle: string };
+  params: { categoryHandle: string; subCategoryHandle: string };
 }) {
-  const { categoryHandle } = params;
+  const { subCategoryHandle } = params;
 
   try {
-    const { product_category } = await fetchCategoryByHandle(categoryHandle);
+    const { product_category } = await fetchCategoryByHandle(subCategoryHandle);
 
     if (!product_category) return notFound();
 
@@ -45,10 +45,10 @@ export default async function CategoryPage({
       </div>
     );
   } catch (error) {
-    console.error('Error loading category page:', error);
+    console.error('Ошибка при загрузке подкатегории:', error);
     return (
       <div className="py-16 px-6 max-w-7xl mx-auto">
-        <p className="text-center text-destructive">Ошибка загрузки категории. Попробуйте позже.</p>
+        <p className="text-center text-destructive">Ошибка загрузки подкатегории. Попробуйте позже.</p>
       </div>
     );
   }

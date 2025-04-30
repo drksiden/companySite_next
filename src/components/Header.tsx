@@ -65,9 +65,9 @@ const navItems = [
   { 
     href: '/catalog', 
     label: 'Каталог',
-    children: [
-      { href: '/catalog/cables', label: 'Охранные системы' },
-    ]
+    // children: [
+    //   { href: '/catalog/cables', label: 'Охранные системы' },
+    // ]
   },
   { href: '/services', label: 'Услуги' },
   { href: '/about', label: 'О нас' },
@@ -301,20 +301,20 @@ export function Header() {
           <Link href="/" className="flex items-center">
             {/* Светлая тема — тёмный логотип */}
             <Image
-              src="/images/logos/ant-logo-light.svg"
+              src="/images/logos/asia-ntb/Asia-NTB-logo-eng-light.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="block dark:hidden h-8 sm:h-10 w-auto"
+              className="block dark:hidden h-10 sm:h-10 w-auto"
               priority
             />
             {/* Тёмная тема — светлый логотип */}
             <Image
-              src="/images/logos/ant-logo-dark.svg"
+              src="/images/logos/asia-ntb/Asia-NTB-logo-eng-dark.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="hidden dark:block h-8 sm:h-10 w-auto"
+              className="hidden dark:block h-10 sm:h-10 w-auto"
               priority
             />
           </Link>

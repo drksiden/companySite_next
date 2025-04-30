@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
+import { StaticImport } from 'next/dist/shared/lib/get-img-props';
 
 interface SlideData {
   id: string;
@@ -21,6 +22,7 @@ interface ProductSectionProps {
   slides: SlideData[];
   brandName: string;
   brandLogoUrl?: string;
+  brandLogoUrlDark: string | StaticImport;
   brandTagline: string;
   description: string;
   catalogLink: string;
@@ -152,6 +154,7 @@ export function ProductSection({
   slides,
   brandName,
   brandLogoUrl,
+  brandLogoUrlDark,
   brandTagline,
   description,
   catalogLink,
@@ -183,9 +186,18 @@ export function ProductSection({
           alt={`${brandName} Logo`}
           width={150}
           height={72}
-          className={`h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
+          className={`block dark:hidden h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
           onError={() => setLogoVisible(false)}
         />
+        <Image
+          src={brandLogoUrlDark}
+          alt={`${brandName} Logo`}
+          width={150}
+          height={72}
+          className={`hidden dark:block h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
+          onError={() => setLogoVisible(false)}
+        />
+        
       </motion.div>
     );
   };
