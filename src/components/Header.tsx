@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSession, signOut } from "next-auth/react";
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -42,22 +43,31 @@ import {
   X
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
+import Medusa from '@medusajs/medusa-js';
 
 // Будем использовать для интеграции с Medusa.js
 // import { useCart } from 'medusa-react';
 // import { useAccount } from '@/hooks/use-account';
 
-// Для эмуляции данных от Medusa
+// Типы для работы с корзиной Medusa
 interface CartData {
   items: any[];
   totalItems: number;
 }
 
-interface UserData {
+interface CartItem {
+  id: string;
+  title: string;
+  quantity: number;
+  unit_price: number;
+  thumbnail?: string;
+}
+
+interface Customer {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
+  first_name?: string;
+  last_name?: string;
   avatar?: string;
 }
 
@@ -98,6 +108,8 @@ const badgeVariants = {
   animate: { scale: 1, transition: { type: 'spring', stiffness: 400, damping: 17 } },
 };
 
+const medusa = new Medusa({ baseUrl: process.env.MEDUSA_BACKEND_URL || "http://localhost:9000", maxRetries: 3, publishableApiKey: process.env.NEXT_PUBLIC_MEDUSA_API_KEY || '' });
+
 // Для типизации пропсов NavItem
 interface NavItemProps {
   item: {
@@ -115,28 +127,76 @@ export function Header() {
   const [openMobileMenu, setOpenMobileMenu] = useState(false);
   const pathname = usePathname();
   
-  // Эмуляция данных от Medusa.js (заменить на реальные хуки)
-  // const cart = useCart();
-  // const { user, isLoading: userLoading } = useAccount();
-  const [cartData, setCartData] = useState<CartData>({ items: [], totalItems: 0 });
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Эмулируем загрузку данных от Medusa
-  useEffect(() => {
-    // Эмуляция задержки загрузки
-    const timer = setTimeout(() => {
-      setCartData({ items: [], totalItems: 2 });
-      // Раскомментируйте для эмуляции авторизованного пользователя
-      // setUserData({ id: '1', email: 'user@example.com', firstName: 'Иван', lastName: 'Петров' });
-      setUserData(null);
-      setUserLoading(false);
-    }, 500);
+  const { data: session, status } = useSession();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Состояние корзины
+  const [cartData, setCartData] = useState<CartData>({ items: [], totalItems: 0 });
+  const [cartLoading, setCartLoading] = useState(true);
 
-    return () => clearTimeout(timer);
+  // Загрузка данных корзины
+  useEffect(() => {
+    const fetchCart = async () => {
+      setCartLoading(true);
+      try {
+        let cartId = typeof window !== "undefined" ? localStorage.getItem("cart_id") : null;
+        let cart;
+
+        if (cartId) {
+          cart = await medusa.carts.retrieve(cartId);
+        } else {
+          const { cart: newCart } = await medusa.carts.create();
+          cart = { cart: newCart };
+          if (typeof window !== "undefined") {
+            localStorage.setItem("cart_id", newCart.id);
+          }
+        }
+
+        const items = cart.cart.items || [];
+        const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+
+        setCartData({ items, totalItems });
+      } catch (error) {
+        console.error("Failed to fetch cart:", error);
+        setCartData({ items: [], totalItems: 0 });
+      }
+      setCartLoading(false);
+    };
+
+    fetchCart();
   }, []);
+
+  // Загрузка данных пользователя
+  useEffect(() => {
+    const fetchCustomer = async () => {
+      if (session?.user?.id) {
+        try {
+          const { customer } = await medusa.customers.retrieve();
+          setCustomer({
+            id: customer.id,
+            email: customer.email,
+            first_name: customer.first_name,
+            last_name: customer.last_name,
+            avatar: customer.metadata?.avatar, // Если у вас есть поле для аватара в Medusa
+          });
+        } catch (error) {
+          console.error("Failed to fetch customer data:", error);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchCustomer();
+  }, [session]);
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: true, callbackUrl: "/" });
+  };
+
 
   useEffect(() => {
     setMounted(true);
@@ -405,7 +465,7 @@ export function Header() {
                   <ShoppingBag className="h-5 w-5" />
                   <span className="sr-only">Корзина</span>
                   <AnimatePresence>
-                    {cartData.totalItems > 0 && (
+                    {!cartLoading && cartData.totalItems > 0 && (
                       <motion.div
                         className="absolute -top-1 -right-1"
                         variants={badgeVariants}
@@ -423,34 +483,37 @@ export function Header() {
               <DropdownMenuContent align="end" className="w-72 p-4">
                 <DropdownMenuLabel className="font-medium text-lg border-b pb-2 mb-2">Корзина</DropdownMenuLabel>
                 
-                {cartData.totalItems > 0 ? (
+                {cartLoading ? (
+                  <div className="py-8 text-center">
+                    <Skeleton className="h-10 w-10 mx-auto mb-2 rounded-full" />
+                    <p className="text-muted-foreground">Загрузка корзины...</p>
+                  </div>
+                ) : cartData.totalItems > 0 ? (
                   <>
                     <div className="max-h-60 overflow-auto py-1">
-                      {/* Здесь будут элементы корзины из Medusa */}
-                      <div className="flex items-center gap-3 py-2 border-b border-border/50">
-                        <div className="bg-accent/30 rounded h-16 w-16 flex items-center justify-center">
-                          <Package className="h-8 w-8 text-muted-foreground" />
+                      {cartData.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-3 py-2 border-b border-border/50">
+                          <div className="bg-accent/30 rounded h-16 w-16 flex items-center justify-center">
+                            {item.thumbnail ? (
+                              <Image src={item.thumbnail} alt={item.title} width={64} height={64} className="object-contain h-16 w-16" />
+                            ) : (
+                              <Package className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.title}</p>
+                            <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit_price / 100} ₽</p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Кабель HDMI 2.1</p>
-                          <p className="text-xs text-muted-foreground">1 × 1 200 ₽</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 py-2 border-b border-border/50">
-                        <div className="bg-accent/30 rounded h-16 w-16 flex items-center justify-center">
-                          <Package className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Разъем XLR</p>
-                          <p className="text-xs text-muted-foreground">1 × 800 ₽</p>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                     
                     <div className="py-3 border-t border-border mt-1">
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-sm text-foreground">Итого:</span>
-                        <span className="text-base font-semibold text-foreground">2 000 ₽</span>
+                        <span className="text-base font-semibold text-foreground">
+                          {cartData.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) / 100} ₽
+                        </span>
                       </div>
                       <div className="flex gap-2">
                         <Button asChild variant="outline" size="sm" className="flex-1">
@@ -482,7 +545,7 @@ export function Header() {
                   size="icon"
                   className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
                 >
-                  {userLoading ? (
+                  {loading || status === "loading" ? (
                     <Skeleton className="h-5 w-5 rounded-full" />
                   ) : (
                     <User className="h-5 w-5" />
@@ -491,21 +554,21 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                {userData ? (
+                {session && customer ? (
                   <>
                     <DropdownMenuLabel className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={userData.avatar} alt={userData.firstName || userData.email} />
+                        <AvatarImage src={customer.avatar} alt={customer.first_name || customer.email} />
                         <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {userData.firstName?.[0] || userData.email[0].toUpperCase()}
+                          {customer.first_name?.[0] || customer.email[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="overflow-hidden">
                         <p className="text-sm font-medium truncate">
-                          {userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userData.email}
+                          {customer.first_name ? `${customer.first_name} ${customer.last_name || ""}` : customer.email}
                         </p>
-                        {userData.firstName && (
-                          <p className="text-xs text-muted-foreground truncate">{userData.email}</p>
+                        {customer.first_name && (
+                          <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
                         )}
                       </div>
                     </DropdownMenuLabel>
@@ -535,7 +598,10 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex items-center text-destructive focus:text-destructive">
+                    <DropdownMenuItem
+                      className="flex items-center text-destructive focus:text-destructive"
+                      onClick={handleSignOut}
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Выйти</span>
                     </DropdownMenuItem>
@@ -543,12 +609,14 @@ export function Header() {
                 ) : (
                   <>
                     <div className="px-2 py-3 text-center">
-                      <p className="text-sm text-muted-foreground mb-3">Войдите, чтобы получить доступ к своему аккаунту</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Войдите, чтобы получить доступ к своему аккаунту
+                      </p>
                       <Button asChild variant="primary" size="sm" className="w-full mb-2">
-                        <Link href="/login">Войти</Link>
+                        <Link href="/auth/signin">Войти</Link>
                       </Button>
                       <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href="/register">Регистрация</Link>
+                        <Link href="/auth/signup">Регистрация</Link>
                       </Button>
                     </div>
                   </>

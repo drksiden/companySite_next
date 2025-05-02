@@ -10,7 +10,7 @@ import Medusa from '@medusajs/medusa-js';
 import ProductGallery from '@/components/product/ProductGallery';
 import ProductSeo from '@/components/product/ProductSeo';
 import ProductTabs from '@/components/product/ProductTabs';
-import { Toaster } from '@/components/ui/sonner'; // Импортируйте, если есть система уведомлений
+import { toast } from "sonner"
 
 interface Product {
   id: string;
@@ -144,10 +144,7 @@ export default function ProductPage() {
         });
         
         // Показываем уведомление
-        toast?.({
-          title: "Товар добавлен в корзину",
-          description: `${product.title} успешно добавлен в корзину`,
-        });
+        toast?.success(`${product.title} успешно добавлен в корзину`);
         
         // Подтверждаем в интерфейсе
         setAddedToCart(true);
@@ -157,10 +154,8 @@ export default function ProductPage() {
       }
     } catch (err: any) {
       setError('Ошибка при добавлении в корзину');
-      toast?.({
-        title: "Ошибка",
+      toast?.error("Ошибка", {
         description: "Не удалось добавить товар в корзину",
-        variant: "destructive",
       });
     } finally {
       setIsAddingToCart(false);
