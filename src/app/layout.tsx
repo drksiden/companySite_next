@@ -2,10 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
 import { ClientProviders } from './ClientProviders';
-import { RegionProvider } from '@/providers/region';
 import { ThemeProvider } from '@/providers/theme';
 import { cn } from '@/lib/utils';
-import { fontSans } from '@/styles/fonts';
+import { inter } from '@/styles/fonts';
 
 export const metadata: Metadata = {
   title: COMPANY_NAME_SHORT,
@@ -19,18 +18,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={cn('min-h-screen bg-background font-sans antialiased', fontSans.variable)}>
+      <body className={cn('min-h-screen bg-background font-sans antialiased', inter.variable)}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <RegionProvider>
-            <ClientProviders>
-              {children}
-            </ClientProviders>
-          </RegionProvider>
+          <ClientProviders>
+            {children}
+          </ClientProviders>
         </ThemeProvider>
       </body>
     </html>
