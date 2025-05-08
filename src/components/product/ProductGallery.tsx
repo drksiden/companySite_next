@@ -243,7 +243,12 @@ export default function ProductGallery({ images, title }: ProductGalleryProps) {
                       alt={`${title} - изображение ${index + 1}`}
                       width={600}
                       height={450}
-                      style={{ objectFit: 'contain', maxHeight: '450px' }}
+                      style={{ 
+                        objectFit: 'contain', 
+                        maxHeight: '450px',
+                        width: 'auto',
+                        height: 'auto'
+                      }}
                       sizes="(max-width: 768px) 100vw, 600px"
                       className="rounded-lg"
                       priority={index === 0}
@@ -277,7 +282,9 @@ export default function ProductGallery({ images, title }: ProductGalleryProps) {
                           alt={`${title} - миниатюра ${index + 1}`}
                           fill
                           sizes="100px"
-                          style={{ objectFit: 'contain', maxHeight: '450px' }}
+                          style={{ 
+                            objectFit: 'contain'
+                          }}
                           className="rounded"
                         />
                       </div>

@@ -8,6 +8,7 @@ export interface ProductCategory {
   handle: string;
   parent_category_id: string | null;
   category_children: ProductCategory[];
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface Product {
@@ -16,6 +17,7 @@ export interface Product {
   description: string | null;
   handle: string;
   metadata: Record<string, unknown> | null;
+  images: Array<{ url: string }>;
   variants: Array<{
     id: string;
     inventory_quantity: number;
@@ -23,7 +25,16 @@ export interface Product {
       amount: number;
       currency_code: string;
     }>;
+    calculated_price: {
+      calculated_amount: number;
+      original_amount: number;
+      calculated_price: {
+        price_list_type: string | null;
+      };
+    };
   }>;
+  categories?: Array<{ handle: string; name: string }>;
+  collection?: { handle: string; title: string };
 }
 
 export interface ProductCategoriesResponse {
@@ -96,9 +107,13 @@ export const fetchCategories = async (): Promise<ProductCategoriesResponse> => {
   return medusaClient.productCategories.list();
 };
 
-export const fetchProductByHandle = async (handle: string): Promise<Product | null> => {
+export const fetchProductByHandle = async (handle: string, regionId?: string): Promise<Product | null> => {
   try {
-    const response = await medusaClient.products.list({ handle });
+    const response = await medusaClient.products.list({ 
+      handle,
+      expand: ['variants', 'variants.prices', 'variants.calculated_price'],
+      region_id: regionId
+    });
     return response.products.length > 0 ? response.products[0] : null;
   } catch (error) {
     console.error('Error fetching product by handle:', error);

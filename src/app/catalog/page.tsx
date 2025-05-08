@@ -1,4 +1,5 @@
 import { Catalog } from '@/components/Catalog';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { fetchCategories, fetchProducts, Product, ProductCategory } from '@/lib/medusaClient';
 
 export default async function CatalogPage() {
@@ -16,5 +17,15 @@ export default async function CatalogPage() {
     initialCategories = [];
   }
 
-  return <Catalog initialProducts={initialProducts} initialCategories={initialCategories} />;
+  return (
+    <div className="py-16 px-6 max-w-7xl mx-auto">
+      <Breadcrumbs
+        items={[
+          { label: 'Каталог', href: '/catalog' }
+        ]}
+        className="mb-8"
+      />
+      <Catalog initialProducts={initialProducts} initialCategories={initialCategories} />
+    </div>
+  );
 }

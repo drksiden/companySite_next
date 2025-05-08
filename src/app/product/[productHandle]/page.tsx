@@ -1,99 +1,17 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, PackageSearch, Loader2, ShoppingCart, Check } from 'lucide-react';
-import Medusa from '@medusajs/medusa-js';
 import ProductGallery from '@/components/product/ProductGallery';
 import ProductSeo from '@/components/product/ProductSeo';
 import ProductTabs from '@/components/product/ProductTabs';
-import { toast } from "sonner"
-
-interface Product {
-  id: string;
-  title: string;
-  description?: string;
-  handle: string;
-  images: { url: string }[];
-  variants: { id: string; prices: { amount: number; currency_code: string }[] }[];
-  categories?: { handle: string; name: string }[];
-  collection?: { handle: string; title: string };
-  metadata?: {
-    [key: string]: any;
-    specifications?: { [key: string]: string };
-  };
-}
-
-const medusaClient = new Medusa({
-  baseUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000',
-  maxRetries: 3,
-  publishableApiKey: process.env.NEXT_PUBLIC_MEDUSA_API_KEY || '',
-});
-
-const Breadcrumbs = ({
-  manufacturerHandle,
-  manufacturerName,
-  categoryHandle,
-  categoryName,
-  productTitle,
-}: {
-  manufacturerHandle?: string;
-  manufacturerName?: string;
-  categoryHandle?: string;
-  categoryName?: string;
-  productTitle?: string;
-}) => (
-  <nav className="mb-6 text-sm" aria-label="Breadcrumb">
-    <ol className="flex flex-wrap items-center gap-2">
-      <li>
-        <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-          Главная
-        </Link>
-      </li>
-      <li className="text-muted-foreground">/</li>
-      <li>
-        <Link href="/catalog" className="text-muted-foreground hover:text-foreground transition-colors">
-          Каталог
-        </Link>
-      </li>
-      {manufacturerHandle && manufacturerName && (
-        <>
-          <li className="text-muted-foreground">/</li>
-          <li>
-            <Link
-              href={`/catalog/manufacturer/${manufacturerHandle}`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {manufacturerName}
-            </Link>
-          </li>
-        </>
-      )}
-      {categoryHandle && categoryName && (
-        <>
-          <li className="text-muted-foreground">/</li>
-          <li>
-            <Link
-              href={`/catalog/manufacturer/${manufacturerHandle}/category/${categoryHandle}`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {categoryName}
-            </Link>
-          </li>
-        </>
-      )}
-      {productTitle && (
-        <>
-          <li className="text-muted-foreground">/</li>
-          <li className="font-medium text-foreground truncate max-w-xs">{productTitle}</li>
-        </>
-      )}
-    </ol>
-  </nav>
-);
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { toast } from "sonner";
+import { useRegion } from '@/providers/region';
+import { fetchProductByHandle, Product } from '@/lib/medusaClient';
 
 export default function ProductPage() {
   const { productHandle } = useParams<{ productHandle: string }>();
@@ -103,28 +21,64 @@ export default function ProductPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const router = useRouter();
+  const { region } = useRegion();
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setIsLoading(true);
-        const response = await medusaClient.products.list({ handle: productHandle });
-        const products = response.products;
-        if (!products || products.length === 0) {
+        if (!productHandle) {
+          throw new Error('Handle продукта не указан');
+        }
+        const handle = productHandle;
+        const productData = await fetchProductByHandle(handle, region?.id);
+        if (!productData) {
           throw new Error('Продукт не найден');
         }
-        setProduct(products[0]);
-      } catch (err: any) {
-        setError(err.message || 'Ошибка при загрузке продукта');
+        console.log('Product data:', productData);
+        console.log('Product variants:', productData.variants);
+        console.log('First variant:', productData.variants?.[0]);
+        console.log('Variant prices:', productData.variants?.[0]?.prices);
+        setProduct(productData);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Ошибка при загрузке продукта';
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (productHandle) {
+    if (region) {
       fetchProduct();
     }
-  }, [productHandle]);
+  }, [productHandle, region]);
+
+  const formatPrice = (amount: number): string => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: region?.currency_code || 'RUB',
+    }).format(amount / 100);
+  };
+
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    return product.variants[0];
+  }, [product]);
+
+  const price = useMemo(() => {
+    if (!selectedVariant?.calculated_price) return null;
+    return formatPrice(selectedVariant.calculated_price.calculated_amount);
+  }, [selectedVariant]);
+
+  const isSale = useMemo(() => {
+    if (!selectedVariant?.calculated_price) return false;
+    return selectedVariant.calculated_price.calculated_price.price_list_type === 'sale';
+  }, [selectedVariant]);
+
+  const originalPrice = useMemo(() => {
+    if (!isSale || !selectedVariant?.calculated_price) return null;
+    return formatPrice(selectedVariant.calculated_price.original_amount);
+  }, [isSale, selectedVariant]);
 
   const addToCart = async (product: Product) => {
     try {
@@ -143,17 +97,15 @@ export default function ProductPage() {
           quantity: 1,
         });
         
-        // Показываем уведомление
         toast?.success(`${product.title} успешно добавлен в корзину`);
-        
-        // Подтверждаем в интерфейсе
         setAddedToCart(true);
-        setTimeout(() => setAddedToCart(false), 2000); // Вернем кнопку в исходное состояние через 2 секунды
+        setTimeout(() => setAddedToCart(false), 2000);
       } else {
         setError('Вариант продукта не найден');
       }
-    } catch (err: any) {
-      setError('Ошибка при добавлении в корзину');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при добавлении в корзину';
+      setError(errorMessage);
       toast?.error("Ошибка", {
         description: "Не удалось добавить товар в корзину",
       });
@@ -183,21 +135,34 @@ export default function ProductPage() {
     );
   }
 
-  const price = product.variants?.[0]?.prices?.[0];
-  const formattedPrice = price
-    ? `${(price.amount / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ${price.currency_code.toUpperCase()}`
-    : 'Цена недоступна';
+  // Формируем путь для хлебных крошек
+  const breadcrumbItems = [
+    { label: 'Каталог', href: '/catalog' }
+  ];
+
+  if (product.collection) {
+    breadcrumbItems.push({
+      label: product.collection.title,
+      href: `/catalog/manufacturer/${product.collection.handle}`
+    });
+  }
+
+  if (product.categories?.[0]) {
+    breadcrumbItems.push({
+      label: product.categories[0].name,
+      href: `/catalog/${product.categories[0].handle}`
+    });
+  }
+
+  breadcrumbItems.push({
+    label: product.title,
+    href: `/product/${product.handle}`
+  });
 
   return (
     <section className="py-8 lg:py-12 px-4 max-w-7xl mx-auto">
       <ProductSeo product={product} />
-      <Breadcrumbs
-        manufacturerHandle={product.collection?.handle}
-        manufacturerName={product.collection?.title}
-        categoryHandle={product.categories?.[0]?.handle}
-        categoryName={product.categories?.[0]?.name}
-        productTitle={product.title}
-      />
+      <Breadcrumbs items={breadcrumbItems} className="mb-8" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <div className="w-full">
@@ -217,21 +182,36 @@ export default function ProductPage() {
             <CardContent className="flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Артикул: {product.handle}</p>
-                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                       bg-green-100 text-green-800">
-                  В наличии
+                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                       ${selectedVariant?.inventory_quantity > 0 
+                         ? 'bg-green-100 text-green-800' 
+                         : 'bg-red-100 text-red-800'}`}>
+                  {selectedVariant?.inventory_quantity > 0 ? 'В наличии' : 'Нет в наличии'}
                 </div>
               </div>
               
               <div className="my-2">
-                <p className="text-3xl font-bold text-primary">{formattedPrice}</p>
+                {price ? (
+                  <div className="flex items-center gap-2">
+                    <p className="text-3xl font-bold text-primary">
+                      {price}
+                    </p>
+                    {isSale && originalPrice && (
+                      <p className="text-lg text-muted-foreground line-through">
+                        {originalPrice}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-lg text-muted-foreground">Цена недоступна</p>
+                )}
               </div>
               
               <div className="space-y-3">
                 <Button
                   onClick={() => addToCart(product)}
                   className="w-full py-6 text-lg font-medium flex items-center justify-center gap-2"
-                  disabled={isAddingToCart || addedToCart || !product.variants?.[0]?.id}
+                  disabled={isAddingToCart || addedToCart || !selectedVariant?.id}
                 >
                   {isAddingToCart ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
