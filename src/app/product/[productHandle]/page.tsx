@@ -10,8 +10,8 @@ import ProductSeo from '@/components/product/ProductSeo';
 import ProductTabs from '@/components/product/ProductTabs';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { toast } from "sonner";
-import { useRegion } from '@/providers/region';
-import { fetchProductByHandle, Product } from '@/lib/medusaClient';
+// import { useRegion } from '@/providers/region'; // Провайдер региона удален
+import { fetchProductByHandle, medusaClient, Product } from '@/lib/medusaClient';
 
 export default function ProductPage() {
   const { productHandle } = useParams<{ productHandle: string }>();
@@ -21,24 +21,26 @@ export default function ProductPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const router = useRouter();
-  const { region } = useRegion();
+  // const { region } = useRegion(); // Провайдер региона удален
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setIsLoading(true);
+        setError(null); // Очищаем предыдущие ошибки
         if (!productHandle) {
           throw new Error('Handle продукта не указан');
         }
         const handle = productHandle;
-        const productData = await fetchProductByHandle(handle, region?.id);
+        const productData = await fetchProductByHandle(handle); // Вызываем без regionId
         if (!productData) {
           throw new Error('Продукт не найден');
         }
-        console.log('Product data:', productData);
-        console.log('Product variants:', productData.variants);
-        console.log('First variant:', productData.variants?.[0]);
-        console.log('Variant prices:', productData.variants?.[0]?.prices);
+        // Логируем данные только если они успешно получены
+        console.log('Product data:', productData); 
+        console.log('Product variants:', productData?.variants);
+        console.log('First variant:', productData?.variants?.[0]);
+        console.log('Variant prices:', productData?.variants?.[0]?.prices);
         setProduct(productData);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Ошибка при загрузке продукта';
@@ -48,51 +50,66 @@ export default function ProductPage() {
       }
     };
 
-    if (region) {
-      fetchProduct();
-    }
-  }, [productHandle, region]);
-
-  const formatPrice = (amount: number): string => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: region?.currency_code || 'RUB',
-    }).format(amount / 100);
-  };
+    // Условие if (region) удалено, т.к. region больше не используется для этого запроса
+    fetchProduct();
+  }, [productHandle]);
 
   const selectedVariant = useMemo(() => {
     if (!product?.variants?.length) return null;
     return product.variants[0];
   }, [product]);
 
+  const formatPrice = (amount: number, currencyCode?: string): string => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: currencyCode || // 1. Явно переданный код
+                selectedVariant?.calculated_price?.currency_code || // 2. Код из calculated_price
+                selectedVariant?.prices?.[0]?.currency_code ||    // 3. Код из первого элемента массива prices
+                'KZT', // 4. Валюта по умолчанию
+    }).format(amount / 100);
+  };
+
   const price = useMemo(() => {
-    if (!selectedVariant?.calculated_price) return null;
-    return formatPrice(selectedVariant.calculated_price.calculated_amount);
-  }, [selectedVariant]);
+    if (!selectedVariant?.calculated_price?.calculated_amount) return null;
+    return formatPrice(
+      selectedVariant.calculated_price.calculated_amount, 
+      selectedVariant.calculated_price.currency_code // Приоритет валюты из calculated_price
+    );
+  }, [selectedVariant, formatPrice]);
 
   const isSale = useMemo(() => {
     if (!selectedVariant?.calculated_price) return false;
-    return selectedVariant.calculated_price.calculated_price.price_list_type === 'sale';
+    // Используем calculated_price_type для определения скидки
+    return selectedVariant.calculated_price.calculated_price_type === 'sale';
   }, [selectedVariant]);
 
   const originalPrice = useMemo(() => {
     if (!isSale || !selectedVariant?.calculated_price) return null;
-    return formatPrice(selectedVariant.calculated_price.original_amount);
-  }, [isSale, selectedVariant]);
+    return formatPrice(selectedVariant.calculated_price.original_amount, selectedVariant.calculated_price.currency_code);
+  }, [isSale, selectedVariant, formatPrice]);
 
   const addToCart = async (product: Product) => {
     try {
       setIsAddingToCart(true);
-      let cartId = localStorage.getItem('cartId');
-      if (!cartId) {
+      let currentCartId = localStorage.getItem('cartId');
+      if (!currentCartId) {
         const { cart } = await medusaClient.carts.create();
-        cartId = cart.id;
-        localStorage.setItem('cartId', cart.id);
+        // Убедимся, что cart.id является строкой перед использованием
+        if (typeof cart.id === 'string') {
+          currentCartId = cart.id;
+          localStorage.setItem('cartId', cart.id);
+        } else {
+          throw new Error('Не удалось создать корзину: ID не является строкой.');
+        }
+      }
+
+      if (!currentCartId) { // Дополнительная проверка, если cartId все еще null
+        throw new Error('Не удалось получить или создать ID корзины.');
       }
 
       const variantId = product.variants?.[0]?.id;
       if (variantId) {
-        await medusaClient.carts.lineItems.create(cartId, {
+        await medusaClient.carts.lineItems.create(currentCartId, {
           variant_id: variantId,
           quantity: 1,
         });
@@ -161,7 +178,11 @@ export default function ProductPage() {
 
   return (
     <section className="py-8 lg:py-12 px-4 max-w-7xl mx-auto">
-      <ProductSeo product={product} />
+      {/* Преобразуем product.description: string | null в string | undefined для ProductSeo */}
+      <ProductSeo product={{
+        ...product,
+        description: product.description ?? undefined
+      }} />
       <Breadcrumbs items={breadcrumbItems} className="mb-8" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -182,11 +203,12 @@ export default function ProductPage() {
             <CardContent className="flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Артикул: {product.handle}</p>
-                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                       ${selectedVariant?.inventory_quantity > 0 
-                         ? 'bg-green-100 text-green-800' 
-                         : 'bg-red-100 text-red-800'}`}>
-                  {selectedVariant?.inventory_quantity > 0 ? 'В наличии' : 'Нет в наличии'}
+                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                       ${(selectedVariant?.inventory_quantity ?? 0) > 0
+                         ? 'bg-green-100 text-green-800'
+                         : 'bg-red-100 text-red-800'}`}
+                >
+                  {selectedVariant && (selectedVariant.inventory_quantity ?? 0) > 0 ? 'В наличии' : 'Нет в наличии'}
                 </div>
               </div>
               
@@ -211,7 +233,7 @@ export default function ProductPage() {
                 <Button
                   onClick={() => addToCart(product)}
                   className="w-full py-6 text-lg font-medium flex items-center justify-center gap-2"
-                  disabled={isAddingToCart || addedToCart || !selectedVariant?.id}
+                  disabled={isAddingToCart || addedToCart || !selectedVariant?.id || (selectedVariant?.inventory_quantity ?? 0) <= 0}
                 >
                   {isAddingToCart ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -249,21 +271,24 @@ export default function ProductPage() {
             </CardContent>
           </Card>
           
-          {product.metadata?.specifications && Object.keys(product.metadata.specifications).length > 0 && (
+          {product.metadata?.specifications && 
+           typeof product.metadata.specifications === 'object' && 
+           !Array.isArray(product.metadata.specifications) && // Убедимся, что это не массив
+           Object.keys(product.metadata.specifications).length > 0 && (
             <Card className="border shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Основные характеристики</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
-                  {Object.entries(product.metadata.specifications)
-                    .slice(0, 5)
-                    .map(([key, value]) => (
-                      <li key={key} className="flex justify-between pb-2 border-b border-dashed">
-                        <span className="text-muted-foreground">{key}</span>
-                        <span className="font-medium">{value}</span>
-                      </li>
-                    ))}
+                  {Object.entries(product.metadata.specifications as Record<string, unknown>) // Приводим тип для Object.entries
+                      .slice(0, 5)
+                      .map(([key, value]) => (
+                        <li key={key} className="flex justify-between pb-2 border-b border-dashed">
+                          <span className="text-muted-foreground text-sm">{String(key)}</span>
+                          <span className="font-medium text-sm">{String(value)}</span>
+                        </li>
+                      ))}
                 </ul>
               </CardContent>
             </Card>
@@ -271,7 +296,12 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <ProductTabs product={product} />
+      {/* Преобразуем product.description: string | null в string | undefined для ProductTabs */}
+      <ProductTabs product={{
+        ...product,
+        description: product.description ?? undefined,
+        metadata: product.metadata ?? undefined,
+      }} />
     </section>
   );
 }

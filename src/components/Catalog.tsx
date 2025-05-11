@@ -11,14 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchCategories, Product, ProductCategory } from '@/lib/medusaClient';
-import { Package, Search } from 'lucide-react';
+import { Package, Search, ImageOff } from 'lucide-react';
+// import { useRegion } from '@/providers/region'; // Провайдер региона удален
 
 interface CatalogProps {
   initialProducts?: Product[];
   initialCategories?: ProductCategory[];
   parentCategoryId?: string | null;
 }
-
 export function Catalog({ initialProducts = [], initialCategories = [], parentCategoryId = null }: CatalogProps) {
   const [categories, setCategories] = useState<ProductCategory[]>(initialCategories);
   const [products] = useState<Product[]>(initialProducts);
@@ -26,6 +26,7 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  // const { region } = useRegion(); // Провайдер региона удален
 
   // Клиентский запрос выполняется только для главной страницы каталога
   const shouldFetchCategories = initialCategories.length === 0 && parentCategoryId === null;
@@ -53,15 +54,27 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
     .sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.title.localeCompare(b.title);
+          return a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' });
         case 'price-asc':
-          return (a.variants[0]?.prices[0]?.amount || 0) - (b.variants[0]?.prices[0]?.amount || 0);
+          // Используем calculated_amount для сортировки, если доступно, иначе первый price
+          const priceA = a.variants?.[0]?.calculated_price?.calculated_amount ?? a.variants?.[0]?.prices?.[0]?.amount ?? 0;
+          const priceB = b.variants?.[0]?.calculated_price?.calculated_amount ?? b.variants?.[0]?.prices?.[0]?.amount ?? 0;
+          return priceA - priceB;
         case 'price-desc':
-          return (b.variants[0]?.prices[0]?.amount || 0) - (a.variants[0]?.prices[0]?.amount || 0);
+          const priceADesc = a.variants?.[0]?.calculated_price?.calculated_amount ?? a.variants?.[0]?.prices?.[0]?.amount ?? 0;
+          const priceBDesc = b.variants?.[0]?.calculated_price?.calculated_amount ?? b.variants?.[0]?.prices?.[0]?.amount ?? 0;
+          return priceBDesc - priceADesc;
         default:
           return 0;
       }
     });
+
+  const formatPrice = (amount: number, currencyCode?: string): string => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: currencyCode || 'KZT', // Используем KZT как валюту по умолчанию
+    }).format(amount / 100);
+  };
 
   if (loading) return <p className="text-center text-muted-foreground py-16">Загрузка...</p>;
   if (error) return <p className="text-center text-destructive py-16">{error}</p>;
@@ -107,14 +120,24 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
                     <CardTitle className="text-xl text-foreground">{category.name}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="relative w-full h-48 mb-4 bg-muted rounded-lg overflow-hidden">
-                      <Image
-                        src={(category.metadata?.thumbnail as string) || '/images/placeholder-category.svg'}
-                        alt={category.name}
-                        fill
-                        className="object-cover"
-                      />
+                    {/* Для категорий изображение обычно хранится в metadata */}
+                    {/* Убедитесь, что URL изображения для категории добавляется в Medusa Admin в поле metadata.thumbnail (или другое выбранное вами поле) */}
+                    <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-lg overflow-hidden group">
+                      {(category.metadata?.thumbnail || category.metadata?.image_url) ? (
+                        <Image
+                          src={(category.metadata.thumbnail as string) || (category.metadata.image_url as string)}
+                          alt={category.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                          <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
+                        </div>
+                      )}
                     </div>
+
                     <p className="text-muted-foreground">{category.description || 'Описание категории отсутствует.'}</p>
                   </CardContent>
                   <CardFooter>
@@ -162,8 +185,10 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
             <AnimatePresence>
               {filteredProducts.map((product) => {
                 const variant = product.variants?.[0];
-                const price = variant?.prices?.[0]?.amount;
-                const inStock = variant?.inventory_quantity > 0;
+                // Используем calculated_price если доступно, иначе обычную цену
+                const displayPriceAmount = variant?.calculated_price?.calculated_amount ?? variant?.prices?.[0]?.amount;
+                const currencyCode = variant?.prices?.[0]?.currency_code;
+                const inStock = variant ? variant.inventory_quantity > 0 : false;
                 
                 return (
                   <motion.div
@@ -176,29 +201,38 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
                   >
                     <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                       <CardHeader>
-                        <div className="relative w-full h-48 mb-4 bg-muted rounded-lg overflow-hidden">
-                          <Image
-                            src={(product.metadata?.thumbnail as string) || '/images/placeholder-product.svg'}
-                            alt={product.title}
-                            fill
-                            className="object-cover"
-                          />
+                        <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-lg overflow-hidden group">
+                          {product.thumbnail || product.images?.[0]?.url ? (
+                            <Image
+                              src={product.thumbnail || product.images[0].url}
+                              alt={product.title}
+                              fill
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                              <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
+                            </div>
+                          )}
                           {!inStock && (
                             <Badge variant="destructive" className="absolute top-2 right-2">
                               Нет в наличии
                             </Badge>
                           )}
                         </div>
-                        <CardTitle className="text-xl text-foreground">{product.title}</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-foreground line-clamp-2">{product.title}</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground line-clamp-2">
+                      <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground line-clamp-3">
                           {product.description || 'Описание товара отсутствует.'}
                         </p>
-                        {price !== undefined && (
-                          <p className="text-lg font-semibold mt-2">
-                            {price / 100} ₽
+                        {displayPriceAmount !== undefined && displayPriceAmount !== null ? (
+                          <p className="text-lg font-bold text-primary mt-2">
+                            {formatPrice(displayPriceAmount, currencyCode)}
                           </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mt-2">Цена по запросу</p>
                         )}
                       </CardContent>
                       <CardFooter>

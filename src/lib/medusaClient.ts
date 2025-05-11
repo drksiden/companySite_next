@@ -16,6 +16,7 @@ export interface Product {
   title: string;
   description: string | null;
   handle: string;
+  thumbnail: string | null; // Добавляем это поле
   metadata: Record<string, unknown> | null;
   images: Array<{ url: string }>;
   variants: Array<{
@@ -25,12 +26,11 @@ export interface Product {
       amount: number;
       currency_code: string;
     }>;
-    calculated_price: {
+    calculated_price: { // Структура обновлена для лучшего соответствия Medusa
       calculated_amount: number;
       original_amount: number;
-      calculated_price: {
-        price_list_type: string | null;
-      };
+      currency_code?: string; // Валюта, в которой цена рассчитана
+      calculated_price_type?: "default" | "sale" | null; // Тип рассчитанной цены
     };
   }>;
   categories?: Array<{ handle: string; name: string }>;
@@ -111,8 +111,15 @@ export const fetchProductByHandle = async (handle: string, regionId?: string): P
   try {
     const response = await medusaClient.products.list({ 
       handle,
-      expand: ['variants', 'variants.prices', 'variants.calculated_price'],
-      region_id: regionId
+      expand: [
+        'variants',
+        'variants.prices',
+        'variants.calculated_price',
+        'images', // Уже были
+        'collection', // Добавить
+        'categories'  // Добавить
+      ],
+      // region_id: regionId
     });
     return response.products.length > 0 ? response.products[0] : null;
   } catch (error) {
