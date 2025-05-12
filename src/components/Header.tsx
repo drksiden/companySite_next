@@ -43,7 +43,7 @@ import {
   X
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-import Medusa from '@medusajs/medusa-js';
+// import Medusa from '@medusajs/medusa-js';
 
 // Будем использовать для интеграции с Medusa.js
 // import { useCart } from 'medusa-react';
@@ -108,7 +108,7 @@ const badgeVariants = {
   animate: { scale: 1, transition: { type: 'spring', stiffness: 400, damping: 17 } },
 };
 
-const medusa = new Medusa({ baseUrl: process.env.MEDUSA_BACKEND_URL || "http://localhost:9000", maxRetries: 3, publishableApiKey: process.env.NEXT_PUBLIC_MEDUSA_API_KEY || '' });
+// const medusa = new Medusa({ baseUrl: process.env.MEDUSA_BACKEND_URL || "http://localhost:9000", maxRetries: 3, publishableApiKey: process.env.NEXT_PUBLIC_MEDUSA_API_KEY || '' });
 
 // Для типизации пропсов NavItem
 interface NavItemProps {

@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCategories, Product, ProductCategory } from '@/lib/medusaClient';
+// import { fetchCategories, Product, ProductCategory } from '@/lib/medusaClient'; Тут старая или же кастомная логика, нужна по документации, можно начать с категорий, потом я скину страницы по документации medusa других компонентов
 import { Package, Search, ImageOff } from 'lucide-react';
 // import { useRegion } from '@/providers/region'; // Провайдер региона удален
 
