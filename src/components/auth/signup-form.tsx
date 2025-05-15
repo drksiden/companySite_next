@@ -1,142 +1,166 @@
 'use client';
 
 import { useForm } from "react-hook-form";
-import { signUpSchema } from "@/lib/schemas";
-import { z } from "zod";
-import axios from "axios";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { signUpSchema, type SignUpFormData } from "@/lib/schemas"; // Убедитесь, что путь правильный
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import type { SignInResponse } from "next-auth/react";
-
-type SignUpFormData = z.infer<typeof signUpSchema>;
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, AlertTriangle, CheckCircle2, Eye, EyeOff } from "lucide-react"; // Добавил Eye и EyeOff
 
 export function SignUpForm() {
-  const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormData>({
-    // resolver: zodResolver(signUpSchema), // включите если нужен zod
+  const router = useRouter();
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiSuccess, setApiSuccess] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
   });
 
   const onSubmit = async (data: SignUpFormData) => {
-    setError(null);
+    setApiError(null);
+    setApiSuccess(null);
     try {
-      // 1. Получаем registration JWT
-      const regRes = await axios.post(
-        `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000'}/auth/customer/emailpass/register`,
-        {
+      const response = await fetch('/api/auth/register', { // Ваш API маршрут
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ // Отправляем данные как есть, API разберется
+          firstName: data.firstName,
+          lastName: data.lastName,
           email: data.email,
           password: data.password,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(process.env.NEXT_PUBLIC_MEDUSA_API_KEY
-              ? { 'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_API_KEY }
-              : {}),
-          },
-        }
-      );
-      const registrationToken = regRes.data.token;
-
-      // 2. Создаём покупателя с этим токеном
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000'}/store/customers`,
-        {
-          email: data.email,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          ...(data.company ? { company: data.company } : {}),
-          ...(data.phone ? { phone: data.phone } : {}),
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${registrationToken}`,
-            ...(process.env.NEXT_PUBLIC_MEDUSA_API_KEY
-              ? { 'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_API_KEY }
-              : {}),
-          },
-        }
-      );
-
-      // 3. (Опционально) Выполняем вход
-      const result: SignInResponse | undefined = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
+          confirmPassword: data.confirmPassword, // Zod уже проверил, но API может тоже захотеть
+        }),
       });
 
-      if (result?.error) {
-        setError("Регистрация прошла успешно, но не удалось выполнить вход. Пожалуйста, войдите вручную.");
-      } else {
-        window.location.href = "/";
-      }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const responseData = err.response?.data;
-        const status = err.response?.status;
+      const result = await response.json();
 
-        if (status === 401) {
-          setError("Ошибка авторизации (401). Проверьте настройки API и права доступа.");
-        } else if (status === 422 || status === 400) {
-          setError(`Ошибка валидации: ${responseData?.message || JSON.stringify(responseData?.errors || {})}`);
-        } else if (responseData?.message) {
-          setError(responseData.message);
-        } else {
-          setError(`Ошибка регистрации: ${err.message}`);
+      if (!response.ok) {
+        setApiError(result.message || 'Ошибка регистрации. Пожалуйста, попробуйте еще раз.');
+        if (result.errors) { // Для ошибок валидации Zod с сервера (если API их возвращает)
+          console.error("Validation errors from API:", result.errors);
+          // Здесь можно добавить логику для установки ошибок в useForm, если API возвращает их в формате fieldErrors
         }
       } else {
-        setError("Неизвестная ошибка при регистрации. Проверьте консоль для деталей.");
+        setApiSuccess(result.message || 'Регистрация прошла успешно! Вы будете перенаправлены на страницу входа.');
+        reset(); // Очищаем форму
+        setTimeout(() => {
+          router.push("/auth/signin"); // Перенаправление на страницу входа
+        }, 2500); // Небольшая задержка, чтобы пользователь успел прочитать сообщение
       }
+    } catch (err) {
+      console.error("Sign up fetch error:", err);
+      setApiError("Не удалось связаться с сервером. Пожалуйста, проверьте соединение или попробуйте еще раз.");
     }
   };
 
+  const togglePasswordVisibility = (field: 'password' | 'confirmPassword') => {
+    if (field === 'password') setShowPassword(!showPassword);
+    if (field === 'confirmPassword') setShowConfirmPassword(!showConfirmPassword);
+  };
+
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Регистрация</CardTitle>
+    <Card className="w-full max-w-lg shadow-xl bg-slate-800/30 backdrop-blur-md border-slate-700">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight text-white">
+          Создать аккаунт
+        </CardTitle>
+        <CardDescription className="text-slate-400">
+          Заполните форму для регистрации нового пользователя.
+        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="firstName">Имя</Label>
-            <Input id="firstName" {...register("firstName")} />
-            {errors.firstName && <p className="text-red-500 text-sm">{errors.firstName.message}</p>}
+      <CardContent className="space-y-6">
+        <AnimatePresence>
+          {apiError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-md flex items-center space-x-2"
+            >
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">{apiError}</p>
+            </motion.div>
+          )}
+          {apiSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-md flex items-center space-x-2"
+            >
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">{apiSuccess}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName" className="text-slate-300">Имя</Label>
+              <Input id="firstName" placeholder="Иван" {...register("firstName")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
+              {errors.firstName && <p className="text-red-400 text-xs pt-1">{errors.firstName.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-slate-300">Фамилия</Label>
+              <Input id="lastName" placeholder="Иванов" {...register("lastName")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
+              {errors.lastName && <p className="text-red-400 text-xs pt-1">{errors.lastName.message}</p>}
+            </div>
           </div>
-          <div>
-            <Label htmlFor="lastName">Фамилия</Label>
-            <Input id="lastName" {...register("lastName")} />
-            {errors.lastName && <p className="text-red-500 text-sm">{errors.lastName.message}</p>}
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-slate-300">Email</Label>
+            <Input id="email" type="email" placeholder="you@example.com" {...register("email")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
+            {errors.email && <p className="text-red-400 text-xs pt-1">{errors.email.message}</p>}
           </div>
-          <div>
-            <Label htmlFor="company">Компания (необязательно)</Label>
-            <Input id="company" {...register("company")} />
-            {errors.company && <p className="text-red-500 text-sm">{errors.company.message}</p>}
+
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-slate-300">Пароль</Label>
+            <div className="relative">
+              <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" {...register("password")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
+              <button type="button" onClick={() => togglePasswordVisibility('password')} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200" aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}>
+                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-red-400 text-xs pt-1">{errors.password.message}</p>}
           </div>
-          <div>
-            <Label htmlFor="phone">Телефон (необязательно)</Label>
-            <Input id="phone" {...register("phone")} />
-            {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="text-slate-300">Подтвердите пароль</Label>
+             <div className="relative">
+              <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...register("confirmPassword")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
+              <button type="button" onClick={() => togglePasswordVisibility('confirmPassword')} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200" aria-label={showConfirmPassword ? "Скрыть пароль" : "Показать пароль"}>
+                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className="text-red-400 text-xs pt-1">{errors.confirmPassword.message}</p>}
           </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...register("email")} />
-            {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="password">Пароль</Label>
-            <Input id="password" type="password" {...register("password")} />
-            {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
-          </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Регистрация..." : "Зарегистрироваться"}
+
+          <Button type="submit" disabled={isSubmitting || !!apiSuccess} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 transition-all duration-300 ease-in-out transform hover:scale-105 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 disabled:opacity-70">
+            {isSubmitting ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Регистрация...</>
+            ) : apiSuccess ? (
+              <><CheckCircle2 className="mr-2 h-4 w-4" /> Успешно!</>
+            ) : (
+              "Создать аккаунт"
+            )}
           </Button>
         </form>
       </CardContent>
+      <CardFooter>
+        <p className="w-full text-center text-sm text-slate-400">
+          Уже есть аккаунт?{' '}
+          <a href="/auth/signin" className="underline underline-offset-4 hover:text-indigo-400 font-medium">
+            Войти
+          </a>
+        </p>
+      </CardFooter>
     </Card>
   );
 }

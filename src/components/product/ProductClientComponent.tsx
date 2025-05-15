@@ -1,10 +1,8 @@
-// components/product/ProductClientComponent.tsx
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-// ... (остальные импорты UI)
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Loader2, ShoppingCart, Check } from 'lucide-react';
@@ -19,13 +17,11 @@ import { HttpTypes } from '@medusajs/types';
 
 // Типы
 type ProductImageType = { id?: string; url: string; metadata?: Record<string, unknown> | null; };
-type MoneyAmountType = HttpTypes.MoneyAmountDTO; // Или HttpTypes.MoneyAmount, проверьте ваш SDK
-type CalculatedPriceSetType = HttpTypes.CalculatedPriceSet;
+type CalculatedPriceSetType = HttpTypes.StoreCalculatedPrice;
 
 type ProductVariantType = HttpTypes.StoreProductVariant & {
   calculated_price?: CalculatedPriceSetType | null;
-  // original_price само по себе не поле варианта, а часть calculated_price
-  prices?: MoneyAmountType[] | null; // Массив "сырых" цен
+  // prices поле больше не ожидается, т.к. page.tsx его не передает
 };
 
 type ProductType = HttpTypes.StoreProduct & {
@@ -48,7 +44,7 @@ const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): stri
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: currencyCode.toUpperCase(),
-  }).format(amount / 100);
+  }).format(amount);
 };
 
 export default function ProductClientComponent({ product, breadcrumbItems }: ProductClientComponentProps) {
@@ -77,23 +73,12 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
     console.log("Selected Variant for Price Calc:", JSON.stringify(selectedVariant, null, 2));
 
     if (selectedVariant.calculated_price) {
-      console.log("Using calculated_price:", selectedVariant.calculated_price);
       displayAmount = selectedVariant.calculated_price.calculated_amount;
-      originalAmount = selectedVariant.calculated_price.original_amount; // Это поле в CalculatedPriceSet
+      originalAmount = selectedVariant.calculated_price.original_amount;
       currency = selectedVariant.calculated_price.currency_code || currency;
       sale = originalAmount != null && displayAmount != null && originalAmount > displayAmount;
-    } else {
-      console.warn("calculated_price is missing for variant:", selectedVariant.id);
-      // Fallback на массив prices, если он есть и содержит данные (маловероятно без expand)
-      // Убедитесь, что тип ProductVariantType включает prices?, если вы используете этот fallback
-      if (selectedVariant.prices && selectedVariant.prices.length > 0) {
-        console.warn("Falling back to variant.prices array.");
-        displayAmount = selectedVariant.prices[0].amount;
-        currency = selectedVariant.prices[0].currency_code || currency;
-         // Не можем определить sale или original_amount из этого массива напрямую
-      } else {
-        console.warn("No prices array available for fallback on variant:", selectedVariant.id);
-      }
+    }  else {
+      
     }
     
     console.log("Price Info Calculated:", { displayAmount, originalAmount, currency, sale });
@@ -106,7 +91,7 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
     };
   }, [selectedVariant]);
 
-  // ... (addToCart и остальной JSX остается таким же, как в предыдущем ответе)
+
   const addToCart = async () => {
     if (!selectedVariant?.id) {
       toast.error("Вариант товара не выбран.");
@@ -125,7 +110,7 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
         }
       }
 
-      await sdk.store.cart.lineItems.create(cartId, { // ИСПРАВЛЕНО
+      await sdk.store.cart.create(cartId, { 
         variant_id: selectedVariant.id,
         quantity: 1,
       });
@@ -220,29 +205,6 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
               )}
             </CardContent>
           </Card>
-          
-          {product.metadata?.specifications && 
-           typeof product.metadata.specifications === 'object' && 
-           !Array.isArray(product.metadata.specifications) &&
-           Object.keys(product.metadata.specifications).length > 0 && (
-            <Card className="border shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Основные характеристики</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {Object.entries(product.metadata.specifications as Record<string, string | number | boolean>)
-                      .slice(0, 7)
-                      .map(([key, value]) => (
-                        <li key={key} className="flex justify-between items-center pb-2 border-b border-dashed last:border-b-0">
-                          <span className="text-muted-foreground text-sm capitalize">{String(key).replace(/_/g, ' ')}:</span>
-                          <span className="font-medium text-sm text-right">{String(value)}</span>
-                        </li>
-                      ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -250,7 +212,6 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
         ...product,
         description: product.description ?? undefined,
         metadata: product.metadata ?? undefined,
-        images: product.images?.map(img => ({ url: img.url })) || [],
       }} />
     </section>
   );

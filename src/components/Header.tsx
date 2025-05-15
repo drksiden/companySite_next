@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -130,7 +130,6 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const { data: session, status } = useSession();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -138,65 +137,78 @@ export function Header() {
   const [cartData, setCartData] = useState<CartData>({ items: [], totalItems: 0 });
   const [cartLoading, setCartLoading] = useState(true);
 
-  // Загрузка данных корзины
-  useEffect(() => {
-    const fetchCart = async () => {
-      setCartLoading(true);
-      try {
-        let cartId = typeof window !== "undefined" ? localStorage.getItem("cart_id") : null;
-        let cart;
 
-        if (cartId) {
-          cart = await medusa.carts.retrieve(cartId);
-        } else {
-          const { cart: newCart } = await medusa.carts.create();
-          cart = { cart: newCart };
-          if (typeof window !== "undefined") {
-            localStorage.setItem("cart_id", newCart.id);
-          }
-        }
-
-        const items = cart.cart.items || [];
-        const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-
-        setCartData({ items, totalItems });
-      } catch (error) {
-        console.error("Failed to fetch cart:", error);
-        setCartData({ items: [], totalItems: 0 });
-      }
-      setCartLoading(false);
-    };
-
-    fetchCart();
-  }, []);
-
-  // Загрузка данных пользователя
-  useEffect(() => {
-    const fetchCustomer = async () => {
-      if (session?.user?.id) {
-        try {
-          const { customer } = await medusa.customers.retrieve();
-          setCustomer({
-            id: customer.id,
-            email: customer.email,
-            first_name: customer.first_name,
-            last_name: customer.last_name,
-            avatar: customer.metadata?.avatar, // Если у вас есть поле для аватара в Medusa
-          });
-        } catch (error) {
-          console.error("Failed to fetch customer data:", error);
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchCustomer();
-  }, [session]);
+  const { data: session, status } = useSession(); // Получаем сессию и статус
+  const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut({ redirect: true, callbackUrl: "/" });
+    await signOut({ redirect: false, callbackUrl: "/" }); // Выходим, редирект обрабатываем сами или указываем callbackUrl
+    router.push("/"); // Принудительный редирект, если callbackUrl не сработал как ожидалось или для немедленного обновления
   };
 
+  const isLoading = status === "loading";
+
+  // Получаем данные пользователя из сессии NextAuth
+  // Тип session.user должен быть расширен через module augmentation (types/next-auth.d.ts)
+  // чтобы TypeScript знал о medusaCustomerId и других ваших полях.
+  const user = session?.user; 
+  // Предположим, что имя и фамилия хранятся в session.user.name, а email в session.user.email
+  // Если вы передавали first_name и last_name отдельно в токен/сессию, используйте их.
+
+  const userFullName = user?.name; // NextAuth обычно хранит полное имя в user.name
+  const userEmail = user?.email;
+  // Для аватара, если вы не храните URL аватара в сессии NextAuth,
+  // вам может понадобиться отдельный запрос к Medusa для получения этих данных,
+  // либо вы можете их добавить в объект user при авторизации в [...nextauth]/route.ts.
+  // Для простоты, предположим, что user.image стандартное поле NextAuth для аватара.
+  // Если от Medusa приходит avatar_url, вы могли бы его так же поместить в user.image или user.avatarUrl.
+  const avatarUrl = user?.image; // Стандартное поле NextAuth для изображения пользователя
+
+  const getInitials = (name?: string | null, email?: string | null) => {
+    if (name) {
+      const parts = name.split(" ");
+      if (parts.length > 1) {
+        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      }
+      return name[0].toUpperCase();
+    }
+    if (email) {
+      return email[0].toUpperCase();
+    }
+    return "U"; // Пользователь
+  };
+
+  // Загрузка данных корзины
+  // useEffect(() => {
+  //   const fetchCart = async () => {
+  //     setCartLoading(true);
+  //     try {
+  //       let cartId = typeof window !== "undefined" ? localStorage.getItem("cart_id") : null;
+  //       let cart;
+
+  //       if (cartId) {
+  //         cart = await medusa.carts.retrieve(cartId);
+  //       } else {
+  //         const { cart: newCart } = await medusa.carts.create();
+  //         cart = { cart: newCart };
+  //         if (typeof window !== "undefined") {
+  //           localStorage.setItem("cart_id", newCart.id);
+  //         }
+  //       }
+
+  //       const items = cart.cart.items || [];
+  //       const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  //       setCartData({ items, totalItems });
+  //     } catch (error) {
+  //       console.error("Failed to fetch cart:", error);
+  //       setCartData({ items: [], totalItems: 0 });
+  //     }
+  //     setCartLoading(false);
+  //   };
+
+  //   fetchCart();
+  // }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -382,7 +394,7 @@ export function Header() {
 
           {/* Поисковая строка - только на больших экранах */}
           <div className="hidden md:flex items-center ml-6 mr-auto">
-            <AnimatePresence mode="wait">
+            {/* <AnimatePresence mode="wait">
               {isSearchOpen ? (
                 <motion.form
                   initial={{ width: 0, opacity: 0 }}
@@ -419,7 +431,7 @@ export function Header() {
                   <Search className="h-5 w-5" />
                 </motion.button>
               )}
-            </AnimatePresence>
+            </AnimatePresence> */}
           </div>
           
           {/* Навигация для Desktop */}
@@ -432,30 +444,17 @@ export function Header() {
           {/* Кнопки действий */}
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Поиск для мобильных */}
-            <Button
+            {/* <Button
               variant="ghost"
               size="icon"
               className="lg:hidden text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
               onClick={() => setIsSearchOpen(true)}
             >
               <Search className="h-5 w-5" />
-            </Button>
-
-            {/* Избранное */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-              asChild
-            >
-              <Link href="/wishlist">
-                <Heart className="h-5 w-5" />
-                <span className="sr-only">Избранное</span>
-              </Link>
-            </Button>
+            </Button> */}
 
             {/* Корзина */}
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
@@ -535,7 +534,7 @@ export function Header() {
                   </div>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
 
             {/* Пользователь */}
             <DropdownMenu>
@@ -545,7 +544,7 @@ export function Header() {
                   size="icon"
                   className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
                 >
-                  {loading || status === "loading" ? (
+                  {isLoading ? (
                     <Skeleton className="h-5 w-5 rounded-full" />
                   ) : (
                     <User className="h-5 w-5" />
@@ -554,21 +553,25 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                {session && customer ? (
+                {status === "authenticated" && user ? ( // Проверяем статус authenticated и наличие user
                   <>
                     <DropdownMenuLabel className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={customer.avatar} alt={customer.first_name || customer.email} />
+                        {/* Если у вас есть avatarUrl в session.user (например, user.image или user.avatarUrl), используйте его.
+                          Иначе, используйте инициалы.
+                        */}
+                        {avatarUrl && <AvatarImage src={avatarUrl} alt={userFullName || userEmail || "User"} />}
                         <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {customer.first_name?.[0] || customer.email[0].toUpperCase()}
+                          {getInitials(userFullName, userEmail)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="overflow-hidden">
                         <p className="text-sm font-medium truncate">
-                          {customer.first_name ? `${customer.first_name} ${customer.last_name || ""}` : customer.email}
+                          {userFullName || userEmail}
                         </p>
-                        {customer.first_name && (
-                          <p className="text-xs text-muted-foreground truncate">{customer.email}</p>
+                        {/* Если userFullName существует и отличается от email, показываем email ниже */}
+                        {userFullName && userEmail && userFullName !== userEmail && (
+                          <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
                         )}
                       </div>
                     </DropdownMenuLabel>
@@ -585,21 +588,21 @@ export function Header() {
                         <span>Мои заказы</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
+                    {/* <DropdownMenuItem asChild>
                       <Link href="/wishlist" className="flex items-center">
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Избранное</span>
                       </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
+                    </DropdownMenuItem> */}
+                    {/* <DropdownMenuItem asChild>
                       <Link href="/account/settings" className="flex items-center">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Настройки</span>
                       </Link>
-                    </DropdownMenuItem>
+                    </DropdownMenuItem> */}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="flex items-center text-destructive focus:text-destructive"
+                      className="flex items-center text-destructive focus:text-destructive cursor-pointer" // Добавил cursor-pointer
                       onClick={handleSignOut}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -612,11 +615,11 @@ export function Header() {
                       <p className="text-sm text-muted-foreground mb-3">
                         Войдите, чтобы получить доступ к своему аккаунту
                       </p>
-                      <Button asChild variant="primary" size="sm" className="w-full mb-2">
-                        <Link href="/auth/signin">Войти</Link>
+                      <Button asChild variant="default" size="sm" className="w-full mb-2">
+                        <Link href="auth/signin">Войти</Link>
                       </Button>
                       <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href="/auth/signup">Регистрация</Link>
+                        <Link href="auth/signup">Регистрация</Link>
                       </Button>
                     </div>
                   </>
@@ -722,48 +725,6 @@ export function Header() {
           </div>
         </div>
       </div>
-      
-      {/* Полноэкранный поиск для мобильных */}
-      <AnimatePresence>
-        {isSearchOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm p-4 lg:hidden"
-          >
-            <div className="container mx-auto flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">Поиск</h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsSearchOpen(false)}
-                  className="text-foreground hover:bg-accent/30"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-              <form onSubmit={handleSearchSubmit}>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Поиск товаров..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    autoFocus
-                  />
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                </div>
-                <Button type="submit" variant="primary" className="mt-3 w-full">
-                  Найти
-                </Button>
-              </form>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.header>
   );
 }

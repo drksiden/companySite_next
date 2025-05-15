@@ -283,7 +283,7 @@ export default function ProductGallery({ images, title }: ProductGalleryProps) {
                           fill
                           sizes="100px"
                           style={{ 
-                            objectFit: 'contain'
+                            objectFit: 'cover' // Изменено на 'cover' для лучшего заполнения
                           }}
                           className="rounded"
                         />

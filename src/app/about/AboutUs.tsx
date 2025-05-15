@@ -50,7 +50,7 @@ const AboutUs: React.FC = () => {
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                  Ваш эксперт в безопасности с 20XX года
+                  Ваш эксперт в безопасности с 2005 года
                 </CardTitle>
               </CardHeader>
               <CardContent>
