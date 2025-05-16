@@ -15,6 +15,7 @@ declare module "next-auth" {
     email: string;
     name?: string | null;
     isPartial?: boolean;
+    medusaToken?: string;
   }
 
   interface Session {
@@ -25,6 +26,7 @@ declare module "next-auth" {
       last_name?: string;
       isPartial?: boolean;
     };
+    medusaToken?: string;
   }
 }
 
@@ -38,6 +40,7 @@ declare module "next-auth/jwt" {
     picture?: string | null;
     sub?: string;
     isPartial?: boolean;
+    medusaToken?: string;
   }
 }
 
@@ -120,6 +123,7 @@ export const authConfig: AuthOptions = {
                                   ? `${customer.first_name} ${customer.last_name}` 
                                   : customer.email,
                             isPartial: false,
+                            medusaToken: loginAuthToken,
                         } as NextAuthUser;
 
                     } catch (retrieveError) {
@@ -138,6 +142,7 @@ export const authConfig: AuthOptions = {
                                 email: credentials.email,
                                 name: credentials.email, 
                                 isPartial: true,
+                                medusaToken: loginAuthToken,
                             } as NextAuthUser;
                         }
                         return null; 
@@ -168,6 +173,7 @@ export const authConfig: AuthOptions = {
                 if (user.medusa_id) token.medusa_id = user.medusa_id;
                 if (user.first_name) token.first_name = user.first_name;
                 if (user.last_name) token.last_name = user.last_name;
+                if (user.medusaToken) token.medusaToken = user.medusaToken;
             }
             return token;
         },
@@ -179,6 +185,8 @@ export const authConfig: AuthOptions = {
             if (token.medusa_id) session.user.medusa_id = token.medusa_id as string;
             if (token.first_name) session.user.first_name = token.first_name as string;
             if (token.last_name) session.user.last_name = token.last_name as string;
+            if (token.medusaToken) token.medusaToken = token.medusaToken;
+
             return session;
         },
     },

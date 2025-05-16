@@ -53,10 +53,10 @@ export function CategoryCardList({ categories, basePath = '/catalog' }: Category
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-grow flex flex-col items-center">
-              <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-md overflow-hidden group">
+              {/* <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-md overflow-hidden group">
                 {/* Изображения категорий в Medusa часто хранятся в поле metadata.
                   Например, вы можете договориться о ключе 'thumbnail_url' или 'image_url' в metadata.
-                */}
+
                 {(category.metadata?.thumbnail_url || category.metadata?.image_url) ? (
                   <Image
                     src={(category.metadata.thumbnail_url as string) || (category.metadata.image_url as string)}
@@ -71,7 +71,7 @@ export function CategoryCardList({ categories, basePath = '/catalog' }: Category
                     <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
                   </div>
                 )}
-              </div>
+              </div> */}
               <p className="text-sm text-muted-foreground text-center line-clamp-3">
                 {category.description || `Ознакомьтесь с товарами в категории "${category.name}".`}
               </p>

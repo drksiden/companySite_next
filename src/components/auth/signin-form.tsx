@@ -151,9 +151,7 @@ export function SignInForm() {
           {isSubmitting ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
-              <path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.3 512 0 401.8 0 265.5S110.3 19 244 19c70.8 0 134.8 29.2 179.9 76.6L383 164.1c-34.2-32.4-88.8-53.5-139.9-53.5C159.3 110.6 90.9 179 90.9 265.5s68.4 154.9 153.1 154.9c79.1 0 119.8-37.1 138.8-65.8 14.5-21.8 24.2-53.8 28.8-87.8H244v-68.9h244z"></path>
-            </svg>
+            <img src="/images/logos/icon-google.svg" alt="Google icon" className="mr-2 h-4 w-4" />
           )}
           Google
         </Button>

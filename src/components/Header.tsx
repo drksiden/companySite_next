@@ -143,6 +143,7 @@ export function Header() {
 
   const handleSignOut = async () => {
     await signOut({ redirect: false, callbackUrl: "/" }); // Выходим, редирект обрабатываем сами или указываем callbackUrl
+    localStorage.removeItem('medusa_jwt');
     router.push("/"); // Принудительный редирект, если callbackUrl не сработал как ожидалось или для немедленного обновления
   };
 
