@@ -1,5 +1,3 @@
-// app/catalog/[categoryHandle]/[subCategoryHandle]/page.tsx
-
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { sdk } from '@/lib/sdk';
@@ -21,10 +19,11 @@ type ProductCategoryType = HttpTypes.StoreProductCategory & {
 type ProductType = HttpTypes.StoreProduct;
 
 export async function generateMetadata({
-  params: { categoryHandle, subCategoryHandle },
+  params,
 }: {
-  params: { categoryHandle: string; subCategoryHandle: string };
+  params: Promise<{ categoryHandle: string; subCategoryHandle: string }>;
 }): Promise<Metadata> {
+  const { categoryHandle, subCategoryHandle } = await params;
   console.log(`[Metadata] /${categoryHandle}/${subCategoryHandle}`);
   try {
     const { product_categories: parentCategoriesList } = await sdk.store.category.list({
@@ -45,7 +44,7 @@ export async function generateMetadata({
       return { title: `Подкатегория не найдена | ${COMPANY_NAME_SHORT}` };
     }
     if (parentCategory && subCategory.parent_category_id !== parentCategory.id) {
-        return { title: "Некорректный путь категории", description: "Структура категорий не соответствует." };
+      return { title: "Некорректный путь категории", description: "Структура категорий не соответствует." };
     }
 
     const pageTitleBase = parentCategory ? `${subCategory.name} | ${parentCategory.name}` : subCategory.name;
@@ -123,8 +122,8 @@ async function getSubCategoryContentData(
       subCategoryId,
       {
         fields: "id,name,handle,description,metadata,parent_category_id",
-        include_descendants_tree: true, // Важно для получения подкатегорий
-        include_ancestors_tree: true,   // Для хлебных крошек
+        include_descendants_tree: true,
+        include_ancestors_tree: true,
       }
     ) as { product_category: ProductCategoryType | null };
 
@@ -141,17 +140,14 @@ async function getSubCategoryContentData(
     );
 
     // 4. Получаем подкатегории текущей категории
-    // Важно! Если category_children не приходит корректно, используем дополнительный запрос
     let subSubCategories: ProductCategoryType[] = [];
     
     if (currentSubCategory.category_children && Array.isArray(currentSubCategory.category_children)) {
       console.log(`[getSubCategoryContentData] Direct category_children count: ${currentSubCategory.category_children.length}`);
-      // Фильтруем, чтобы взять только прямых потомков
       subSubCategories = currentSubCategory.category_children
         .filter(child => child.parent_category_id === currentSubCategory.id);
     }
     
-    // Если не пришли дети через retrieve или их нет - делаем дополнительный запрос
     if (subSubCategories.length === 0) {
       console.log(`[getSubCategoryContentData] No children found in retrieve response, making explicit query`);
       const { product_categories: explicitChildren } = await sdk.store.category.list({
@@ -186,13 +182,11 @@ async function getSubCategoryContentData(
     const grandParentCategories: ProductCategoryType[] = [];
     
     if (currentSubCategory.ancestors && Array.isArray(currentSubCategory.ancestors)) {
-      // Используем ancestors из API, если они пришли
       const directParentFromAncestors = currentSubCategory.ancestors.find(a => a.id === parentCategory?.id);
       if (directParentFromAncestors && directParentFromAncestors.ancestors) {
         grandParentCategories.push(...(directParentFromAncestors.ancestors.filter(Boolean) as ProductCategoryType[]));
       }
     } else if (parentCategory?.parent_category_id) {
-      // Иначе загружаем предков итеративно
       let currentGrandParentId: string | null | undefined = parentCategory.parent_category_id;
       let safetyCounter = 0;
       
@@ -225,7 +219,6 @@ async function getSubCategoryContentData(
       subSubCategories, 
       grandParentCategories: breadcrumbParents 
     };
-
   } catch (error) {
     console.error(`[Page Data Error FINAL CATCH] /${categoryHandle}/${subCategoryHandle}:`, error);
     return null;
@@ -257,10 +250,11 @@ function generateBreadcrumbItems(
 }
 
 export default async function SubCategoryPage({
-  params: { categoryHandle, subCategoryHandle },
+  params,
 }: {
-  params: { categoryHandle: string; subCategoryHandle: string };
+  params: Promise<{ categoryHandle: string; subCategoryHandle: string }>;
 }) {
+  const { categoryHandle, subCategoryHandle } = await params;
   const pageData = await getSubCategoryContentData(categoryHandle, subCategoryHandle);
 
   if (!pageData) {
@@ -281,7 +275,6 @@ export default async function SubCategoryPage({
         )}
       </header>
 
-      {/* Всегда отображаем секцию с подкатегориями, если они есть */}
       {subSubCategories.length > 0 && (
         <section className="mb-16">
           <h2 className="text-2xl lg:text-3xl font-semibold text-foreground mb-8">Выберите подраздел</h2>
@@ -292,7 +285,6 @@ export default async function SubCategoryPage({
         </section>
       )}
 
-      {/* Показываем товары независимо от наличия подкатегорий */}
       {products.length > 0 && (
         <section className={subSubCategories.length > 0 ? "mt-12" : ""}>
           <h2 className="text-2xl lg:text-3xl font-semibold text-foreground mb-8">
@@ -302,7 +294,6 @@ export default async function SubCategoryPage({
         </section>
       )}
 
-      {/* Показываем заглушку только если нет ни товаров, ни подкатегорий */}
       {subSubCategories.length === 0 && products.length === 0 && (
         <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">
           <Package className="h-16 w-16 mx-auto mb-6 text-muted-foreground/70" />

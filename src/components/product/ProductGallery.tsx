@@ -1,327 +1,200 @@
+// src/components/product/ProductGallery.tsx
 'use client';
 
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import Slider, { Settings } from 'react-slick';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
+// Импортируем хук и типы Embla Carousel согласно вашему примеру
+import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react'; // EmblaCarouselType для API
+import type { EmblaOptionsType } from 'embla-carousel'; // EmblaOptionsType для опций
+import { ChevronLeft, ChevronRight, Expand, X as CloseIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Button } from '../ui/button';
 
-// Импорт стилей для Slick-slider
-import 'slick-carousel/slick/slick.css';
-import 'slick-carousel/slick/slick-theme.css';
-import { VisuallyHidden } from '../ui/visually-hidden';
+type ProductImageType = {
+  id?: string;
+  url: string;
+  metadata?: Record<string, unknown> | null;
+};
 
-// Интерфейс для пропсов
 interface ProductGalleryProps {
-  images: { url: string }[];
+  images: ProductImageType[];
   title: string;
 }
 
-// Кастомные стрелки для слайдера
-const PrevArrow = ({ onClick }: { onClick?: () => void }) => (
-  <button
-    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/70 p-2 rounded-full text-black hover:bg-white transition shadow-md"
-    onClick={onClick}
-    aria-label="Предыдущее изображение"
-  >
-    <ChevronLeft className="w-5 h-5" />
-  </button>
-);
+const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
+  const options: EmblaOptionsType = { 
+    loop: images.length > 1, 
+    align: 'start' 
+  };
+  
+  // emblaApi теперь будет иметь тип EmblaCarouselType | undefined
+  const [emblaRef, emblaApi] = useEmblaCarousel(options); 
+  const [emblaThumbsRef, emblaThumbsApi] = useEmblaCarousel({
+    containScroll: 'keepSnaps',
+    dragFree: true,
+    align: 'start',
+  });
 
-const NextArrow = ({ onClick }: { onClick?: () => void }) => (
-  <button
-    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/70 p-2 rounded-full text-black hover:bg-white transition shadow-md"
-    onClick={onClick}
-    aria-label="Следующее изображение"
-  >
-    <ChevronRight className="w-5 h-5" />
-  </button>
-);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
 
-export default function ProductGallery({ images, title }: ProductGalleryProps) {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [mainSlider, setMainSlider] = useState<any>(null);
-  const [thumbnailSlider, setThumbnailSlider] = useState<any>(null);
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
 
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const onThumbClick = useCallback(
+    (index: number) => {
+      if (!emblaApi || !emblaThumbsApi) return;
+      emblaApi.scrollTo(index);
+    },
+    [emblaApi, emblaThumbsApi]
+  );
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi || !emblaThumbsApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+    if (emblaThumbsApi.scrollTo) { // Убедимся, что метод существует
+        emblaThumbsApi.scrollTo(emblaApi.selectedScrollSnap());
+    }
+  }, [emblaApi, emblaThumbsApi]); // setSelectedIndex убран из зависимостей, т.к. он из useState
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!emblaApi) return;
+    onSelect(); // Вызываем при инициализации
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect); // Также полезно при реинициализации
+    return () => {
+      if (emblaApi && emblaApi.off) { // Проверяем наличие off перед вызовом
+        emblaApi.off('select', onSelect);
+        emblaApi.off('reInit', onSelect);
+      }
+    };
+  }, [emblaApi, onSelect]);
+
+  const openModal = (index: number) => {
+    setModalImageIndex(index);
+    setIsModalOpen(true);
+  };
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-        <p className="text-muted-foreground">Изображения отсутствуют</p>
+      <div className="aspect-square w-full bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+        Нет изображений
       </div>
     );
   }
 
-  const mainSliderSettings: Settings = {
-    dots: false,
-    infinite: images.length > 1,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: images.length > 1,
-    prevArrow: <PrevArrow />,
-    nextArrow: <NextArrow />,
-    asNavFor: thumbnailSlider,
-    fade: true,
-    responsive: [
-      {
-        breakpoint: 768,
-        settings: {
-          arrows: false,
-          dots: true,
-        }
-      }
-    ]
-  };
-
-  const thumbnailSettings: Settings = {
-    dots: false,
-    infinite: images.length > 4,
-    speed: 500,
-    slidesToShow: Math.min(5, images.length),
-    slidesToScroll: 1,
-    swipeToSlide: true,
-    focusOnSelect: true,
-    arrows: false,
-    asNavFor: mainSlider,
-    centerMode: images.length > 4,
-    centerPadding: '0px',
-    responsive: [
-      {
-        breakpoint: 768,
-        settings: {
-          slidesToShow: Math.min(4, images.length),
-        }
-      },
-      {
-        breakpoint: 480,
-        settings: {
-          slidesToShow: Math.min(3, images.length),
-        }
-      }
-    ]
-  };
-
   return (
-    <div className="w-full mx-auto bg-none rounded-xl shadow-sm">
-      {mounted && (
-        <div className="product-gallery">
-          <style jsx global>{`
-            /* Основные стили для слайдера */
-            .product-gallery .slick-slider {
-              position: relative;
-              display: block;
-              box-sizing: border-box;
-              user-select: none;
-              touch-action: pan-y;
-              -webkit-tap-highlight-color: transparent;
-            }
-            
-            .product-gallery .slick-list {
-              position: relative;
-              display: block;
-              overflow: hidden;
-              margin: 0;
-              padding: 0;
-            }
-            
-            .product-gallery .slick-track {
-              position: relative;
-              top: 0;
-              left: 0;
-              display: flex;
-              margin-left: auto;
-              margin-right: auto;
-            }
-
-            /* Стили для основного слайдера */
-            .product-gallery .main-slider .slick-slide {
-              height: 450px;
-              display: flex !important;
-              align-items: center;
-              justify-content: center;
-            }
-            
-            /* Стили для миниатюр */
-            .product-gallery .thumbnail-slider {
-              margin-top: 12px;
-            }
-            
-            .product-gallery .thumbnail-slider .slick-slide {
-              padding: 3px;
-              opacity: 0.7;
-              transition: all 0.3s ease;
-              cursor: pointer;
-            }
-            
-            .product-gallery .thumbnail-slider .slick-current {
-              opacity: 1;
-            }
-            
-            .product-gallery .thumbnail-slider .thumb-item {
-              border: 2px solid transparent;
-              border-radius: 6px;
-              overflow: hidden;
-            }
-            
-            .product-gallery .thumbnail-slider .slick-current .thumb-item {
-              border-color: #4f46e5;
-            }
-            
-            /* Стили для точек (dots) на мобильных */
-            .product-gallery .slick-dots {
-              position: absolute;
-              bottom: 10px;
-              display: flex !important;
-              justify-content: center;
-              width: 100%;
-              padding: 0;
-              margin: 0;
-              list-style: none;
-              z-index: 1;
-            }
-            
-            .product-gallery .slick-dots li {
-              margin: 0 4px;
-            }
-            
-            .product-gallery .slick-dots li button {
-              font-size: 0;
-              width: 8px;
-              height: 8px;
-              padding: 0;
-              border: 0;
-              border-radius: 50%;
-              background-color: rgba(0, 0, 0, 0.3);
-              cursor: pointer;
-            }
-            
-            .product-gallery .slick-dots li.slick-active button {
-              background-color: #4f46e5;
-              transform: scale(1.2);
-            }
-            
-            /* Кнопка зума */
-            .zoom-button {
-              position: absolute;
-              bottom: 10px;
-              right: 10px;
-              background-color: rgba(0, 0, 0, 0.432);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 36px;
-              height: 36px;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              z-index: 5;
-              opacity: 0;
-            }
-            
-            .main-slider .slick-slide:hover .zoom-button {
-              opacity: 1;
-            }
-          `}</style>
-          
-          {/* Основной слайдер */}
-          <div className="main-slider">
-            <Slider 
-              {...mainSliderSettings} 
-              ref={slider => setMainSlider(slider)}
+    <div className="relative w-full">
+      {/* Main Carousel */}
+      <div className="overflow-hidden rounded-lg border bg-card" ref={emblaRef}>
+        <div className="flex">
+          {images.map((image, index) => (
+            <div
+              className="relative aspect-square min-w-0 flex-[0_0_100%] cursor-pointer group" // Добавлен group для hover эффекта на иконке Expand
+              key={image.id || `main-${index}`}
+              onClick={() => openModal(index)}
             >
-              {images.map((image, index) => (
-                <div key={index} className="relative w-full h-full px-2">
-                  <div className="relative w-full h-full flex items-center justify-center">
-                    <Image
-                      src={image.url}
-                      alt={`${title} - изображение ${index + 1}`}
-                      width={600}
-                      height={450}
-                      style={{ 
-                        objectFit: 'contain', 
-                        maxHeight: '450px',
-                        width: 'auto',
-                        height: 'auto'
-                      }}
-                      sizes="(max-width: 768px) 100vw, 600px"
-                      className="rounded-lg"
-                      priority={index === 0}
-                    />
-                    <button 
-                      className="zoom-button shadow-md"
-                      onClick={() => setSelectedImage(image.url)}
-                      aria-label="Увеличить изображение"
-                    >
-                      <ZoomIn size={20} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </Slider>
-          </div>
-          
-          {/* Слайдер с миниатюрами */}
-          {images.length > 1 && (
-            <div className="thumbnail-slider">
-              <Slider 
-                {...thumbnailSettings} 
-                ref={slider => setThumbnailSlider(slider)}
-              >
-                {images.map((image, index) => (
-                  <div key={index} className="px-1">
-                    <div className="thumb-item">
-                      <div className="relative w-full pb-[75%]">
-                        <Image
-                          src={image.url}
-                          alt={`${title} - миниатюра ${index + 1}`}
-                          fill
-                          sizes="100px"
-                          style={{ 
-                            objectFit: 'cover' // Изменено на 'cover' для лучшего заполнения
-                          }}
-                          className="rounded"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </Slider>
+              <Image
+                src={image.url}
+                alt={`${title} - изображение ${index + 1}`}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
+                className="object-contain"
+                priority={index === 0}
+              />
+              <div className="absolute bottom-3 right-3 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <Expand size={20} />
+              </div>
             </div>
-          )}
+          ))}
+        </div>
+      </div>
+
+      {images.length > 1 && (
+        <>
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/70 hover:bg-background text-foreground shadow-md"
+            onClick={scrollPrev}
+            aria-label="Предыдущее изображение"
+            disabled={!emblaApi?.canScrollPrev()}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/70 hover:bg-background text-foreground shadow-md"
+            onClick={scrollNext}
+            aria-label="Следующее изображение"
+            disabled={!emblaApi?.canScrollNext()}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        </>
+      )}
+
+      {/* Thumbnails Carousel */}
+      {images.length > 1 && (
+        <div className="mt-4 overflow-hidden" ref={emblaThumbsRef}>
+          <div className="flex gap-3"> {/* Увеличен gap для лучшего вида */}
+            {images.map((image, index) => (
+              <button
+                key={image.id || `thumb-${index}`}
+                onClick={() => onThumbClick(index)}
+                className={cn(
+                  'relative aspect-square h-16 w-16 sm:h-20 sm:w-20 rounded-md overflow-hidden cursor-pointer flex-[0_0_auto] transition-opacity duration-200',
+                  index === selectedIndex ? ' opacity-100' : 'opacity-60 hover:opacity-100'
+                )}
+                aria-label={`Перейти к изображению ${index + 1}`}
+              >
+                <Image
+                  src={image.url}
+                  alt={`${title} - миниатюра ${index + 1}`}
+                  fill
+                  sizes="80px" // Можно немного увеличить, если миниатюры стали больше
+                  className="object-cover"
+                />
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Модальное окно с изображением */}
-      <Dialog 
-        open={!!selectedImage} 
-        onOpenChange={(open) => !open && setSelectedImage(null)}
-      >
-        <DialogContent className="max-w-5xl p-4 bg-white border-none shadow-xl rounded-xl">
-          <VisuallyHidden>
-            <DialogTitle>Просмотр изображения: {title}</DialogTitle>
-          </VisuallyHidden>
-          <div className="relative w-full aspect-[4/3] max-h-[80vh]">
-            {selectedImage && (
+      {/* Modal for Zoomed Image */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[95vh] p-2 sm:p-4 flex items-center justify-center bg-transparent border-0 shadow-none">
+          {/* Добавляем полупрозрачный фон для модального окна, если нужно */}
+          {/* <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" /> */}
+          <div className="relative w-full h-auto max-h-[88vh] aspect-auto z-10"> {/* aspect-auto для более гибкого размера */}
+             {images[modalImageIndex] && (
               <Image
-                key={selectedImage}
-                src={selectedImage}
-                alt={`${title} - увеличенное изображение`}
-                fill
-                style={{ objectFit: 'contain' }}
-                sizes="90vw"
-                className="rounded-lg"
-                priority
+                src={images[modalImageIndex].url}
+                alt={`${title} - увеличенное изображение ${modalImageIndex + 1}`}
+                width={1200} // Примерная ширина, Next.js оптимизирует
+                height={1200} // Примерная высота
+                sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1000px"
+                className="object-contain rounded-lg max-w-full max-h-[88vh]" // Убедимся, что изображение не выходит за пределы
+                style={{ width: 'auto', height: 'auto' }} // Позволяет изображению сохранять пропорции
               />
             )}
           </div>
+          <DialogClose className="absolute right-4 top-4 sm:right-6 sm:top-6 rounded-full p-1.5 bg-background/60 hover:bg-background/80 text-foreground opacity-80 hover:opacity-100 transition-all z-20">
+            <CloseIcon className="h-5 w-5" />
+            <span className="sr-only">Закрыть</span>
+          </DialogClose>
         </DialogContent>
       </Dialog>
     </div>
   );
-}
+};
+
+export default ProductGallery;

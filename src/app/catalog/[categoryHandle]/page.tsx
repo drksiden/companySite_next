@@ -1,5 +1,3 @@
-// app/catalog/[categoryHandle]/page.tsx
-
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { sdk } from '@/lib/sdk';
@@ -11,24 +9,21 @@ import { Package } from 'lucide-react';
 
 export const revalidate = 3600;
 
-// Используем напрямую тип из SDK
 type ProductCategoryType = HttpTypes.StoreProductCategory;
 
-// --- Генерация метаданных ---
 export async function generateMetadata({
   params,
 }: {
-  params: { categoryHandle: string };
+  params: Promise<{ categoryHandle: string }>;
 }): Promise<Metadata> {
-  const { categoryHandle } = params;
-
+  const { categoryHandle } = await params;
+  console.log(`[Metadata] /catalog/${categoryHandle}`);
   try {
     const { product_categories } = await sdk.store.category.list({
       handle: categoryHandle,
       limit: 1,
       fields: "id,name,handle,description,metadata",
     });
-    // Приведение типа здесь не обязательно, если product_categories уже HttpTypes.StoreProductCategory[]
     const category = product_categories?.[0];
 
     if (!category) {
@@ -62,14 +57,12 @@ export async function generateMetadata({
   }
 }
 
-// --- Интерфейс для данных страницы ---
 interface CategorySubcategoriesPageData {
   currentCategory: ProductCategoryType;
   subCategories: ProductCategoryType[];
   parentCategories: ProductCategoryType[];
 }
 
-// --- Функция для получения данных страницы ---
 async function getCategorySubcategoriesData(categoryHandle: string): Promise<CategorySubcategoriesPageData | null> {
   console.log(`[getCategorySubcategoriesData] Called for handle: ${categoryHandle}`);
   try {
@@ -83,16 +76,10 @@ async function getCategorySubcategoriesData(categoryHandle: string): Promise<Cat
       console.log(`[getCategorySubcategoriesData] Category not found by handle: ${categoryHandle}`);
       return null;
     }
-    // Теперь category - это HttpTypes.StoreProductCategory
     const category = initialCategories[0];
-    // category_children также будут HttpTypes.StoreProductCategory[], если они есть
     const subCategories = category.category_children || [];
 
-
     const parentCategories: ProductCategoryType[] = [];
-    // Тип category.parent_category_id из HttpTypes.StoreProductCategory может быть string.
-    // Но логически он может быть null для корневой категории.
-    // Будем обрабатывать его как string | null | undefined для безопасности в цикле.
     let currentParentId: string | null | undefined = category.parent_category_id as (string | null | undefined);
     let safetyCounter = 0;
 
@@ -100,7 +87,7 @@ async function getCategorySubcategoriesData(categoryHandle: string): Promise<Cat
       safetyCounter++;
       try {
         const { product_category: parent } = await sdk.store.category.retrieve(
-          currentParentId, // retrieve ожидает string
+          currentParentId,
           {
             fields: "id,name,handle,parent_category_id",
           }
@@ -116,20 +103,18 @@ async function getCategorySubcategoriesData(categoryHandle: string): Promise<Cat
         currentParentId = null;
       }
     }
-    console.log(`[getCategorySubcategoriesData] Parent categories built:`, parentCategories.map(p=>p.name));
+    console.log(`[getCategorySubcategoriesData] Parent categories built:`, parentCategories.map(p => p.name));
 
     return { currentCategory: category, subCategories, parentCategories };
-
   } catch (error) {
     console.error(`[Page Data Error] Category '${categoryHandle}':`, error);
     return null;
   }
 }
 
-// --- Функция для генерации хлебных крошек ---
 function generateBreadcrumbItems(
-    category: ProductCategoryType,
-    parents: ProductCategoryType[]
+  category: ProductCategoryType,
+  parents: ProductCategoryType[]
 ): Array<{ label: string; href: string }> {
   const items: Array<{ label: string; href: string }> = [
     { label: 'Каталог', href: '/catalog' },
@@ -141,13 +126,12 @@ function generateBreadcrumbItems(
   return items;
 }
 
-// --- Компонент страницы ---
 export default async function CategoryPage({
   params,
 }: {
-  params: { categoryHandle: string };
+  params: Promise<{ categoryHandle: string }>;
 }) {
-  const { categoryHandle } = params;
+  const { categoryHandle } = await params;
   const pageData = await getCategorySubcategoriesData(categoryHandle);
 
   if (!pageData) {
@@ -171,11 +155,10 @@ export default async function CategoryPage({
       {subCategories.length > 0 ? (
         <section>
           <h2 className="text-2xl lg:text-3xl font-semibold text-foreground mb-8">Подкатегории</h2>
-          {/* CategoryCardList ожидает HttpTypes.StoreProductCategory[] */}
-          <CategoryCardList categories={subCategories}
-          basePath={`/catalog/${currentCategory.handle}`}
+          <CategoryCardList
+            categories={subCategories}
+            basePath={`/catalog/${currentCategory.handle}`}
           />
-          
         </section>
       ) : (
         <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed">

@@ -1,16 +1,25 @@
+// src/components/auth/signup-form.tsx
 'use client';
 
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form"; // Controller добавлен для RadioGroup
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signUpSchema, type SignUpFormData } from "@/lib/schemas"; // Убедитесь, что путь правильный
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Для выбора типа аккаунта
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, AlertTriangle, CheckCircle2, Eye, EyeOff } from "lucide-react"; // Добавил Eye и EyeOff
+import { Loader2, AlertTriangle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -19,23 +28,37 @@ export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<SignUpFormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: { // Устанавливаем значения по умолчанию, включая accountType
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      phone: "",
+      company: "",
+      accountType: "individual", // Значение по умолчанию для типа аккаунта
+    },
   });
 
   const onSubmit = async (data: SignUpFormData) => {
     setApiError(null);
     setApiSuccess(null);
+    console.log("Отправляемые данные формы:", data); // Логируем данные перед отправкой
     try {
-      const response = await fetch('/api/auth/register', { // Ваш API маршрут
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ // Отправляем данные как есть, API разберется
+        body: JSON.stringify({
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
           password: data.password,
-          confirmPassword: data.confirmPassword, // Zod уже проверил, но API может тоже захотеть
+          confirmPassword: data.confirmPassword,
+          phone: data.phone,
+          company: data.company,
+          accountType: data.accountType,
         }),
       });
 
@@ -43,16 +66,15 @@ export function SignUpForm() {
 
       if (!response.ok) {
         setApiError(result.message || 'Ошибка регистрации. Пожалуйста, попробуйте еще раз.');
-        if (result.errors) { // Для ошибок валидации Zod с сервера (если API их возвращает)
+        if (result.errors) {
           console.error("Validation errors from API:", result.errors);
-          // Здесь можно добавить логику для установки ошибок в useForm, если API возвращает их в формате fieldErrors
         }
       } else {
         setApiSuccess(result.message || 'Регистрация прошла успешно! Вы будете перенаправлены на страницу входа.');
-        reset(); // Очищаем форму
+        reset(); 
         setTimeout(() => {
-          router.push("/auth/signin"); // Перенаправление на страницу входа
-        }, 2500); // Небольшая задержка, чтобы пользователь успел прочитать сообщение
+          router.push("/auth/signin"); 
+        }, 2500);
       }
     } catch (err) {
       console.error("Sign up fetch error:", err);
@@ -101,6 +123,32 @@ export function SignUpForm() {
           )}
         </AnimatePresence>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Тип аккаунта */}
+          <div className="space-y-2">
+            <Label className="text-slate-300">Тип аккаунта</Label>
+            <Controller
+              control={control}
+              name="accountType"
+              render={({ field }) => (
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="individual" id="r1" className="text-indigo-500 border-slate-600" />
+                    <Label htmlFor="r1" className="text-slate-300 font-normal">Физическое лицо</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="business" id="r2" className="text-indigo-500 border-slate-600" />
+                    <Label htmlFor="r2" className="text-slate-300 font-normal">Юридическое лицо / ИП</Label>
+                  </div>
+                </RadioGroup>
+              )}
+            />
+            {errors.accountType && <p className="text-red-400 text-xs pt-1">{errors.accountType.message}</p>}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName" className="text-slate-300">Имя</Label>
@@ -115,6 +163,18 @@ export function SignUpForm() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="company" className="text-slate-300">Название компании (если Юр. лицо / ИП)</Label>
+            <Input id="company" placeholder="ТОО 'Рога и Копыта'" {...register("company")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
+            {errors.company && <p className="text-red-400 text-xs pt-1">{errors.company.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-slate-300">Телефон</Label>
+            <Input id="phone" type="tel" placeholder="+7 (700) 123-45-67" {...register("phone")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
+            {errors.phone && <p className="text-red-400 text-xs pt-1">{errors.phone.message}</p>}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="email" className="text-slate-300">Email</Label>
             <Input id="email" type="email" placeholder="you@example.com" {...register("email")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500" />
             {errors.email && <p className="text-red-400 text-xs pt-1">{errors.email.message}</p>}
@@ -123,7 +183,7 @@ export function SignUpForm() {
           <div className="space-y-2">
             <Label htmlFor="password" className="text-slate-300">Пароль</Label>
             <div className="relative">
-              <Input id="password" type={showPassword ? "text" : "password"} {...register("password")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
+              <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" {...register("password")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
               <button type="button" onClick={() => togglePasswordVisibility('password')} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200" aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}>
                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -134,7 +194,7 @@ export function SignUpForm() {
           <div className="space-y-2">
             <Label htmlFor="confirmPassword" className="text-slate-300">Подтвердите пароль</Label>
              <div className="relative">
-              <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} {...register("confirmPassword")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
+              <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...register("confirmPassword")} className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 pr-10" />
               <button type="button" onClick={() => togglePasswordVisibility('confirmPassword')} className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200" aria-label={showConfirmPassword ? "Скрыть пароль" : "Показать пароль"}>
                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>

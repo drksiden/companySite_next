@@ -4,33 +4,31 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Loader2, ShoppingCart, Check } from 'lucide-react';
 import ProductGallery from '@/components/product/ProductGallery';
 import ProductSeo from '@/components/product/ProductSeo';
 import ProductTabs from '@/components/product/ProductTabs';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { toast } from "sonner";
-import { sdk } from '@/lib/sdk';
+import { toast } from 'sonner';
 import { HttpTypes } from '@medusajs/types';
+import { Label } from '@/components/ui/label';
+import { useCart } from '@/providers/cart';
 
-
-// Типы
-type ProductImageType = { id?: string; url: string; metadata?: Record<string, unknown> | null; };
+// Types
+type ProductImageType = { id?: string; url: string; metadata?: Record<string, unknown> | null };
 type CalculatedPriceSetType = HttpTypes.StoreCalculatedPrice;
 
 type ProductVariantType = HttpTypes.StoreProductVariant & {
   calculated_price?: CalculatedPriceSetType | null;
-  // prices поле больше не ожидается, т.к. page.tsx его не передает
 };
 
 type ProductType = HttpTypes.StoreProduct & {
   variants?: ProductVariantType[] | null;
-  images?: ProductImageType[] | null; // Используем наш упрощенный тип
+  images?: ProductImageType[] | null;
   collection?: HttpTypes.StoreCollection | null;
   categories?: (HttpTypes.StoreProductCategory & { parent_category_id?: string | null })[] | null;
 };
-
 
 interface ProductClientComponentProps {
   product: ProductType;
@@ -47,172 +45,234 @@ const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): stri
   }).format(amount);
 };
 
+const getSafeString = (value: any, fallback: string = ''): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return fallback;
+};
+
 export default function ProductClientComponent({ product, breadcrumbItems }: ProductClientComponentProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariantType | undefined>(
-    product.variants?.[0]
+    product.variants && product.variants.length > 0 ? product.variants[0] : undefined
   );
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [addedToCart, setAddedToCart] = useState(false);
+  const [isAddingToCartLocal, setIsAddingToCartLocal] = useState(false);
+  const [addedToCartLocal, setAddedToCartLocal] = useState(false);
   const router = useRouter();
 
+  const { addItem: addItemToCartContext, isLoading: isCartGloballyLoading } = useCart();
+
+  // Debug logs for cart button state
   useEffect(() => {
-    setSelectedVariant(product.variants?.[0]);
-  }, [product]);
+    console.log('[ProductClientComponent] Product variants:', product.variants);
+    console.log('[ProductClientComponent] Selected variant:', selectedVariant);
+    console.log('[ProductClientComponent] Is adding to cart:', isAddingToCartLocal);
+    console.log('[ProductClientComponent] Added to cart:', addedToCartLocal);
+    console.log('[ProductClientComponent] Cart loading state:', isCartGloballyLoading);
+    console.log('[ProductClientComponent] Can purchase:', canPurchase);
+    if (product.variants && product.variants.length > 0 && !selectedVariant) {
+      console.log('[ProductClientComponent] Setting default variant:', product.variants[0]);
+      setSelectedVariant(product.variants[0]);
+    } else if (!product.variants || product.variants.length === 0) {
+      console.warn('[ProductClientComponent] No variants available for product:', product.title);
+    }
+  }, [product.variants, selectedVariant, isAddingToCartLocal, addedToCartLocal, isCartGloballyLoading]);
 
   const priceInfo = useMemo(() => {
     if (!selectedVariant) {
-      console.log("No selected variant for priceInfo");
-      return { display: 'Цена не указана', original: null, currencyCode: 'KZT', isSale: false };
+      return { display: 'Выберите вариант', original: null, currencyCode: 'KZT', isSale: false };
     }
 
-    let displayAmount: number | null | undefined = undefined;
-    let originalAmount: number | null | undefined = undefined;
-    let currency = 'KZT';
-    let sale = false;
-
-    console.log("Selected Variant for Price Calc:", JSON.stringify(selectedVariant, null, 2));
-
-    if (selectedVariant.calculated_price) {
-      displayAmount = selectedVariant.calculated_price.calculated_amount;
-      originalAmount = selectedVariant.calculated_price.original_amount;
-      currency = selectedVariant.calculated_price.currency_code || currency;
-      sale = originalAmount != null && displayAmount != null && originalAmount > displayAmount;
-    }  else {
-      
-    }
-    
-    console.log("Price Info Calculated:", { displayAmount, originalAmount, currency, sale });
+    const price = selectedVariant.calculated_price;
+    const currency = price?.currency_code || 'KZT';
+    const displayAmount = price?.calculated_amount;
+    const originalAmount = price?.original_amount;
+    const isSale = originalAmount != null && displayAmount != null && originalAmount > displayAmount;
 
     return {
       display: formatPrice(displayAmount, currency),
-      original: sale && originalAmount ? formatPrice(originalAmount, currency) : null,
+      original: isSale ? formatPrice(originalAmount, currency) : null,
       currencyCode: currency,
-      isSale: sale,
+      isSale,
     };
   }, [selectedVariant]);
 
-
-  const addToCart = async () => {
+  const handleAddToCart = async () => {
     if (!selectedVariant?.id) {
-      toast.error("Вариант товара не выбран.");
+      console.warn('[ProductClientComponent] Attempted to add to cart with no selected variant');
+      toast.error('Пожалуйста, выберите вариант товара.');
       return;
     }
-    setIsAddingToCart(true);
+    console.log('[ProductClientComponent] Adding variant to cart:', selectedVariant.id);
+    setIsAddingToCartLocal(true);
+    setAddedToCartLocal(false);
     try {
-      let cartId = localStorage.getItem('cart_id');
-      if (!cartId) {
-        const cartData = await sdk.store.cart.create({});
-        if (cartData.cart?.id) {
-          cartId = cartData.cart.id;
-          localStorage.setItem('cart_id', cartId);
-        } else {
-          throw new Error('Не удалось создать корзину.');
-        }
-      }
-
-      await sdk.store.cart.create(cartId, { 
-        variant_id: selectedVariant.id,
-        quantity: 1,
-      });
-      
-      toast.success(`${product.title} добавлен в корзину`);
-      setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2000);
+      await addItemToCartContext(selectedVariant.id, 1);
+      console.log('[ProductClientComponent] Successfully added to cart:', selectedVariant.id);
+      setAddedToCartLocal(true);
+      toast.success('Товар добавлен в корзину!');
+      setTimeout(() => setAddedToCartLocal(false), 3000);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Ошибка при добавлении в корзину';
-      console.error("Add to cart error:", error);
-      toast.error("Ошибка", { description: `Не удалось добавить товар: ${errorMessage}` });
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      console.error('[ProductClientComponent] Error adding to cart:', error);
+      toast.error('Не удалось добавить товар', { description: errorMessage });
     } finally {
-      setIsAddingToCart(false);
+      setIsAddingToCartLocal(false);
     }
   };
-  
+
   const inventoryQuantity = selectedVariant?.inventory_quantity ?? 0;
   const allowBackorder = selectedVariant?.allow_backorder ?? false;
   const canPurchase = inventoryQuantity > 0 || allowBackorder;
 
+  const galleryImages: ProductImageType[] = useMemo(() => {
+    const allImages: ProductImageType[] = [];
+    if (product.thumbnail && typeof product.thumbnail === 'string') {
+      if (!product.images?.find((img) => img.url === product.thumbnail)) {
+        allImages.push({ url: product.thumbnail, id: 'thumbnail-main' });
+      }
+    }
+    if (product.images) {
+      allImages.push(
+        ...product.images
+          .filter((img) => typeof img.url === 'string')
+          .map((img) => ({ id: img.id || img.url, url: img.url }))
+      );
+    }
+    return Array.from(new Map(allImages.map((img) => [img.url, img])).values());
+  }, [product.images, product.thumbnail]);
+
+  const productTitle = getSafeString(product.title, 'Название товара отсутствует');
+  const collectionTitle = getSafeString(product.collection?.title);
+  const selectedVariantSKU = getSafeString(selectedVariant?.sku);
+  const productHandle = getSafeString(product.handle);
+
+  let buttonIcon = <ShoppingCart className="w-5 h-5 mr-2" />;
+  let buttonText = 'Добавить в корзину';
+
+  if (isAddingToCartLocal) {
+    buttonIcon = <Loader2 className="w-5 h-5 mr-2 animate-spin" />;
+    buttonText = 'Добавление...';
+  } else if (addedToCartLocal) {
+    buttonIcon = <Check className="w-5 h-5 mr-2" />;
+    buttonText = 'Добавлено!';
+  }
+
+  const safeBreadcrumbItems =
+    breadcrumbItems.length > 0
+      ? breadcrumbItems
+      : [
+          { label: 'Home', href: '/' },
+          { label: 'Products', href: '/products' },
+          { label: productTitle, href: `/product/${productHandle}` },
+        ];
+
   return (
     <section className="py-8 lg:py-12 px-4 max-w-7xl mx-auto">
-      <ProductSeo product={{
-        ...product,
-        description: product.description ?? undefined,
-        images: product.images?.map(img => ({ url: img.url })) || [],
-      }} />
-      <Breadcrumbs items={breadcrumbItems} className="mb-8" />
+      <ProductSeo
+        product={{
+          ...product,
+          title: productTitle,
+          description: typeof product.description === 'string' ? product.description : undefined,
+          images: galleryImages.map((img) => ({ url: img.url })),
+        }}
+      />
+      <Breadcrumbs items={safeBreadcrumbItems} className="mb-8" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
-        <div className="w-full">
-          <ProductGallery images={product.images || []} title={product.title || "Изображение товара"} />
+        <div className="w-full lg:sticky lg:top-24 self-start">
+          <ProductGallery images={galleryImages} title={productTitle} />
         </div>
 
         <div className="w-full flex flex-col gap-6">
-          <Card className="border shadow-sm">
+          <Card className="border shadow-sm bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle className="text-2xl lg:text-3xl font-bold">{product.title}</CardTitle>
-              {product.collection?.title && (
-                <Link href={`/collections/${product.collection.handle}`} className="text-base text-muted-foreground hover:text-primary transition-colors">
-                  Производитель: {product.collection.title}
+              <CardTitle className="text-2xl lg:text-3xl font-bold">{productTitle}</CardTitle>
+              {collectionTitle && product.collection?.handle && (
+                <Link
+                  href={`/collections/${product.collection.handle}`}
+                  className="text-base text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Производитель: {collectionTitle}
                 </Link>
               )}
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Артикул: {selectedVariant?.sku || product.handle}</p>
-                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                       ${canPurchase ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}
+                <p className="text-sm text-muted-foreground">
+                  Артикул: {selectedVariantSKU || productHandle || 'N/A'}
+                </p>
+                <div
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    canPurchase
+                      ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300'
+                  }`}
                 >
                   {canPurchase ? (inventoryQuantity > 0 ? 'В наличии' : 'Под заказ') : 'Нет в наличии'}
                 </div>
               </div>
-              
+
+              {product.variants && product.variants.length > 1 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground">Варианты:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {product.variants.map((variant) => (
+                      <Button
+                        key={variant.id}
+                        variant={selectedVariant?.id === variant.id ? 'default' : 'outline'}
+                        onClick={() => setSelectedVariant(variant)}
+                        size="sm"
+                        className={selectedVariant?.id === variant.id ? 'ring-2 ring-primary' : ''}
+                      >
+                        {getSafeString(variant.title, 'Вариант')}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="my-2">
                 <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-bold text-primary">
-                    {priceInfo.display}
-                  </p>
+                  <p className="text-3xl font-bold text-primary">{priceInfo.display}</p>
                   {priceInfo.isSale && priceInfo.original && (
-                    <p className="text-lg text-muted-foreground line-through">
-                      {priceInfo.original}
-                    </p>
+                    <p className="text-lg text-muted-foreground line-through">{priceInfo.original}</p>
                   )}
                 </div>
               </div>
-              
+
               <div className="space-y-3">
                 <Button
-                  onClick={addToCart}
-                  className="w-full py-6 text-lg font-medium flex items-center justify-center gap-2"
-                  disabled={isAddingToCart || addedToCart || !selectedVariant?.id || !canPurchase}
+                  onClick={handleAddToCart}
+                  className="w-full py-6 text-lg font-medium flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={
+                    isAddingToCartLocal ||
+                    addedToCartLocal ||
+                    !selectedVariant?.id ||
+                    !canPurchase ||
+                    isCartGloballyLoading
+                  }
+                  aria-label={buttonText}
                 >
-                  {isAddingToCart ? ( <Loader2 className="w-5 h-5 mr-2 animate-spin" /> ) : 
-                   addedToCart ? ( <Check className="w-5 h-5 mr-2" /> ) : 
-                   ( <ShoppingCart className="w-5 h-5 mr-2" /> )}
-                  {isAddingToCart ? 'Добавление...' : addedToCart ? 'Добавлено!' : 'Добавить в корзину'}
+                  {buttonIcon}
+                  {buttonText}
                 </Button>
-                <Button variant="outline" className="w-full py-5" onClick={() => router.back()} >
+                <Button variant="outline" className="w-full py-5" onClick={() => router.back()}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Продолжить покупки
                 </Button>
               </div>
-              
-              {product.description && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="font-medium mb-2 text-foreground">Описание</h3>
-                  <div className="prose prose-sm dark:prose-invert text-muted-foreground max-w-none"
-                       dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <ProductTabs product={{
-        ...product,
-        description: product.description ?? undefined,
-        metadata: product.metadata ?? undefined,
-      }} />
+      <ProductTabs
+        product={{
+          ...product,
+          description: typeof product.description === 'string' ? product.description : undefined,
+          metadata: product.metadata ?? undefined,
+        }}
+      />
     </section>
   );
 }

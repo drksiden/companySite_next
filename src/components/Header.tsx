@@ -1,3 +1,4 @@
+// src/components/layout/Header.tsx (или ваш путь)
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,7 +21,7 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  SheetClose,
+  SheetClose, // Убедитесь, что SheetClose импортирован, если используется
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
@@ -40,36 +41,14 @@ import {
   Search,
   Package,
   ChevronDown,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-// import Medusa from '@medusajs/medusa-js';
-
-// Будем использовать для интеграции с Medusa.js
-// import { useCart } from 'medusa-react';
-// import { useAccount } from '@/hooks/use-account';
-
-// Типы для работы с корзиной Medusa
-interface CartData {
-  items: any[];
-  totalItems: number;
-}
-
-interface CartItem {
-  id: string;
-  title: string;
-  quantity: number;
-  unit_price: number;
-  thumbnail?: string;
-}
-
-interface Customer {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  avatar?: string;
-}
+import { useCart } from '@/providers/cart'; // Импортируем хук корзины
+import { HttpTypes } from '@medusajs/types'; // Для типизации цены, если нужно
+import { Input } from './ui/input';
+import { ScrollArea } from './ui/scroll-area';
 
 const navItems = [
   { 
@@ -90,27 +69,34 @@ const easeTransition = {
   damping: 20
 };
 
-// Анимация для подчеркивания активного элемента навигации
 const underlineVariants = {
   hidden: { width: 0, opacity: 0 },
   visible: { width: '100%', opacity: 1, transition: { duration: 0.3 } }
 };
 
-// Анимация появления выпадающего меню
 const dropdownVariants = {
   hidden: { opacity: 0, y: -5 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
 };
 
-// Анимация badge для корзины
 const badgeVariants = {
-  initial: { scale: 0 },
-  animate: { scale: 1, transition: { type: 'spring', stiffness: 400, damping: 17 } },
+  initial: { scale: 0, opacity: 0 },
+  animate: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 400, damping: 17 } },
+  exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } }
 };
 
-// const medusa = new Medusa({ baseUrl: process.env.MEDUSA_BACKEND_URL || "http://localhost:9000", maxRetries: 3, publishableApiKey: process.env.NEXT_PUBLIC_MEDUSA_API_KEY || '' });
+// Функция форматирования цены (Medusa хранит цены в минорных единицах)
+const formatPrice = (amount?: number, currencyCode: string = 'KZT'): string => {
+  if (typeof amount !== 'number' || amount === null) {
+    return 'N/A'; // Или другое значение по умолчанию
+  }
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: currencyCode.toUpperCase(),
+  }).format(amount / 100); // Делим на 100
+};
 
-// Для типизации пропсов NavItem
+
 interface NavItemProps {
   item: {
     href: string;
@@ -128,42 +114,26 @@ export function Header() {
   const pathname = usePathname();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // Для десктопного поиска
 
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Состояние корзины
-  const [cartData, setCartData] = useState<CartData>({ items: [], totalItems: 0 });
-  const [cartLoading, setCartLoading] = useState(true);
+  // Используем useCart
+  const { cart, totalItems, isLoading: isCartLoading } = useCart();
 
-
-  const { data: session, status } = useSession(); // Получаем сессию и статус
+  const { data: session, status: nextAuthStatus } = useSession();
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false, callbackUrl: "/" }); // Выходим, редирект обрабатываем сами или указываем callbackUrl
-    localStorage.removeItem('medusa_jwt');
-    router.push("/"); // Принудительный редирект, если callbackUrl не сработал как ожидалось или для немедленного обновления
+    localStorage.removeItem('medusa_jwt'); // Очищаем токен Medusa при выходе из NextAuth
+    await signOut({ redirect: false });
+    router.push("/"); 
   };
 
-  const isLoading = status === "loading";
-
-  // Получаем данные пользователя из сессии NextAuth
-  // Тип session.user должен быть расширен через module augmentation (types/next-auth.d.ts)
-  // чтобы TypeScript знал о medusaCustomerId и других ваших полях.
-  const user = session?.user; 
-  // Предположим, что имя и фамилия хранятся в session.user.name, а email в session.user.email
-  // Если вы передавали first_name и last_name отдельно в токен/сессию, используйте их.
-
-  const userFullName = user?.name; // NextAuth обычно хранит полное имя в user.name
-  const userEmail = user?.email;
-  // Для аватара, если вы не храните URL аватара в сессии NextAuth,
-  // вам может понадобиться отдельный запрос к Medusa для получения этих данных,
-  // либо вы можете их добавить в объект user при авторизации в [...nextauth]/route.ts.
-  // Для простоты, предположим, что user.image стандартное поле NextAuth для аватара.
-  // Если от Medusa приходит avatar_url, вы могли бы его так же поместить в user.image или user.avatarUrl.
-  const avatarUrl = user?.image; // Стандартное поле NextAuth для изображения пользователя
+  const isLoadingSession = nextAuthStatus === "loading";
+  const isAuthenticated = nextAuthStatus === "authenticated";
+  const nextAuthUser = session?.user;
+  const userFullName = nextAuthUser?.name;
+  const userEmail = nextAuthUser?.email;
+  const avatarUrl = nextAuthUser?.image;
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
@@ -171,67 +141,32 @@ export function Header() {
       if (parts.length > 1) {
         return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
       }
-      return name[0].toUpperCase();
+      return name.length > 0 ? name[0].toUpperCase() : "U";
     }
     if (email) {
       return email[0].toUpperCase();
     }
-    return "U"; // Пользователь
+    return "U";
   };
-
-  // Загрузка данных корзины
-  // useEffect(() => {
-  //   const fetchCart = async () => {
-  //     setCartLoading(true);
-  //     try {
-  //       let cartId = typeof window !== "undefined" ? localStorage.getItem("cart_id") : null;
-  //       let cart;
-
-  //       if (cartId) {
-  //         cart = await medusa.carts.retrieve(cartId);
-  //       } else {
-  //         const { cart: newCart } = await medusa.carts.create();
-  //         cart = { cart: newCart };
-  //         if (typeof window !== "undefined") {
-  //           localStorage.setItem("cart_id", newCart.id);
-  //         }
-  //       }
-
-  //       const items = cart.cart.items || [];
-  //       const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-
-  //       setCartData({ items, totalItems });
-  //     } catch (error) {
-  //       console.error("Failed to fetch cart:", error);
-  //       setCartData({ items: [], totalItems: 0 });
-  //     }
-  //     setCartLoading(false);
-  //   };
-
-  //   fetchCart();
-  // }, []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Переключатель темы с анимацией
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  // Обработчик отправки формы поиска
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Редирект на страницу поиска
-      console.log(`Search for: ${searchQuery}`);
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
       setIsSearchOpen(false);
+      if(openMobileMenu) setOpenMobileMenu(false);
     }
   };
 
-  // Компонент элемента навигации
   const NavItem = ({ item, mobile = false, onClose }: NavItemProps) => {
     const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
     const [isHovered, setIsHovered] = useState(false);
@@ -246,7 +181,7 @@ export function Header() {
         >
           <button
             className={cn(
-              "flex items-center px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none",
+              "flex items-center px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               isActive 
                 ? "text-primary" 
                 : "text-foreground hover:text-primary"
@@ -273,8 +208,8 @@ export function Header() {
                   <Link
                     key={child.href}
                     href={child.href}
-                    className="block px-4 py-2 text-foreground hover:bg-accent/50 hover:text-primary transition-colors duration-200"
-                    onClick={() => setIsDropdownOpen(false)}
+                    className="block px-4 py-2 text-foreground hover:bg-accent hover:text-primary transition-colors duration-200"
+                    onClick={() => { setIsDropdownOpen(false); if(onClose) onClose(); }}
                   >
                     {child.label}
                   </Link>
@@ -289,20 +224,20 @@ export function Header() {
     if (mobile) {
       return item.children ? (
         <div className="mb-1">
-          <DropdownMenu>
+          <DropdownMenu> {/* Используем DropdownMenu для мобильных подменю */}
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "justify-start text-base w-full mb-1",
-                  isActive ? "text-primary bg-accent/30" : "text-foreground hover:bg-accent/20"
+                  "justify-between text-base w-full mb-1 px-3 py-2 h-auto", // Увеличим padding для мобильных
+                  isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
                 )}
               >
                 {item.label}
                 <ChevronDown className="ml-auto h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-card w-full">
+            <DropdownMenuContent className="bg-card w-[calc(100%-2rem)] ml-3"> {/* Ширина контента */}
               {item.children.map((child) => (
                 <DropdownMenuItem key={child.href} asChild onClick={onClose}>
                   <Link href={child.href} className="w-full">
@@ -319,8 +254,8 @@ export function Header() {
           variant="ghost" 
           asChild 
           className={cn(
-            "justify-start text-base w-full mb-1",
-            isActive ? "text-primary bg-accent/30" : "text-foreground hover:bg-accent/20"
+            "justify-start text-base w-full mb-1 px-3 py-2 h-auto",
+            isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
           )}
           onClick={onClose}
         >
@@ -338,7 +273,7 @@ export function Header() {
         <Link
           href={item.href}
           className={cn(
-            "px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none",
+            "px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             isActive
               ? "text-primary"
               : "text-foreground hover:text-primary"
@@ -348,7 +283,8 @@ export function Header() {
         </Link>
         {(isActive || isHovered) && (
           <motion.div
-            className="bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full"
+            layoutId="underline" // Для красивой анимации подчеркивания при смене активного элемента
+            className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
             initial="hidden"
             animate="visible"
             variants={underlineVariants}
@@ -358,8 +294,7 @@ export function Header() {
     );
   };
 
-  // Для избежания мерцания при загрузке темы
-  if (!mounted) return null;
+  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>; // Placeholder для избежания CLS
 
   return (
     <motion.header
@@ -370,240 +305,174 @@ export function Header() {
     >
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          {/* Логотип */}
-          <Link href="/" className="flex items-center">
-            {/* Светлая тема — тёмный логотип */}
+          <Link href="/" className="flex items-center shrink-0">
             <Image
               src="/images/logos/asia-ntb/Asia-NTB-logo-eng-light.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="block dark:hidden h-10 sm:h-10 w-auto"
+              className="block dark:hidden h-10 w-auto"
               priority
             />
-            {/* Тёмная тема — светлый логотип */}
             <Image
               src="/images/logos/asia-ntb/Asia-NTB-logo-eng-dark.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="hidden dark:block h-10 sm:h-10 w-auto"
+              className="hidden dark:block h-10 w-auto"
               priority
             />
           </Link>
 
-
-          {/* Поисковая строка - только на больших экранах */}
-          <div className="hidden md:flex items-center ml-6 mr-auto">
-            {/* <AnimatePresence mode="wait">
-              {isSearchOpen ? (
-                <motion.form
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 300, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="relative"
-                  onSubmit={handleSearchSubmit}
-                >
-                  <input
-                    type="text"
-                    placeholder="Поиск товаров..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-3 pr-10 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setIsSearchOpen(false)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </motion.form>
-              ) : (
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsSearchOpen(true)}
-                  className="p-2 rounded-lg text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-                >
-                  <Search className="h-5 w-5" />
-                </motion.button>
-              )}
-            </AnimatePresence> */}
-          </div>
-          
-          {/* Навигация для Desktop */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-1 mx-auto"> {/* mx-auto для центрирования навигации */}
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} />
             ))}
           </nav>
 
-          {/* Кнопки действий */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Поиск для мобильных */}
-            {/* <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-              onClick={() => setIsSearchOpen(true)}
-            >
-              <Search className="h-5 w-5" />
-            </Button> */}
-
-            {/* Корзина */}
-            {/* <DropdownMenu>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="relative text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
+                  aria-label="Корзина"
                 >
                   <ShoppingBag className="h-5 w-5" />
-                  <span className="sr-only">Корзина</span>
                   <AnimatePresence>
-                    {!cartLoading && cartData.totalItems > 0 && (
+                    {totalItems > 0 && (
                       <motion.div
                         className="absolute -top-1 -right-1"
                         variants={badgeVariants}
                         initial="initial"
                         animate="animate"
+                        exit="exit"
                       >
-                        <Badge variant="primary" className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs">
-                          {cartData.totalItems}
+                        <Badge variant="destructive" className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs">
+                          {totalItems}
                         </Badge>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-4">
-                <DropdownMenuLabel className="font-medium text-lg border-b pb-2 mb-2">Корзина</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 bg-card border-border shadow-xl">
+                <DropdownMenuLabel className="font-medium text-lg px-4 py-3 border-b border-border">
+                  Корзина
+                </DropdownMenuLabel>
                 
-                {cartLoading ? (
-                  <div className="py-8 text-center">
-                    <Skeleton className="h-10 w-10 mx-auto mb-2 rounded-full" />
+                {isCartLoading ? (
+                  <div className="py-10 text-center">
+                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
                     <p className="text-muted-foreground">Загрузка корзины...</p>
                   </div>
-                ) : cartData.totalItems > 0 ? (
+                ) : cart && cart.items && cart.items.length > 0 ? (
                   <>
-                    <div className="max-h-60 overflow-auto py-1">
-                      {cartData.items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-3 py-2 border-b border-border/50">
-                          <div className="bg-accent/30 rounded h-16 w-16 flex items-center justify-center">
-                            {item.thumbnail ? (
-                              <Image src={item.thumbnail} alt={item.title} width={64} height={64} className="object-contain h-16 w-16" />
-                            ) : (
-                              <Package className="h-8 w-8 text-muted-foreground" />
-                            )}
+                    <ScrollArea className="max-h-80 p-4"> {/* ScrollArea для списка товаров */}
+                      <div className="space-y-4">
+                        {cart.items.map((item: HttpTypes.StoreCartLineItem) => ( // Явная типизация item
+                          <div key={item.id} className="flex items-center gap-4 py-2 border-b border-border/50 last:border-b-0">
+                            <div className="bg-muted rounded h-16 w-16 flex items-center justify-center shrink-0">
+                              {item.thumbnail ? (
+                                <Image src={item.thumbnail} alt={item.title} width={64} height={64} className="object-contain h-full w-full" />
+                              ) : (
+                                <Package className="h-8 w-8 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.quantity} × {formatPrice(item.unit_price, cart.region?.currency_code)}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-foreground whitespace-nowrap">
+                              {formatPrice((item.unit_price || 0) * (item.quantity || 0), cart.region?.currency_code)}
+                            </p>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.title}</p>
-                            <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit_price / 100} ₽</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                     
-                    <div className="py-3 border-t border-border mt-1">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm text-foreground">Итого:</span>
-                        <span className="text-base font-semibold text-foreground">
-                          {cartData.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) / 100} ₽
+                    <div className="p-4 border-t border-border">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-base text-foreground font-medium">Итого:</span>
+                        <span className="text-lg font-bold text-foreground">
+                          {formatPrice(cart.subtotal, cart.region?.currency_code)}
                         </span>
                       </div>
-                      <div className="flex gap-2">
-                        <Button asChild variant="outline" size="sm" className="flex-1">
-                          <Link href="/cart">Корзина</Link>
+                      <div className="flex gap-3">
+                        <Button asChild variant="outline" size="lg" className="flex-1">
+                          <Link href="/cart">В корзину</Link>
                         </Button>
-                        <Button asChild variant="primary" size="sm" className="flex-1">
+                        <Button asChild variant="default" size="lg" className="flex-1 bg-primary hover:bg-primary/90">
                           <Link href="/checkout">Оформить</Link>
                         </Button>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="py-8 text-center">
-                    <ShoppingBag className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-muted-foreground">Ваша корзина пуста</p>
-                    <Button asChild variant="primary" className="mt-3">
+                  <div className="py-10 text-center px-4">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">Ваша корзина пуста</p>
+                    <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
                       <Link href="/catalog">Перейти в каталог</Link>
                     </Button>
                   </div>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu> */}
+            </DropdownMenu>
 
-            {/* Пользователь */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
+                  aria-label="Профиль пользователя"
                 >
-                  {isLoading ? (
-                    <Skeleton className="h-5 w-5 rounded-full" />
+                  {isLoadingSession ? (
+                    <Skeleton className="h-6 w-6 rounded-full" />
                   ) : (
                     <User className="h-5 w-5" />
                   )}
-                  <span className="sr-only">Профиль</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {status === "authenticated" && user ? ( // Проверяем статус authenticated и наличие user
+              <DropdownMenuContent align="end" className="w-60 bg-card border-border shadow-xl">
+                {isAuthenticated && nextAuthUser ? (
                   <>
-                    <DropdownMenuLabel className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
-                        {/* Если у вас есть avatarUrl в session.user (например, user.image или user.avatarUrl), используйте его.
-                          Иначе, используйте инициалы.
-                        */}
+                    <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2.5">
+                      <Avatar className="h-10 w-10">
                         {avatarUrl && <AvatarImage src={avatarUrl} alt={userFullName || userEmail || "User"} />}
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        <AvatarFallback className="text-sm bg-primary/10 text-primary">
                           {getInitials(userFullName, userEmail)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="overflow-hidden">
-                        <p className="text-sm font-medium truncate">
-                          {userFullName || userEmail}
+                        <p className="text-sm font-semibold truncate text-foreground">
+                          {userFullName || "Пользователь"}
                         </p>
-                        {/* Если userFullName существует и отличается от email, показываем email ниже */}
-                        {userFullName && userEmail && userFullName !== userEmail && (
+                        {userEmail && (
                           <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
                         )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/account" className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
+                      <Link href="/account" className="flex items-center cursor-pointer">
+                        <User className="mr-2 h-4 w-4 text-muted-foreground" />
                         <span>Мой аккаунт</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/account/orders" className="flex items-center">
-                        <Package className="mr-2 h-4 w-4" />
+                      <Link href="/account/orders" className="flex items-center cursor-pointer">
+                        <Package className="mr-2 h-4 w-4 text-muted-foreground" />
                         <span>Мои заказы</span>
                       </Link>
                     </DropdownMenuItem>
-                    {/* <DropdownMenuItem asChild>
-                      <Link href="/wishlist" className="flex items-center">
-                        <Heart className="mr-2 h-4 w-4" />
-                        <span>Избранное</span>
-                      </Link>
-                    </DropdownMenuItem> */}
-                    {/* <DropdownMenuItem asChild>
-                      <Link href="/account/settings" className="flex items-center">
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Настройки</span>
-                      </Link>
-                    </DropdownMenuItem> */}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="flex items-center text-destructive focus:text-destructive cursor-pointer" // Добавил cursor-pointer
+                      className="flex items-center text-destructive focus:text-destructive cursor-pointer"
                       onClick={handleSignOut}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -611,116 +480,103 @@ export function Header() {
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <>
-                    <div className="px-2 py-3 text-center">
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Войдите, чтобы получить доступ к своему аккаунту
+                  <div className="p-3 space-y-2">
+                     <p className="text-sm text-muted-foreground text-center mb-3">
+                        Войдите или создайте аккаунт
                       </p>
-                      <Button asChild variant="default" size="sm" className="w-full mb-2">
-                        <Link href="auth/signin">Войти</Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href="auth/signup">Регистрация</Link>
-                      </Button>
-                    </div>
-                  </>
+                    <Button asChild variant="default" size="sm" className="w-full bg-primary hover:bg-primary/90">
+                      <Link href="/auth/signin">Войти</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="w-full">
+                      <Link href="/auth/signup">Регистрация</Link>
+                    </Button>
+                  </div>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Смена темы */}
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
               className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
+              aria-label="Сменить тему"
             >
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={theme}
-                  initial={{ y: -20, opacity: 0 }}
+                  initial={{ y: theme === 'dark' ? 20 : -20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 20, opacity: 0 }}
+                  exit={{ y: theme === 'dark' ? -20 : 20, opacity: 0 }}
                   transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center"
                 >
                   {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </motion.div>
               </AnimatePresence>
-              <span className="sr-only">Сменить тему</span>
             </Button>
 
-            {/* Мобильное меню */}
             <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="lg:hidden text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
+                  aria-label="Открыть меню"
                 >
                   <Menu className="h-5 w-5" />
-                  <span className="sr-only">Меню</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="lg:hidden w-full sm:w-80 p-0 border-l border-border">
+              <SheetContent side="right" className="lg:hidden w-full max-w-xs sm:max-w-sm p-0 border-l border-border bg-card">
                 <SheetHeader className="p-4 border-b border-border bg-muted/30">
-                  <SheetTitle className="text-left text-lg font-semibold text-foreground">
-                    Меню
-                  </SheetTitle>
+                  <SheetClose asChild>
+                    <div className="flex justify-between items-center">
+                       <SheetTitle className="text-left text-lg font-semibold text-foreground">
+                        Меню
+                      </SheetTitle>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </SheetClose>
                 </SheetHeader>
                 
-                {/* Поиск в мобильном меню */}
                 <div className="p-4 border-b border-border">
                   <form onSubmit={handleSearchSubmit} className="relative">
-                    <input
+                    <Input
                       type="text"
                       placeholder="Поиск товаров..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      className="w-full pl-10 pr-4 py-2 rounded-lg border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   </form>
                 </div>
                 
-                <div className="py-4 px-3 overflow-y-auto max-h-[calc(100vh-12rem)]">
-                  <nav className="flex flex-col gap-1">
-                    {navItems.map((item) => (
-                      <NavItem key={item.href} item={item} mobile onClose={() => setOpenMobileMenu(false)} />
-                    ))}
-                  </nav>
-                  
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <Button 
-                      variant="ghost" 
-                      asChild 
-                      className="justify-start text-base w-full mb-1"
-                      onClick={() => setOpenMobileMenu(false)}
-                    >
-                      <Link href="/wishlist">
-                        <Heart className="mr-2 h-4 w-4" />
-                        Избранное
-                      </Link>
-                    </Button>
+                <ScrollArea className="h-[calc(100vh-140px)]"> {/* Регулируем высоту для прокрутки */}
+                  <div className="py-4 px-3">
+                    <nav className="flex flex-col gap-1">
+                      {navItems.map((item) => (
+                        <NavItem key={item.href} item={item} mobile onClose={() => setOpenMobileMenu(false)} />
+                      ))}
+                    </nav>
                     
-                    <Button 
-                      variant="ghost" 
-                      onClick={toggleTheme}
-                      className="justify-start text-base w-full mb-1"
-                    >
-                      {theme === 'dark' ? (
-                        <>
-                          <Sun className="mr-2 h-4 w-4" />
-                          Светлая тема
-                        </>
-                      ) : (
-                        <>
-                          <Moon className="mr-2 h-4 w-4" />
-                          Темная тема
-                        </>
-                      )}
-                    </Button>
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <Button 
+                        variant="ghost" 
+                        asChild 
+                        className="justify-start text-base w-full mb-1 px-3 py-2 h-auto"
+                        onClick={() => setOpenMobileMenu(false)}
+                      >
+                        <Link href="/wishlist">
+                          <Heart className="mr-2 h-4 w-4" />
+                          Избранное
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                </ScrollArea>
               </SheetContent>
             </Sheet>
           </div>
@@ -729,3 +585,4 @@ export function Header() {
     </motion.header>
   );
 }
+
