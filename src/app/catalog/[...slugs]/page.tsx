@@ -16,7 +16,9 @@ import {
   BreadcrumbPage, 
   BreadcrumbSeparator 
 } from "@/components/ui/breadcrumb"; 
-import { LayoutGrid } from 'lucide-react'; // Иконка для карточек подкатегорий
+import { LayoutGrid, ImageOff } from 'lucide-react'; // Иконка для карточек подкатегорий и placeholder
+import Image from 'next/image'; // For product thumbnails
+import { Badge } from "@/components/ui/badge"; // For availability status
 
 interface CategoryPageProps {
   params: {
@@ -56,12 +58,24 @@ async function getCategoryData(handle: string): Promise<CategoryData> {
 
     const currentCategory = product_categories[0];
     
-    // TODO: Загрузка товаров для текущей категории
-    // const { products } = await sdk.store.product.list({ category_id: [currentCategory.id], limit: 10 /*, ...другие параметры */ });
+    let products: Product[] = [];
+    if (currentCategory?.id) {
+      try {
+        const { products: fetchedProducts } = await sdk.store.product.list({ 
+          category_id: [currentCategory.id], 
+          limit: 20, // Fetch up to 20 products
+          fields: 'id,title,handle,thumbnail,description,variants.prices,variants.inventory_quantity', // Added description
+        });
+        products = fetchedProducts;
+      } catch (productError) {
+        console.error(`Failed to fetch products for category ${currentCategory.id}:`, productError);
+        // products will remain an empty array
+      }
+    }
 
     return {
       category: currentCategory,
-      products: [], 
+      products: products, 
     };
   } catch (error) {
     console.error(`Failed to fetch category data for handle ${handle}:`, error);
@@ -96,6 +110,7 @@ async function getBreadcrumbData(slugs: string[]): Promise<BreadcrumbInfo[]> {
   return breadcrumbs;
 }
 
+// Removed RecursiveCategoryList from here as it's now in src/components/categories/RecursiveCategoryList.tsx
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slugs } = params;
@@ -154,43 +169,21 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           )}
         </header>
 
-        {/* Подкатегории */}
+        {/* Подкатегории - This section will be removed as the sidebar will handle category navigation. 
+            The main content area should focus on the current category's products and details.
+            If the current category has children, the sidebar will display them.
+            We might still want to show subcategory cards if there are no products,
+            but the primary navigation moves to the sidebar.
+            For now, removing this section entirely to avoid redundancy with the sidebar.
+        */}
+        {/* 
         {childrenCategories && childrenCategories.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8">Подкатегории</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {childrenCategories.map((childCategory) => (
-                <Link
-                  key={childCategory.id}
-                  href={`/catalog/${slugs.join('/')}/${childCategory.handle}`} 
-                  passHref
-                  legacyBehavior
-                >
-                  <a className="block group">
-                    {/* Адаптируем стиль карточек подкатегорий */}
-                    <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-blue-400 dark:hover:border-blue-500 transform hover:-translate-y-1">
-                       <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center rounded-t-2xl">
-                          <LayoutGrid className="h-14 w-14 text-blue-500 dark:text-blue-400 opacity-75" />
-                       </div>
-                      <CardHeader className="p-5 flex-grow">
-                        <CardTitle className="text-lg font-semibold text-center text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
-                          {childCategory.name}
-                        </CardTitle>
-                      </CardHeader>
-                       {childCategory.description && (
-                        <CardContent className="p-5 pt-0">
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 text-center">
-                            {childCategory.description}
-                          </p>
-                        </CardContent>
-                      )}
-                    </Card>
-                  </a>
-                </Link>
-              ))}
-            </div>
+            // The RecursiveCategoryList call was here
           </section>
         )}
+        */}
 
         {/* Товары */}
         <section>
@@ -198,11 +191,59 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             Товары в категории "{category.name}"
           </h2>
           {products && products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {/* TODO: Заменить на реальные карточки товаров */}
-              <p className="text-gray-600 dark:text-gray-400 col-span-full text-center py-4">
-                Отображение товаров будет реализовано на следующем шаге.
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+              {products.map((product) => {
+                const price = product.variants?.[0]?.prices?.[0]?.amount;
+                const formattedPrice = price 
+                  ? new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(price / 100) // Assuming price is in cents
+                  : 'Цена не указана';
+
+                return (
+                  <Link key={product.id} href={`/product/${product.handle}`} passHref legacyBehavior>
+                    <a className="block group">
+                      <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-blue-400 dark:hover:border-blue-500 transform hover:-translate-y-1">
+                        <div className="relative w-full aspect-[4/3] bg-gray-100 dark:bg-gray-800 rounded-t-2xl overflow-hidden">
+                          {product.thumbnail ? (
+                            <Image
+                              src={product.thumbnail}
+                              alt={product.title || 'Product image'}
+                              fill
+                              style={{ objectFit: 'cover' }}
+                              className="group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                              <ImageOff className="h-16 w-16 text-gray-400 dark:text-gray-500" />
+                            </div>
+                          )}
+                        </div>
+                        <CardHeader className="p-4">
+                          <CardTitle className="text-md font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 line-clamp-2 mb-1">
+                            {product.title}
+                          </CardTitle>
+                          {product.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">
+                              {product.description}
+                            </p>
+                          )}
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0 flex-grow flex flex-col justify-end">
+                          <div>
+                            <p className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2">
+                              {formattedPrice}
+                            </p>
+                            {product.variants && product.variants.length > 0 && (
+                              <Badge variant={product.variants[0].inventory_quantity && product.variants[0].inventory_quantity > 0 ? "default" : "destructive"} className={`text-xs ${product.variants[0].inventory_quantity && product.variants[0].inventory_quantity > 0 ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100 border-green-300' : 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100 border-red-300'}`}>
+                                {product.variants[0].inventory_quantity && product.variants[0].inventory_quantity > 0 ? 'В наличии' : 'Нет в наличии'}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </a>
+                  </Link>
+                );
+              })}
             </div>
           ) : (
             (childrenCategories.length === 0) && (

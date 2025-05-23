@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input'; // Added Input import
 import { ArrowLeft, Loader2, ShoppingCart, Check } from 'lucide-react';
 import ProductGallery from '@/components/product/ProductGallery';
 import ProductSeo from '@/components/product/ProductSeo';
@@ -55,6 +56,7 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
   const [selectedVariant, setSelectedVariant] = useState<ProductVariantType | undefined>(
     product.variants && product.variants.length > 0 ? product.variants[0] : undefined
   );
+  const [quantity, setQuantity] = useState(1); // Added quantity state
   const [isAddingToCartLocal, setIsAddingToCartLocal] = useState(false);
   const [addedToCartLocal, setAddedToCartLocal] = useState(false);
   const router = useRouter();
@@ -106,10 +108,11 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
     setIsAddingToCartLocal(true);
     setAddedToCartLocal(false);
     try {
-      await addItemToCartContext(selectedVariant.id, 1);
-      console.log('[ProductClientComponent] Successfully added to cart:', selectedVariant.id);
+      await addItemToCartContext(selectedVariant.id, quantity); // Use quantity from state
+      console.log(`[ProductClientComponent] Successfully added ${quantity} of ${selectedVariant.id} to cart`);
       setAddedToCartLocal(true);
-      toast.success('Товар добавлен в корзину!');
+      toast.success(`Товар добавлен в корзину (x${quantity})!`);
+      setQuantity(1); // Reset quantity
       setTimeout(() => setAddedToCartLocal(false), 3000);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
@@ -238,6 +241,18 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
                     <p className="text-lg text-muted-foreground line-through">{priceInfo.original}</p>
                   )}
                 </div>
+              </div>
+
+              <div className="flex items-center gap-3 mb-4">
+                <Label htmlFor="quantity-input" className="text-sm font-medium whitespace-nowrap">Количество:</Label>
+                <Input
+                  id="quantity-input"
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  min="1"
+                  className="w-24 h-10 text-center focus:ring-primary focus:border-primary"
+                />
               </div>
 
               <div className="space-y-3">
