@@ -4,37 +4,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // CardDescription removed as it's not used
 import { ArrowLeft, Loader2, ShoppingCart, Check } from 'lucide-react';
 import ProductGallery from '@/components/product/ProductGallery';
 import ProductSeo from '@/components/product/ProductSeo';
 import ProductTabs from '@/components/product/ProductTabs';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { toast } from 'sonner';
-import { HttpTypes } from '@medusajs/types';
-import { Label } from '@/components/ui/label';
+import { Product } from '@/types/supabase'; // Adjusted path
 import { useCart } from '@/providers/cart';
 
-// Types
-type ProductImageType = { id?: string; url: string; metadata?: Record<string, unknown> | null };
-type CalculatedPriceSetType = HttpTypes.StoreCalculatedPrice;
-
-type ProductVariantType = HttpTypes.StoreProductVariant & {
-  calculated_price?: CalculatedPriceSetType | null;
-};
-
-type ProductType = HttpTypes.StoreProduct & {
-  variants?: ProductVariantType[] | null;
-  images?: ProductImageType[] | null;
-  collection?: HttpTypes.StoreCollection | null;
-  categories?: (HttpTypes.StoreProductCategory & { parent_category_id?: string | null })[] | null;
-};
-
 interface ProductClientComponentProps {
-  product: ProductType;
+  product: Product; // Use Supabase Product type
   breadcrumbItems: Array<{ label: string; href: string }>;
 }
 
+// formatPrice remains the same as it's generic
 const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): string => {
   if (typeof amount !== 'number' || amount === null) {
     return 'Цена по запросу';
@@ -42,7 +27,7 @@ const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): stri
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: currencyCode.toUpperCase(),
-  }).format(amount);
+  }).format(amount); // Assuming amount is already in the correct denomination
 };
 
 const getSafeString = (value: any, fallback: string = ''): string => {
@@ -52,62 +37,50 @@ const getSafeString = (value: any, fallback: string = ''): string => {
 };
 
 export default function ProductClientComponent({ product, breadcrumbItems }: ProductClientComponentProps) {
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariantType | undefined>(
-    product.variants && product.variants.length > 0 ? product.variants[0] : undefined
-  );
   const [isAddingToCartLocal, setIsAddingToCartLocal] = useState(false);
   const [addedToCartLocal, setAddedToCartLocal] = useState(false);
   const router = useRouter();
 
   const { addItem: addItemToCartContext, isLoading: isCartGloballyLoading } = useCart();
 
-  // Debug logs for cart button state
-  useEffect(() => {
-    console.log('[ProductClientComponent] Product variants:', product.variants);
-    console.log('[ProductClientComponent] Selected variant:', selectedVariant);
-    console.log('[ProductClientComponent] Is adding to cart:', isAddingToCartLocal);
-    console.log('[ProductClientComponent] Added to cart:', addedToCartLocal);
-    console.log('[ProductClientComponent] Cart loading state:', isCartGloballyLoading);
-    console.log('[ProductClientComponent] Can purchase:', canPurchase);
-    if (product.variants && product.variants.length > 0 && !selectedVariant) {
-      console.log('[ProductClientComponent] Setting default variant:', product.variants[0]);
-      setSelectedVariant(product.variants[0]);
-    } else if (!product.variants || product.variants.length === 0) {
-      console.warn('[ProductClientComponent] No variants available for product:', product.title);
-    }
-  }, [product.variants, selectedVariant, isAddingToCartLocal, addedToCartLocal, isCartGloballyLoading]);
-
+  // Price and Sale Info
   const priceInfo = useMemo(() => {
-    if (!selectedVariant) {
-      return { display: 'Выберите вариант', original: null, currencyCode: 'KZT', isSale: false };
-    }
+    const display = formatPrice(product.price, product.currency_code);
+    const original = product.original_price ? formatPrice(product.original_price, product.currency_code) : null;
+    const isSale = product.original_price != null && product.price != null && product.original_price > product.price;
+    return { display, original, isSale };
+  }, [product.price, product.original_price, product.currency_code]);
 
-    const price = selectedVariant.calculated_price;
-    const currency = price?.currency_code || 'KZT';
-    const displayAmount = price?.calculated_amount;
-    const originalAmount = price?.original_amount;
-    const isSale = originalAmount != null && displayAmount != null && originalAmount > displayAmount;
+  // Inventory and Purchase Status
+  // Assuming allowBackorder is false if not present on product model
+  const inventoryQuantity = product.stock_quantity ?? 0;
+  const allowBackorder = product.allow_backorder ?? false; 
+  const canPurchase = inventoryQuantity > 0 || allowBackorder;
+  const stockStatusText = canPurchase 
+    ? (inventoryQuantity > 0 ? 'В наличии' : 'Под заказ') 
+    : 'Нет в наличии';
 
-    return {
-      display: formatPrice(displayAmount, currency),
-      original: isSale ? formatPrice(originalAmount, currency) : null,
-      currencyCode: currency,
-      isSale,
-    };
-  }, [selectedVariant]);
+  // Debug logs (can be removed in production)
+  useEffect(() => {
+    console.log('[ProductClientComponent] Product data:', product);
+    console.log('[ProductClientComponent] Price info:', priceInfo);
+    console.log('[ProductClientComponent] Can purchase:', canPurchase, "Stock:", inventoryQuantity, "Allow Backorder:", allowBackorder);
+    console.log('[ProductClientComponent] Cart loading state:', isCartGloballyLoading);
+  }, [product, priceInfo, canPurchase, inventoryQuantity, allowBackorder, isCartGloballyLoading]);
+
 
   const handleAddToCart = async () => {
-    if (!selectedVariant?.id) {
-      console.warn('[ProductClientComponent] Attempted to add to cart with no selected variant');
-      toast.error('Пожалуйста, выберите вариант товара.');
+    if (!product.id) { // Product ID is now directly from the product object
+      console.warn('[ProductClientComponent] Attempted to add to cart with no product ID');
+      toast.error('Не удалось идентифицировать товар.');
       return;
     }
-    console.log('[ProductClientComponent] Adding variant to cart:', selectedVariant.id);
+    console.log('[ProductClientComponent] Adding product to cart:', product.id);
     setIsAddingToCartLocal(true);
     setAddedToCartLocal(false);
     try {
-      await addItemToCartContext(selectedVariant.id, 1);
-      console.log('[ProductClientComponent] Successfully added to cart:', selectedVariant.id);
+      await addItemToCartContext(product.id, 1); // Use product.id
+      console.log('[ProductClientComponent] Successfully added to cart:', product.id);
       setAddedToCartLocal(true);
       toast.success('Товар добавлен в корзину!');
       setTimeout(() => setAddedToCartLocal(false), 3000);
@@ -120,31 +93,13 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
     }
   };
 
-  const inventoryQuantity = selectedVariant?.inventory_quantity ?? 0;
-  const allowBackorder = selectedVariant?.allow_backorder ?? false;
-  const canPurchase = inventoryQuantity > 0 || allowBackorder;
+  // Image Gallery
+  const galleryImages: string[] = product.image_urls || [];
 
-  const galleryImages: ProductImageType[] = useMemo(() => {
-    const allImages: ProductImageType[] = [];
-    if (product.thumbnail && typeof product.thumbnail === 'string') {
-      if (!product.images?.find((img) => img.url === product.thumbnail)) {
-        allImages.push({ url: product.thumbnail, id: 'thumbnail-main' });
-      }
-    }
-    if (product.images) {
-      allImages.push(
-        ...product.images
-          .filter((img) => typeof img.url === 'string')
-          .map((img) => ({ id: img.id || img.url, url: img.url }))
-      );
-    }
-    return Array.from(new Map(allImages.map((img) => [img.url, img])).values());
-  }, [product.images, product.thumbnail]);
-
-  const productTitle = getSafeString(product.title, 'Название товара отсутствует');
-  const collectionTitle = getSafeString(product.collection?.title);
-  const selectedVariantSKU = getSafeString(selectedVariant?.sku);
-  const productHandle = getSafeString(product.handle);
+  const productName = getSafeString(product.name, 'Название товара отсутствует');
+  // SKU display (using product.sku if available, otherwise product.id as fallback, or 'N/A')
+  const productSKU = getSafeString(product.sku, getSafeString(product.id, 'N/A'));
+  const productHandle = getSafeString(product.handle); // Assuming handle is still relevant for links/SEO
 
   let buttonIcon = <ShoppingCart className="w-5 h-5 mr-2" />;
   let buttonText = 'Добавить в корзину';
@@ -158,48 +113,55 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
   }
 
   const safeBreadcrumbItems =
-    breadcrumbItems.length > 0
+    breadcrumbItems && breadcrumbItems.length > 0
       ? breadcrumbItems
       : [
           { label: 'Home', href: '/' },
-          { label: 'Products', href: '/products' },
-          { label: productTitle, href: `/product/${productHandle}` },
+          { label: 'Products', href: '/catalog' }, // Changed to /catalog
+          { label: productName, href: `/product/${productHandle}` },
         ];
 
   return (
     <section className="py-8 lg:py-12 px-4 max-w-7xl mx-auto">
       <ProductSeo
         product={{
-          ...product,
-          title: productTitle,
+          id: product.id,
+          name: productName,
           description: typeof product.description === 'string' ? product.description : undefined,
-          images: galleryImages.map((img) => ({ url: img.url })),
+          image_urls: galleryImages, // Pass string array
+          handle: product.handle,
+          // Assuming other fields for ProductSeo are optional or derived
         }}
       />
       <Breadcrumbs items={safeBreadcrumbItems} className="mb-8" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
         <div className="w-full lg:sticky lg:top-24 self-start">
-          <ProductGallery images={galleryImages} title={productTitle} />
+          {/* ProductGallery should be updated to accept string[] for images */}
+          <ProductGallery images={galleryImages} title={productName} />
         </div>
 
         <div className="w-full flex flex-col gap-6">
           <Card className="border shadow-sm bg-card text-card-foreground">
             <CardHeader>
-              <CardTitle className="text-2xl lg:text-3xl font-bold">{productTitle}</CardTitle>
-              {collectionTitle && product.collection?.handle && (
-                <Link
-                  href={`/collections/${product.collection.handle}`}
-                  className="text-base text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Производитель: {collectionTitle}
-                </Link>
+              <CardTitle className="text-2xl lg:text-3xl font-bold">{productName}</CardTitle>
+              {product.brand?.name && (
+                <div className="mt-1"> {/* Adjusted margin slightly */}
+                  <span className="text-sm font-medium text-muted-foreground">Бренд: </span>
+                  {product.brand.handle ? (
+                    <Link href={`/brand/${product.brand.handle}`} className="text-sm text-primary hover:underline">
+                      {product.brand.name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-foreground">{product.brand.name}</span>
+                  )}
+                </div>
               )}
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Артикул: {selectedVariantSKU || productHandle || 'N/A'}
+                  Артикул: {productSKU}
                 </p>
                 <div
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -208,28 +170,11 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
                       : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300'
                   }`}
                 >
-                  {canPurchase ? (inventoryQuantity > 0 ? 'В наличии' : 'Под заказ') : 'Нет в наличии'}
+                  {stockStatusText}
                 </div>
               </div>
 
-              {product.variants && product.variants.length > 1 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground">Варианты:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {product.variants.map((variant) => (
-                      <Button
-                        key={variant.id}
-                        variant={selectedVariant?.id === variant.id ? 'default' : 'outline'}
-                        onClick={() => setSelectedVariant(variant)}
-                        size="sm"
-                        className={selectedVariant?.id === variant.id ? 'ring-2 ring-primary' : ''}
-                      >
-                        {getSafeString(variant.title, 'Вариант')}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Variant selection UI removed */}
 
               <div className="my-2">
                 <div className="flex items-baseline gap-2">
@@ -247,7 +192,7 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
                   disabled={
                     isAddingToCartLocal ||
                     addedToCartLocal ||
-                    !selectedVariant?.id ||
+                    !product.id || // Check product.id directly
                     !canPurchase ||
                     isCartGloballyLoading
                   }
@@ -267,10 +212,10 @@ export default function ProductClientComponent({ product, breadcrumbItems }: Pro
       </div>
 
       <ProductTabs
-        product={{
-          ...product,
+        product={{ // Pass necessary fields from Supabase product type
           description: typeof product.description === 'string' ? product.description : undefined,
-          metadata: product.metadata ?? undefined,
+          // Pass other fields like 'features' or 'specifications' if they exist on your Supabase Product type
+          // metadata: product.metadata ?? undefined, // If you have a JSON metadata field
         }}
       />
     </section>

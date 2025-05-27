@@ -3,22 +3,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-// Импортируем хук и типы Embla Carousel согласно вашему примеру
-import useEmblaCarousel, { type UseEmblaCarouselType } from 'embla-carousel-react'; // EmblaCarouselType для API
-import type { EmblaOptionsType } from 'embla-carousel'; // EmblaOptionsType для опций
+import useEmblaCarousel from 'embla-carousel-react';
+import type { EmblaOptionsType, UseEmblaCarouselType } from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight, Expand, X as CloseIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { Button } from '../ui/button';
 
-type ProductImageType = {
-  id?: string;
-  url: string;
-  metadata?: Record<string, unknown> | null;
-};
+// ProductImageType removed as images prop is now string[]
 
 interface ProductGalleryProps {
-  images: ProductImageType[];
+  images: string[]; // Changed to string[]
   title: string;
 }
 
@@ -28,7 +23,6 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
     align: 'start' 
   };
   
-  // emblaApi теперь будет иметь тип EmblaCarouselType | undefined
   const [emblaRef, emblaApi] = useEmblaCarousel(options); 
   const [emblaThumbsRef, emblaThumbsApi] = useEmblaCarousel({
     containScroll: 'keepSnaps',
@@ -59,18 +53,18 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
   const onSelect = useCallback(() => {
     if (!emblaApi || !emblaThumbsApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
-    if (emblaThumbsApi.scrollTo) { // Убедимся, что метод существует
+    if (emblaThumbsApi.scrollTo) { 
         emblaThumbsApi.scrollTo(emblaApi.selectedScrollSnap());
     }
-  }, [emblaApi, emblaThumbsApi]); // setSelectedIndex убран из зависимостей, т.к. он из useState
+  }, [emblaApi, emblaThumbsApi]);
 
   useEffect(() => {
     if (!emblaApi) return;
-    onSelect(); // Вызываем при инициализации
+    onSelect(); 
     emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', onSelect); // Также полезно при реинициализации
+    emblaApi.on('reInit', onSelect); 
     return () => {
-      if (emblaApi && emblaApi.off) { // Проверяем наличие off перед вызовом
+      if (emblaApi && emblaApi.off) { 
         emblaApi.off('select', onSelect);
         emblaApi.off('reInit', onSelect);
       }
@@ -95,14 +89,14 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
       {/* Main Carousel */}
       <div className="overflow-hidden rounded-lg border bg-card" ref={emblaRef}>
         <div className="flex">
-          {images.map((image, index) => (
+          {images.map((imageString, index) => ( // image is now imageString
             <div
-              className="relative aspect-square min-w-0 flex-[0_0_100%] cursor-pointer group" // Добавлен group для hover эффекта на иконке Expand
-              key={image.id || `main-${index}`}
+              className="relative aspect-square min-w-0 flex-[0_0_100%] cursor-pointer group"
+              key={`gallery-main-${imageString}-${index}`} // Updated key
               onClick={() => openModal(index)}
             >
               <Image
-                src={image.url}
+                src={imageString} // Use imageString directly
                 alt={`${title} - изображение ${index + 1}`}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
@@ -145,10 +139,10 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
       {/* Thumbnails Carousel */}
       {images.length > 1 && (
         <div className="mt-4 overflow-hidden" ref={emblaThumbsRef}>
-          <div className="flex gap-3"> {/* Увеличен gap для лучшего вида */}
-            {images.map((image, index) => (
+          <div className="flex gap-3"> 
+            {images.map((imageString, index) => ( // image is now imageString
               <button
-                key={image.id || `thumb-${index}`}
+                key={`gallery-thumb-${imageString}-${index}`} // Updated key
                 onClick={() => onThumbClick(index)}
                 className={cn(
                   'relative aspect-square h-16 w-16 sm:h-20 sm:w-20 rounded-md overflow-hidden cursor-pointer flex-[0_0_auto] transition-opacity duration-200',
@@ -157,10 +151,10 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
                 aria-label={`Перейти к изображению ${index + 1}`}
               >
                 <Image
-                  src={image.url}
+                  src={imageString} // Use imageString directly
                   alt={`${title} - миниатюра ${index + 1}`}
                   fill
-                  sizes="80px" // Можно немного увеличить, если миниатюры стали больше
+                  sizes="80px" 
                   className="object-cover"
                 />
               </button>
@@ -172,18 +166,16 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
       {/* Modal for Zoomed Image */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[95vh] p-2 sm:p-4 flex items-center justify-center bg-transparent border-0 shadow-none">
-          {/* Добавляем полупрозрачный фон для модального окна, если нужно */}
-          {/* <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" /> */}
-          <div className="relative w-full h-auto max-h-[88vh] aspect-auto z-10"> {/* aspect-auto для более гибкого размера */}
-             {images[modalImageIndex] && (
+          <div className="relative w-full h-auto max-h-[88vh] aspect-auto z-10">
+             {images[modalImageIndex] && ( // Check if imageString exists at index
               <Image
-                src={images[modalImageIndex].url}
+                src={images[modalImageIndex]} // Use imageString directly
                 alt={`${title} - увеличенное изображение ${modalImageIndex + 1}`}
-                width={1200} // Примерная ширина, Next.js оптимизирует
-                height={1200} // Примерная высота
+                width={1200} 
+                height={1200} 
                 sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1000px"
-                className="object-contain rounded-lg max-w-full max-h-[88vh]" // Убедимся, что изображение не выходит за пределы
-                style={{ width: 'auto', height: 'auto' }} // Позволяет изображению сохранять пропорции
+                className="object-contain rounded-lg max-w-full max-h-[88vh]"
+                style={{ width: 'auto', height: 'auto' }} 
               />
             )}
           </div>

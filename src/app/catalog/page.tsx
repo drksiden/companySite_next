@@ -1,9 +1,10 @@
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { CategoryCardList } from '@/components/CategoryCardList'; // Убедитесь, что этот файл существует и путь корректен
+import Link from 'next/link'; // Added Link import
 import { Metadata } from 'next';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-import { sdk } from '@/lib/sdk';
-import { HttpTypes } from '@medusajs/types';
+import { supabase } from '@/lib/supabaseClient';
+import { Category, Brand } from '@/types/supabase'; // Added Brand import
 import { Package } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -50,8 +51,28 @@ async function getTopLevelCategories(): Promise<HttpTypes.StoreProductCategory[]
   }
 }
 
+async function getBrands(): Promise<Brand[]> {
+  try {
+    const { data: brands, error } = await supabase
+      .from('brands')
+      .select('id, name, handle')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error("Ошибка при загрузке брендов из Supabase:", error.message);
+      throw error; // Re-throw to be caught by the outer catch
+    }
+    return brands || [];
+  } catch (error) {
+    // Catch both Supabase errors and unexpected errors
+    console.error("Непредвиденная ошибка при загрузке брендов:", error);
+    return [];
+  }
+}
+
 export default async function CatalogPage() {
   const topLevelCategories = await getTopLevelCategories();
+  const allBrands = await getBrands();
 
   return (
     <div className="py-16 px-6 max-w-7xl mx-auto">
@@ -74,6 +95,25 @@ export default async function CatalogPage() {
             Попробуйте обновить страницу позже или свяжитесь с нами.
           </p>
         </div>
+      )}
+
+      {allBrands.length > 0 && (
+        <section className="mt-16">
+          <h2 className="text-2xl font-bold text-foreground mb-8 text-center">
+            Популярные бренды
+          </h2>
+          <div className="flex flex-wrap justify-center gap-4">
+            {allBrands.map((brand) => (
+              <Link
+                key={brand.id}
+                href={brand.handle ? `/catalog?brand=${brand.handle}` : `/catalog?brand_id=${brand.id}`}
+                className="py-2 px-4 bg-muted hover:bg-secondary text-muted-foreground hover:text-secondary-foreground rounded-md transition-colors"
+              >
+                {brand.name}
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
