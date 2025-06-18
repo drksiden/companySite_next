@@ -6,13 +6,11 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImageOff } from 'lucide-react';
-import { HttpTypes } from '@medusajs/types'; // Используем типы из Medusa
-
-type ProductCategoryType = HttpTypes.StoreProductCategory; // Используем напрямую
+import { Category } from '@/types/supabase'; // Changed import
 
 interface CategoryCardListProps {
-  categories: ProductCategoryType[];
-  basePath?: string; // Новый опциональный пропс для базового пути
+  categories: Category[]; // Changed type
+  basePath?: string;
 }
 
 export function CategoryCardList({ categories, basePath = '/catalog' }: CategoryCardListProps) {
@@ -53,33 +51,30 @@ export function CategoryCardList({ categories, basePath = '/catalog' }: Category
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-grow flex flex-col items-center">
-              {/* <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-md overflow-hidden group">
-                {/* Изображения категорий в Medusa часто хранятся в поле metadata.
-                  Например, вы можете договориться о ключе 'thumbnail_url' или 'image_url' в metadata.
-
-                {(category.metadata?.thumbnail_url || category.metadata?.image_url) ? (
+              <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-md overflow-hidden group">
+                {category.image_url ? ( // Changed condition
                   <Image
-                    src={(category.metadata.thumbnail_url as string) || (category.metadata.image_url as string)}
+                    src={category.image_url as string} // Changed src
                     alt={category.name}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    priority={categories.indexOf(category) < 3} // Приоритет для первых нескольких изображений
+                    priority={categories.indexOf(category) < 3}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                     <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
                   </div>
                 )}
-              </div> */}
+              </div>
               <p className="text-sm text-muted-foreground text-center line-clamp-3">
                 {category.description || `Ознакомьтесь с товарами в категории "${category.name}".`}
               </p>
             </CardContent>
             <CardFooter className="p-4 mt-auto">
               <Button asChild className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href={`${basePath}/${category.handle}`}>
-                  {category.category_children && category.category_children.length > 0 ? 'Смотреть подкатегории' : 'Смотреть товары'}
+                <Link href={`${basePath}/${category.handle}`}>
+                  {'Смотреть товары'} {/* Changed button text */}
                 </Link>
               </Button>
             </CardFooter>
