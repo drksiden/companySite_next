@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 interface ProductMetadata {
   specifications?: Record<string, any> | null;
   documents?: Array<{ name: string; url: string; type?: string }> | null;
+  features?: string[] | null;
   [key: string]: any; 
 }
 
@@ -33,8 +34,9 @@ function SpecificationsTable({ specs }: { specs: Record<string, any> }) {
         <tbody className="divide-y divide-border">
           {Object.entries(specs).map(([key, value], index) => (
             <tr key={key} className={cn("hover:bg-muted/50 transition-colors", index % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
-              <td className="py-3 px-4 font-medium text-foreground whitespace-nowrap capitalize">{key.replace(/_/g, ' ')}</td>
-              {/* Ensure value is a string or number before rendering */}
+              <td className="py-3 px-4 font-medium text-foreground whitespace-nowrap capitalize">
+                {key.replace(/_/g, ' ')}
+              </td>
               <td className="py-3 px-4 text-muted-foreground">
                 {typeof value === 'object' ? JSON.stringify(value) : String(value)}
               </td>
@@ -58,8 +60,25 @@ function DocumentsList({ docs }: { docs: Array<{ name: string; url: string; type
             className="font-medium text-primary hover:underline underline-offset-2 flex items-center justify-between"
           >
             <span>{doc.name}</span>
-            {doc.type && <span className="text-xs text-muted-foreground uppercase bg-accent px-2 py-0.5 rounded-sm">{doc.type}</span>}
+            {doc.type && (
+              <span className="text-xs text-muted-foreground uppercase bg-accent px-2 py-0.5 rounded-sm">
+                {doc.type}
+              </span>
+            )}
           </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FeaturesList({ features }: { features: string[] }) {
+  return (
+    <ul className="space-y-2">
+      {features.map((feature, index) => (
+        <li key={index} className="flex items-start">
+          <span className="inline-block w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></span>
+          <span className="text-muted-foreground">{feature}</span>
         </li>
       ))}
     </ul>
@@ -105,6 +124,14 @@ export default function ProductTabs({ product, className }: ProductTabsProps) {
       ) : <p className="text-muted-foreground py-4 text-center">Характеристики отсутствуют.</p>
     },
     {
+      value: 'features',
+      label: 'Особенности',
+      hasContent: !!(product.metadata?.features && product.metadata.features.length > 0),
+      content: () => product.metadata?.features && product.metadata.features.length > 0 ? (
+        <FeaturesList features={product.metadata.features} />
+      ) : <p className="text-muted-foreground py-4 text-center">Особенности не указаны.</p>
+    },
+    {
       value: 'documents',
       label: 'Документы',
       hasContent: !!(product.metadata?.documents && product.metadata.documents.length > 0),
@@ -116,7 +143,7 @@ export default function ProductTabs({ product, className }: ProductTabsProps) {
 
   const availableTabs = useMemo(() => {
     const filtered = TABS_CONFIG.filter(tab => tab.hasContent);
-    // If no tabs have actual content, default to showing the "Описание" tab (which will display "Описание отсутствует").
+    // Если нет контента, показываем хотя бы описание
     return filtered.length > 0 ? filtered : [TABS_CONFIG[0]];
   }, [TABS_CONFIG]);
 
@@ -127,14 +154,14 @@ export default function ProductTabs({ product, className }: ProductTabsProps) {
     return current ? current.content() : <p className="text-muted-foreground py-4 text-center">Контент не найден.</p>;
   }, [activeTab, TABS_CONFIG]);
 
-  // If the only available tab is "Описание" and it has no content, don't render tabs.
+  // Если только описание и оно пустое, не показываем вкладки
   if (availableTabs.length === 1 && availableTabs[0].value === 'description' && !TABS_CONFIG[0].hasContent) {
     return null; 
   }
 
   return (
     <Tabs
-      value={activeTab} // Controlled component
+      value={activeTab}
       onValueChange={setActiveTab}
       className={cn("w-full mt-10 sm:mt-12", className)}
     >
@@ -142,7 +169,8 @@ export default function ProductTabs({ product, className }: ProductTabsProps) {
         "grid w-full h-auto rounded-lg p-1 bg-muted",
         availableTabs.length === 1 && "grid-cols-1",
         availableTabs.length === 2 && "grid-cols-2",
-        availableTabs.length >= 3 && "sm:grid-cols-3 grid-cols-1" 
+        availableTabs.length === 3 && "grid-cols-3",
+        availableTabs.length >= 4 && "sm:grid-cols-4 grid-cols-2" 
       )}>
         {availableTabs.map(tab => (
           <TabsTrigger
@@ -158,16 +186,14 @@ export default function ProductTabs({ product, className }: ProductTabsProps) {
       <div className="mt-6">
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab} // Key change triggers animation
+            key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
           >
-            {/* The content is now directly rendered, not via TabsContent for AnimatePresence to work better */}
             <Card className="bg-card border shadow-sm">
               <CardContent className="p-4 sm:p-6">
-                {/* ScrollArea for vertical scrolling. Horizontal scrolling for description is handled by the inner div. */}
                 <ScrollArea className="max-h-[60vh] w-full pr-3"> 
                   {activeTabContent}
                 </ScrollArea>

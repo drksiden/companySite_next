@@ -1,13 +1,12 @@
 export interface Category {
-  id: string; // Assuming UUID, adjust if different
-  created_at?: string; // Supabase adds this by default
+  id: string;
+  created_at?: string;
   name: string;
-  handle: string; // For URL slugs
+  handle: string;
   description?: string;
-  parent_id?: string | null; // For category hierarchy
-  image_url?: string; // For Cloudflare R2 image
-  rank?: number | null; // Optional field for sorting categories
-  // Add any other fields you expect from your Supabase 'categories' table
+  parent_id?: string | null;
+  image_url?: string;
+  rank?: number | null;
 }
 
 export interface Brand {
@@ -20,25 +19,36 @@ export interface Brand {
 }
 
 export interface Product {
-  id: string; // Assuming UUID, adjust if different
-  created_at?: string; // Supabase adds this by default
+  id: string;
+  created_at?: string;
   name: string;
-  description?: string | null; // Made explicitly nullable
-  image_urls?: string[] | null; // Made explicitly nullable
-  category_id?: string | null; // Foreign key to categories table
-  brand_id?: string | null; // Keep brand_id for direct reference if needed
-  brand?: Brand | null; // To hold the joined brand object
+  description?: string | null;
+  image_urls?: string[] | null;
+  category_id?: string | null;
+  brand_id?: string | null;
+  // Связанные данные от Supabase joins
+  brands?: Brand | null; // Изменили с brand на brands
+  categories?: Category | null; // Добавили categories для join
   handle?: string | null; 
-  sku?: string | null; // Stock Keeping Unit
-  price?: number | null; // Current selling price
-  original_price?: number | null; // Original price, for showing discounts
-  currency_code?: string | null; // Currency code (e.g., KZT, USD)
-  stock_quantity?: number | null; // Available stock quantity
-  allow_backorder?: boolean | null; // Whether backorders are allowed
-  // Add any other fields you expect (e.g., dimensions, weight, metadata)
+  sku?: string | null;
+  price?: number | null;
+  original_price?: number | null;
+  currency_code?: string | null;
+  stock_quantity?: number | null;
+  allow_backorder?: boolean | null;
   metadata?: Record<string, any> | null;
-  // Consider adding fields like:
-  // status?: 'draft' | 'published' | 'archived';
-  // tags?: string[];
-  // related_product_ids?: string[];
+}
+
+// Вспомогательные типы для работы с продуктами
+export interface ProductWithBrand extends Product {
+  brands: Brand;
+}
+
+export interface ProductWithCategory extends Product {
+  categories: Category;
+}
+
+export interface ProductWithRelations extends Product {
+  brands?: Brand;
+  categories?: Category;
 }
