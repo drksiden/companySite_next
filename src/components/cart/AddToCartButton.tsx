@@ -18,61 +18,48 @@ import { toast } from 'sonner';
 interface AddToCartButtonProps {
   productId: string;
   variantId?: string;
-  price: number;
-  title: string;
+  price?: number;
+  title?: string;
   thumbnail?: string;
   className?: string;
   size?: 'default' | 'sm' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary' | 'link';
   showQuantityControls?: boolean;
   disabled?: boolean;
+  maxQuantity?: number;
 }
 
 export function AddToCartButton({
   productId,
   variantId,
-  price,
-  title,
-  thumbnail,
   className,
   size = 'default',
   variant = 'default',
   showQuantityControls = false,
-  disabled = false
+  disabled = false,
+  maxQuantity
 }: AddToCartButtonProps) {
-  const { cart, addItem, updateItemQuantity, removeItem, isLoading } = useCart();
+  const { addItem, updateItemQuantity, removeItem, getItem, isLoading } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Находим товар в корзине
-  const cartItem = cart?.items.find(item => 
-    item.product_id === productId && 
-    (!variantId || item.variant_id === variantId)
-  );
-  
+  const cartItem = getItem(productId, variantId);
   const isInCart = !!cartItem;
   const quantity = cartItem?.quantity || 0;
 
   const handleAddToCart = async () => {
-    if (disabled || isLoading) return;
+    if (disabled || isLoading || isAdding) return;
 
     setIsAdding(true);
     try {
-      await addItem(variantId || productId, 1);
+      await addItem(productId, variantId, 1);
       
       // Показываем успешное состояние
       setShowSuccess(true);
-      toast.success(`${title} добавлен в корзину`, {
-        action: {
-          label: "Перейти в корзину",
-          onClick: () => window.location.href = '/cart'
-        }
-      });
-      
-      // Сбрасываем состояние успеха через 2 секунды
       setTimeout(() => setShowSuccess(false), 2000);
     } catch (error) {
-      toast.error('Не удалось добавить товар в корзину');
+      // Ошибка уже обработана в контексте
     } finally {
       setIsAdding(false);
     }
@@ -82,10 +69,11 @@ export function AddToCartButton({
     if (!cartItem) return;
     
     if (newQuantity <= 0) {
-      await removeItem(cartItem.id);
-      toast.success('Товар удален из корзины');
+      removeItem(cartItem.id);
+    } else if (maxQuantity && newQuantity > maxQuantity) {
+      toast.error(`Максимальное количество: ${maxQuantity}`);
     } else {
-      await updateItemQuantity(cartItem.id, newQuantity);
+      updateItemQuantity(cartItem.id, newQuantity);
     }
   };
 
@@ -119,7 +107,7 @@ export function AddToCartButton({
           variant="outline"
           size="sm"
           onClick={() => handleQuantityChange(quantity + 1)}
-          disabled={isLoading}
+          disabled={isLoading || (maxQuantity ? quantity >= maxQuantity : false)}
           className="w-8 h-8 p-0"
         >
           <Plus className="w-4 h-4" />
@@ -205,42 +193,26 @@ export function AddToCartButton({
 interface QuickAddToCartProps {
   productId: string;
   variantId?: string;
-  price: number;
-  title: string;
-  thumbnail?: string;
   className?: string;
 }
 
-export function QuickAddToCart({
-  productId,
-  variantId,
-  price,
-  title,
-  thumbnail,
-  className
-}: QuickAddToCartProps) {
-  const { cart, addItem, isLoading } = useCart();
+export function QuickAddToCart({ productId, variantId, className }: QuickAddToCartProps) {
+  const { addItem, hasItem, isLoading } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   
-  const cartItem = cart?.items.find(item => 
-    item.product_id === productId && 
-    (!variantId || item.variant_id === variantId)
-  );
-  
-  const isInCart = !!cartItem;
+  const isInCart = hasItem(productId, variantId);
 
   const handleQuickAdd = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Предотвращаем переход на страницу товара
+    e.preventDefault();
     e.stopPropagation();
     
     if (isLoading || isAdding) return;
 
     setIsAdding(true);
     try {
-      await addItem(variantId || productId, 1);
-      toast.success(`${title} добавлен в корзину`);
+      await addItem(productId, variantId, 1);
     } catch (error) {
-      toast.error('Не удалось добавить товар');
+      // Ошибка уже обработана в контексте
     } finally {
       setIsAdding(false);
     }
@@ -272,39 +244,5 @@ export function QuickAddToCart({
         )}
       </AnimatePresence>
     </motion.button>
-  );
-}
-
-// Компонент мини-корзины для Header (улучшенная версия)
-export function MiniCartButton() {
-  const { cart, totalItems, isLoading } = useCart();
-
-  return (
-    <Button variant="ghost" size="icon" className="relative" asChild>
-      <motion.a 
-        href="/cart"
-        whileTap={{ scale: 0.95 }}
-      >
-        <ShoppingCart className="w-5 h-5" />
-        <AnimatePresence>
-          {totalItems > 0 && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
-            >
-              {totalItems > 99 ? '99+' : totalItems}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="w-3 h-3 animate-spin" />
-          </div>
-        )}
-      </motion.a>
-    </Button>
   );
 }

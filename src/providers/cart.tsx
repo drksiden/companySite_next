@@ -4,7 +4,9 @@ import React, { createContext, useContext, useEffect, useState, useMemo, ReactNo
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
-import { Cart, CartItem, CartContextType } from '@/lib/types/cart'; // Импортируем ваши типы
+import { CartStorage } from '@/lib/cart-storage';
+import { CartUtils } from '@/lib/cart-utils';
+import type { Cart, CartItem, CartContextType, CreateOrderData, Order } from '@/types/cart';
 
 const CartContext = createContext<CartContextType | null>(null);
 

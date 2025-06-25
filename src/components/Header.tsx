@@ -1,4 +1,4 @@
-// src/components/layout/Header.tsx (или ваш путь)
+// src/components/Header.tsx - обновленный Header с новой корзиной
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,13 +21,15 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  SheetClose, // Убедитесь, что SheetClose импортирован, если используется
+  SheetClose,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   Menu,
@@ -42,21 +44,22 @@ import {
   Package,
   ChevronDown,
   X,
-  Loader2
+  Loader2,
+  Plus,
+  Minus,
+  Trash2,
+  CreditCard,
+  ArrowRight
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-import { useCart } from '@/providers/cart'; // Импортируем хук корзины
-import { HttpTypes } from '@medusajs/types'; // Для типизации цены, если нужно
+import { useCart } from '@/providers/cart';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
+import { toast } from 'sonner';
 
 const navItems = [
   { 
     href: '/catalog', 
     label: 'Каталог',
-    // children: [
-    //   { href: '/catalog/cables', label: 'Охранные системы' },
-    // ]
   },
   { href: '/services', label: 'Услуги' },
   { href: '/about', label: 'О нас' },
@@ -85,17 +88,108 @@ const badgeVariants = {
   exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } }
 };
 
-// Функция форматирования цены (Medusa хранит цены в минорных единицах)
-const formatPrice = (amount?: number, currencyCode: string = 'KZT'): string => {
-  if (typeof amount !== 'number' || amount === null) {
-    return 'N/A'; // Или другое значение по умолчанию
-  }
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: currencyCode.toUpperCase(),
-  }).format(amount / 100); // Делим на 100
-};
+// Компонент элемента корзины в выпадающем меню
+const CartDropdownItem = ({ item }: { item: any }) => {
+  const { updateItemQuantity, removeItem } = useCart();
+  const [isUpdating, setIsUpdating] = useState(false);
 
+  const handleQuantityChange = async (newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    setIsUpdating(true);
+    try {
+      updateItemQuantity(item.id, newQuantity);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRemove = () => {
+    setIsUpdating(true);
+    try {
+      removeItem(item.id);
+      toast.success('Товар удален из корзины');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className={`flex gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors ${
+        isUpdating ? 'opacity-50' : ''
+      }`}
+    >
+      {/* Изображение товара */}
+      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+        {item.thumbnail ? (
+          <Image
+            src={item.thumbnail}
+            alt={item.title}
+            width={48}
+            height={48}
+            className="w-full h-full object-cover rounded-lg"
+          />
+        ) : (
+          <Package className="w-5 h-5 text-muted-foreground" />
+        )}
+      </div>
+
+      {/* Информация о товаре */}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm leading-tight line-clamp-2 mb-1">
+          {item.title}
+        </h4>
+        
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-primary">
+            {(item.price * item.quantity).toLocaleString('ru-RU')} ₸
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRemove}
+            disabled={isUpdating}
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+
+        {/* Управление количеством */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleQuantityChange(item.quantity - 1)}
+            disabled={isUpdating || item.quantity <= 1}
+            className="h-6 w-6 p-0"
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          
+          <span className="w-8 text-center text-sm font-medium">
+            {item.quantity}
+          </span>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleQuantityChange(item.quantity + 1)}
+            disabled={isUpdating || (item.maxQuantity && item.quantity >= item.maxQuantity)}
+            className="h-6 w-6 p-0"
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 interface NavItemProps {
   item: {
@@ -114,16 +208,14 @@ export function Header() {
   const pathname = usePathname();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // Для десктопного поиска
 
-  // Используем useCart
-  const { cart, totalItems, isLoading: isCartLoading } = useCart();
+  // Используем новый useCart
+  const { cart, totalItems, totalPrice, isLoading: isCartLoading, isEmpty } = useCart();
 
   const { data: session, status: nextAuthStatus } = useSession();
   const router = useRouter();
 
   const handleSignOut = async () => {
-    localStorage.removeItem('medusa_jwt'); // Очищаем токен Medusa при выходе из NextAuth
     await signOut({ redirect: false });
     router.push("/"); 
   };
@@ -162,7 +254,6 @@ export function Header() {
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
-      setIsSearchOpen(false);
       if(openMobileMenu) setOpenMobileMenu(false);
     }
   };
@@ -170,85 +261,9 @@ export function Header() {
   const NavItem = ({ item, mobile = false, onClose }: NavItemProps) => {
     const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
     const [isHovered, setIsHovered] = useState(false);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-    if (item.children && !mobile) {
-      return (
-        <div 
-          className="relative"
-          onMouseEnter={() => setIsDropdownOpen(true)}
-          onMouseLeave={() => setIsDropdownOpen(false)}
-        >
-          <button
-            className={cn(
-              "flex items-center px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              isActive 
-                ? "text-primary" 
-                : "text-foreground hover:text-primary"
-            )}
-            aria-expanded={isDropdownOpen}
-          >
-            {item.label}
-            <ChevronDown className={cn(
-              "ml-1 h-4 w-4 transition-transform duration-200",
-              isDropdownOpen ? "rotate-180" : ""
-            )} />
-          </button>
-          
-          <AnimatePresence>
-            {isDropdownOpen && (
-              <motion.div
-                className="absolute top-full left-0 mt-1 py-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50"
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                variants={dropdownVariants}
-              >
-                {item.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className="block px-4 py-2 text-foreground hover:bg-accent hover:text-primary transition-colors duration-200"
-                    onClick={() => { setIsDropdownOpen(false); if(onClose) onClose(); }}
-                  >
-                    {child.label}
-                  </Link>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      );
-    }
 
     if (mobile) {
-      return item.children ? (
-        <div className="mb-1">
-          <DropdownMenu> {/* Используем DropdownMenu для мобильных подменю */}
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className={cn(
-                  "justify-between text-base w-full mb-1 px-3 py-2 h-auto", // Увеличим padding для мобильных
-                  isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
-                )}
-              >
-                {item.label}
-                <ChevronDown className="ml-auto h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-card w-[calc(100%-2rem)] ml-3"> {/* Ширина контента */}
-              {item.children.map((child) => (
-                <DropdownMenuItem key={child.href} asChild onClick={onClose}>
-                  <Link href={child.href} className="w-full">
-                    {child.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ) : (
+      return (
         <Button 
           key={item.href} 
           variant="ghost" 
@@ -283,7 +298,7 @@ export function Header() {
         </Link>
         {(isActive || isHovered) && (
           <motion.div
-            layoutId="underline" // Для красивой анимации подчеркивания при смене активного элемента
+            layoutId="underline"
             className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
             initial="hidden"
             animate="visible"
@@ -294,7 +309,7 @@ export function Header() {
     );
   };
 
-  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>; // Placeholder для избежания CLS
+  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>;
 
   return (
     <motion.header
@@ -324,13 +339,14 @@ export function Header() {
             />
           </Link>
 
-          <nav className="hidden lg:flex items-center space-x-1 mx-auto"> {/* mx-auto для центрирования навигации */}
+          <nav className="hidden lg:flex items-center space-x-1 mx-auto">
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} />
             ))}
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Корзина с выпадающим меню */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -350,7 +366,7 @@ export function Header() {
                         exit="exit"
                       >
                         <Badge variant="destructive" className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs">
-                          {totalItems}
+                          {totalItems > 99 ? '99+' : totalItems}
                         </Badge>
                       </motion.div>
                     )}
@@ -359,7 +375,14 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 bg-card border-border shadow-xl">
                 <DropdownMenuLabel className="font-medium text-lg px-4 py-3 border-b border-border">
-                  Корзина
+                  <div className="flex items-center justify-between">
+                    <span>Корзина</span>
+                    {totalItems > 0 && (
+                      <Badge variant="secondary">
+                        {totalItems}
+                      </Badge>
+                    )}
+                  </div>
                 </DropdownMenuLabel>
                 
                 {isCartLoading ? (
@@ -367,30 +390,23 @@ export function Header() {
                     <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
                     <p className="text-muted-foreground">Загрузка корзины...</p>
                   </div>
-                ) : cart && cart.items && cart.items.length > 0 ? (
+                ) : isEmpty ? (
+                  <div className="py-10 text-center px-4">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">Ваша корзина пуста</p>
+                    <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
+                      <Link href="/catalog">Перейти в каталог</Link>
+                    </Button>
+                  </div>
+                ) : (
                   <>
-                    <ScrollArea className="max-h-80 p-4"> {/* ScrollArea для списка товаров */}
-                      <div className="space-y-4">
-                        {cart.items.map((item: HttpTypes.StoreCartLineItem) => ( // Явная типизация item
-                          <div key={item.id} className="flex items-center gap-4 py-2 border-b border-border/50 last:border-b-0">
-                            <div className="bg-muted rounded h-16 w-16 flex items-center justify-center shrink-0">
-                              {item.thumbnail ? (
-                                <Image src={item.thumbnail} alt={item.title} width={64} height={64} className="object-contain h-full w-full" />
-                              ) : (
-                                <Package className="h-8 w-8 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.quantity} × {formatPrice(item.unit_price, cart.region?.currency_code)}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground whitespace-nowrap">
-                              {formatPrice((item.unit_price || 0) * (item.quantity || 0), cart.region?.currency_code)}
-                            </p>
-                          </div>
-                        ))}
+                    <ScrollArea className="max-h-80 p-4">
+                      <div className="space-y-3">
+                        <AnimatePresence>
+                          {cart?.items.map((item) => (
+                            <CartDropdownItem key={item.id} item={item} />
+                          ))}
+                        </AnimatePresence>
                       </div>
                     </ScrollArea>
                     
@@ -398,7 +414,7 @@ export function Header() {
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-base text-foreground font-medium">Итого:</span>
                         <span className="text-lg font-bold text-foreground">
-                          {formatPrice(cart.subtotal, cart.region?.currency_code)}
+                          {totalPrice.toLocaleString('ru-RU')} ₸
                         </span>
                       </div>
                       <div className="flex gap-3">
@@ -411,18 +427,11 @@ export function Header() {
                       </div>
                     </div>
                   </>
-                ) : (
-                  <div className="py-10 text-center px-4">
-                    <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-4">Ваша корзина пуста</p>
-                    <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
-                      <Link href="/catalog">Перейти в каталог</Link>
-                    </Button>
-                  </div>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Профиль пользователя */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -495,6 +504,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Переключатель темы */}
             <Button
               variant="ghost"
               size="icon"
@@ -516,6 +526,7 @@ export function Header() {
               </AnimatePresence>
             </Button>
 
+            {/* Мобильное меню */}
             <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
               <SheetTrigger asChild>
                 <Button
@@ -554,7 +565,7 @@ export function Header() {
                   </form>
                 </div>
                 
-                <ScrollArea className="h-[calc(100vh-140px)]"> {/* Регулируем высоту для прокрутки */}
+                <ScrollArea className="h-[calc(100vh-140px)]">
                   <div className="py-4 px-3">
                     <nav className="flex flex-col gap-1">
                       {navItems.map((item) => (
@@ -585,4 +596,3 @@ export function Header() {
     </motion.header>
   );
 }
-

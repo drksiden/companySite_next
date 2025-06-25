@@ -1,53 +1,97 @@
-// src/types/cart.ts - обновленная версия
-
+// src/types/cart.ts - ПОЛНАЯ замена существующего файла
 export interface CartItem {
-    id: string;
-    variant_id: string;
-    product_id: string;
-    quantity: number;
-    price: number;
-    title: string;
-    thumbnail?: string | null;
-    product_name?: string;
-    variant_name?: string;
-  }
+  id: string;
+  productId: string;
+  variantId?: string;
+  quantity: number;
+  price: number;
+  title: string;
+  thumbnail?: string | null;
+  sku?: string;
+  // Дополнительные поля для отображения
+  brand?: string;
+  category?: string;
+  maxQuantity?: number; // Максимальное доступное количество
+}
+
+export interface Cart {
+  id: string; // UUID для идентификации корзины
+  items: CartItem[];
+  subtotal: number;
+  total: number;
+  itemsCount: number;
+  createdAt: string;
+  updatedAt: string;
+  // Дополнительные поля для расчетов
+  shipping?: number;
+  tax?: number;
+  discount?: number;
+}
+
+export interface CartContextType {
+  // Состояние корзины
+  cart: Cart | null;
+  isLoading: boolean;
+  error: string | null;
   
-  export interface Cart {
-    id: string;
-    user_id?: string | null;
-    session_id?: string | null; // Добавляем session_id
-    items: CartItem[];
-    total: number;
-    created_at: string;
-    updated_at: string;
-  }
+  // Основные действия
+  addItem: (productId: string, variantId?: string, quantity?: number) => Promise<void>;
+  removeItem: (itemId: string) => void;
+  updateItemQuantity: (itemId: string, quantity: number) => void;
+  clearCart: () => void;
   
-  export interface CartContextType {
-    cart: Cart | null;
-    isLoading: boolean;
-    totalItems: number;
-    totalPrice: number;
-    addItem: (variantId: string, quantity: number) => Promise<void>;
-    removeItem: (itemId: string) => Promise<void>;
-    updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
-    clearCart: () => Promise<void>;
-    syncCart: () => Promise<void>;
-  }
+  // Вычисляемые значения
+  totalItems: number;
+  totalPrice: number;
+  isEmpty: boolean;
   
-  // Для совместимости с Supabase Product
-  export interface ProductForCart {
-    id: string;
-    name: string;
-    price?: number | null;
-    image_urls?: string[] | null;
-    thumbnail?: string | null;
-  }
+  // Дополнительные функции
+  getItem: (productId: string, variantId?: string) => CartItem | undefined;
+  hasItem: (productId: string, variantId?: string) => boolean;
   
-  // Для совместимости с Supabase ProductVariant
-  export interface ProductVariantForCart {
-    id: string;
-    title: string;
-    price: number;
-    product_id: string;
-    products?: ProductForCart | ProductForCart[]; // Может быть как объект, так и массив
-  }
+  // Функции для оформления заказа
+  validateCart: () => Promise<{ isValid: boolean; errors: string[] }>;
+  createOrder: (orderData: CreateOrderData) => Promise<Order>;
+}
+
+// Типы для заказов
+export interface CreateOrderData {
+  customerInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    company?: string;
+  };
+  shippingAddress: {
+    address: string;
+    city: string;
+    postalCode?: string;
+    country: string;
+  };
+  billingAddress?: {
+    address: string;
+    city: string;
+    postalCode?: string;
+    country: string;
+  };
+  notes?: string;
+  preferredDeliveryTime?: string;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  items: CartItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  customerInfo: CreateOrderData['customerInfo'];
+  shippingAddress: CreateOrderData['shippingAddress'];
+  billingAddress?: CreateOrderData['billingAddress'];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

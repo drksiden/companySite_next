@@ -1,12 +1,13 @@
+// src/app/cart/page.tsx - обновленная страница корзины
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/providers/cart';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { CartSummary } from '@/components/cart/CartSummary';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { 
@@ -17,45 +18,60 @@ import {
   ArrowLeft, 
   ShoppingCart,
   Package,
-  Truck,
-  Shield,
-  CreditCard,
-  Gift,
-  Percent
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
 import { toast } from 'sonner';
+import type { CartItem } from '@/types/cart';
 
 // Компонент элемента корзины
-const CartItem = ({ item, onUpdateQuantity, onRemove }: {
-  item: any;
-  onUpdateQuantity: (id: string, quantity: number) => void;
-  onRemove: (id: string) => void;
-}) => {
+const CartItemComponent = ({ item }: { item: CartItem }) => {
+  const { updateItemQuantity, removeItem } = useCart();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [localQuantity, setLocalQuantity] = useState(item.quantity);
 
   const handleQuantityChange = async (newQuantity: number) => {
     if (newQuantity < 1) return;
     
     setIsUpdating(true);
+    setLocalQuantity(newQuantity);
+    
     try {
-      await onUpdateQuantity(item.id, newQuantity);
+      updateItemQuantity(item.id, newQuantity);
+    } catch (error) {
+      setLocalQuantity(item.quantity); // Откатываем изменения при ошибке
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleRemove = async () => {
+  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value >= 1) {
+      setLocalQuantity(value);
+    }
+  };
+
+  const handleQuantityInputBlur = () => {
+    if (localQuantity !== item.quantity) {
+      handleQuantityChange(localQuantity);
+    }
+  };
+
+  const handleRemove = () => {
     setIsUpdating(true);
     try {
-      await onRemove(item.id);
-      toast.success('Товар удален из корзины');
+      removeItem(item.id);
     } finally {
       setIsUpdating(false);
     }
   };
+
+  const itemTotal = item.price * item.quantity;
+  const isLowStock = item.maxQuantity && item.maxQuantity <= 5;
+  const isOutOfStock = item.maxQuantity === 0;
 
   return (
     <motion.div
@@ -64,36 +80,64 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
       transition={{ duration: 0.3 }}
-      className={`bg-white rounded-2xl p-6 border border-gray-100 ${isUpdating ? 'opacity-50' : ''}`}
+      className={`bg-card rounded-xl p-6 border ${isUpdating ? 'opacity-50' : ''}`}
     >
       <div className="flex gap-4">
         {/* Изображение товара */}
-        <div className="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <div className="w-24 h-24 bg-muted rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
           {item.thumbnail ? (
             <Image
               src={item.thumbnail}
               alt={item.title}
               width={96}
               height={96}
-              className="w-full h-full object-cover rounded-xl"
+              className="w-full h-full object-cover"
             />
           ) : (
-            <Package className="w-8 h-8 text-gray-400" />
+            <Package className="w-8 h-8 text-muted-foreground" />
           )}
         </div>
 
         {/* Информация о товаре */}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="font-semibold text-lg text-gray-900 line-clamp-2">
-              {item.title}
-            </h3>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg text-foreground line-clamp-2 mb-1">
+                {item.title}
+              </h3>
+              
+              {/* Дополнительная информация */}
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground mb-2">
+                {item.sku && (
+                  <span>Артикул: {item.sku}</span>
+                )}
+                {item.brand && (
+                  <span>• {item.brand}</span>
+                )}
+                {item.category && (
+                  <span>• {item.category}</span>
+                )}
+              </div>
+
+              {/* Статус наличия */}
+              {isOutOfStock && (
+                <Badge variant="destructive" className="text-xs">
+                  Нет в наличии
+                </Badge>
+              )}
+              {isLowStock && !isOutOfStock && (
+                <Badge variant="outline" className="text-xs text-orange-600">
+                  Мало в наличии ({item.maxQuantity} шт.)
+                </Badge>
+              )}
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
               onClick={handleRemove}
               disabled={isUpdating}
-              className="text-gray-400 hover:text-red-500 ml-2"
+              className="text-muted-foreground hover:text-destructive ml-2"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -102,10 +146,10 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: {
           <div className="flex items-center justify-between">
             {/* Цена */}
             <div className="flex flex-col">
-              <div className="text-2xl font-bold text-gray-900">
-                {(item.price * item.quantity).toLocaleString('ru-RU')} ₸
+              <div className="text-2xl font-bold text-foreground">
+                {itemTotal.toLocaleString('ru-RU')} ₸
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
                 {item.price.toLocaleString('ru-RU')} ₸ за штуку
               </div>
             </div>
@@ -122,162 +166,64 @@ const CartItem = ({ item, onUpdateQuantity, onRemove }: {
                 <Minus className="w-4 h-4" />
               </Button>
               
-              <span className="w-12 text-center font-medium">
-                {item.quantity}
-              </span>
+              <Input
+                type="number"
+                min="1"
+                max={item.maxQuantity}
+                value={localQuantity}
+                onChange={handleQuantityInputChange}
+                onBlur={handleQuantityInputBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleQuantityInputBlur();
+                  }
+                }}
+                className="w-16 text-center"
+                disabled={isUpdating}
+              />
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleQuantityChange(item.quantity + 1)}
-                disabled={isUpdating}
+                disabled={isUpdating || (item.maxQuantity ? item.quantity >= item.maxQuantity : false)}
                 className="w-8 h-8 p-0"
               >
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
           </div>
+
+          {/* Предупреждения */}
+          {item.maxQuantity && item.quantity > item.maxQuantity && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-orange-600">
+              <AlertCircle className="w-4 h-4" />
+              Превышено максимальное количество ({item.maxQuantity} шт.)
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
   );
 };
 
-// Компонент итогов корзины
-const CartSummary = ({ totalPrice, totalItems }: { totalPrice: number; totalItems: number }) => {
-  const [promoCode, setPromoCode] = useState('');
-  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
-
-  const deliveryPrice = totalPrice > 50000 ? 0 : 2000; // Бесплатная доставка от 50к
-  const finalPrice = totalPrice + deliveryPrice;
-
-  const applyPromoCode = async () => {
-    setIsApplyingPromo(true);
-    // Имитация применения промокода
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success('Промокод применен!');
-    setIsApplyingPromo(false);
-  };
-
-  return (
-    <Card className="sticky top-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5" />
-          Итоги заказа
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Количество товаров */}
-        <div className="flex justify-between">
-          <span className="text-gray-600">Товаров в корзине:</span>
-          <span className="font-medium">{totalItems} шт</span>
-        </div>
-
-        {/* Стоимость товаров */}
-        <div className="flex justify-between">
-          <span className="text-gray-600">Стоимость товаров:</span>
-          <span className="font-medium">{totalPrice.toLocaleString('ru-RU')} ₸</span>
-        </div>
-
-        {/* Доставка */}
-        <div className="flex justify-between">
-          <span className="text-gray-600">Доставка:</span>
-          <span className={`font-medium ${deliveryPrice === 0 ? 'text-green-600' : ''}`}>
-            {deliveryPrice === 0 ? 'Бесплатно' : `${deliveryPrice.toLocaleString('ru-RU')} ₸`}
-          </span>
-        </div>
-
-        {deliveryPrice === 0 && (
-          <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-lg">
-            <Gift className="w-4 h-4" />
-            Бесплатная доставка от 50 000 ₸
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Промокод */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">
-            Промокод
-          </label>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Введите промокод"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              variant="outline"
-              onClick={applyPromoCode}
-              disabled={!promoCode || isApplyingPromo}
-              className="px-3"
-            >
-              <Percent className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Итого */}
-        <div className="flex justify-between text-xl font-bold">
-          <span>Итого:</span>
-          <span>{finalPrice.toLocaleString('ru-RU')} ₸</span>
-        </div>
-
-        {/* Кнопки действий */}
-        <div className="space-y-3 pt-4">
-          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-medium">
-            <CreditCard className="w-5 h-5 mr-2" />
-            Оформить заказ
-          </Button>
-          
-          <Button variant="outline" className="w-full" asChild>
-            <Link href="/catalog">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Продолжить покупки
-            </Link>
-          </Button>
-        </div>
-
-        {/* Гарантии */}
-        <div className="pt-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Shield className="w-4 h-4 text-green-500" />
-            Безопасная оплата
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Truck className="w-4 h-4 text-blue-500" />
-            Быстрая доставка
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 // Главный компонент страницы корзины
 export default function CartPage() {
-  const { cart, isLoading, removeItem, updateItemQuantity, totalItems } = useCart();
-
-  const totalPrice = cart?.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+  const { cart, isLoading, error, clearCart, totalItems } = useCart();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-64"></div>
+            <div className="h-8 bg-muted rounded w-64"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-gray-200 rounded-2xl"></div>
+                  <div key={i} className="h-32 bg-muted rounded-xl"></div>
                 ))}
               </div>
-              <div className="h-96 bg-gray-200 rounded-2xl"></div>
+              <div className="h-96 bg-muted rounded-xl"></div>
             </div>
           </div>
         </div>
@@ -285,8 +231,25 @@ export default function CartPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex flex-col items-center justify-center py-16">
+            <AlertCircle className="w-16 h-16 text-destructive mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Ошибка загрузки корзины</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Попробовать снова
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <Breadcrumbs
@@ -299,41 +262,61 @@ export default function CartPage() {
         />
 
         {/* Заголовок */}
-        <div className="flex items-center gap-3 mb-8">
-          <ShoppingCart className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">
-            Корзина
-            {totalItems > 0 && (
-              <Badge variant="secondary" className="ml-3">
-                {totalItems} {totalItems === 1 ? 'товар' : totalItems < 5 ? 'товара' : 'товаров'}
-              </Badge>
-            )}
-          </h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <ShoppingCart className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold text-foreground">
+              Корзина
+              {totalItems > 0 && (
+                <Badge variant="secondary" className="ml-3">
+                  {totalItems} {totalItems === 1 ? 'товар' : totalItems < 5 ? 'товара' : 'товаров'}
+                </Badge>
+              )}
+            </h1>
+          </div>
+
+          {/* Кнопка очистки корзины */}
+          {cart && cart.items.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm('Вы уверены, что хотите очистить корзину?')) {
+                  clearCart();
+                }
+              }}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Очистить корзину
+            </Button>
+          )}
         </div>
 
         {/* Контент корзины */}
-        {!cart?.items || cart.items.length === 0 ? (
+        {!cart || cart.items.length === 0 ? (
           // Пустая корзина
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-16"
           >
-            <div className="bg-white rounded-3xl p-12 max-w-md mx-auto">
-              <ShoppingBag className="w-24 h-24 text-gray-300 mx-auto mb-6" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Ваша корзина пуста
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Добавьте товары из каталога, чтобы сделать заказ
-              </p>
-              <Button size="lg" asChild className="bg-blue-600 hover:bg-blue-700">
-                <Link href="/catalog">
-                  <Package className="w-5 h-5 mr-2" />
-                  Перейти в каталог
-                </Link>
-              </Button>
-            </div>
+            <Card className="max-w-md mx-auto">
+              <CardContent className="pt-12 pb-8">
+                <ShoppingBag className="w-24 h-24 text-muted-foreground mx-auto mb-6" />
+                <h2 className="text-2xl font-bold text-foreground mb-4">
+                  Ваша корзина пуста
+                </h2>
+                <p className="text-muted-foreground mb-8">
+                  Добавьте товары из каталога, чтобы сделать заказ
+                </p>
+                <Button size="lg" asChild className="bg-primary hover:bg-primary/90">
+                  <Link href="/catalog">
+                    <Package className="w-5 h-5 mr-2" />
+                    Перейти в каталог
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           </motion.div>
         ) : (
           // Корзина с товарами
@@ -343,36 +326,44 @@ export default function CartPage() {
               <div className="space-y-4">
                 <AnimatePresence>
                   {cart.items.map((item) => (
-                    <CartItem
-                      key={item.id}
-                      item={item}
-                      onUpdateQuantity={updateItemQuantity}
-                      onRemove={removeItem}
-                    />
+                    <CartItemComponent key={item.id} item={item} />
                   ))}
                 </AnimatePresence>
               </div>
 
-              {/* Рекомендации */}
+              {/* Кнопка "Продолжить покупки" */}
+              <div className="mt-8">
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/catalog">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Продолжить покупки
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Рекомендации (заглушка) */}
               <Card className="mt-8">
-                <CardHeader>
-                  <CardTitle className="text-lg">Рекомендуем также</CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Рекомендуем также</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map(i => (
-                      <div key={i} className="bg-gray-100 rounded-xl h-32 flex items-center justify-center">
-                        <Package className="w-8 h-8 text-gray-400" />
+                      <div key={i} className="bg-muted rounded-xl h-32 flex items-center justify-center">
+                        <Package className="w-8 h-8 text-muted-foreground" />
                       </div>
                     ))}
                   </div>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Здесь будут отображаться рекомендуемые товары на основе содержимого корзины
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Итоги заказа */}
             <div className="lg:col-span-1">
-              <CartSummary totalPrice={totalPrice} totalItems={totalItems} />
+              <div className="sticky top-24">
+                <CartSummary />
+              </div>
             </div>
           </div>
         )}
