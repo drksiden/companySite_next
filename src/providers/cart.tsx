@@ -46,39 +46,42 @@ export const CartProvider = ({ children }: CartProviderProps) => {
           id,
           title,
           price,
-          product_id,
-          products:product_id (
-            id,
-            name,
-            image_urls
-          )
+          product_id
         `)
         .eq('id', variantId)
         .single();
-
+  
       if (variantData && !variantError) {
-        const product = variantData.products;
-        return {
-          id: variantData.id,
-          productId: variantData.product_id,
-          variantId: variantData.id,
-          price: variantData.price || 0,
-          title: product?.name 
-            ? `${product.name} - ${variantData.title}` 
-            : variantData.title || 'Неизвестный товар',
-          thumbnail: Array.isArray(product?.image_urls) && product.image_urls.length > 0 
-            ? product.image_urls[0] 
-            : null
-        };
+        // Получаем данные продукта отдельным запросом
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('id, name, image_urls')
+          .eq('id', variantData.product_id)
+          .single();
+  
+        if (productData && !productError) {
+          return {
+            id: variantData.id,
+            productId: variantData.product_id,
+            variantId: variantData.id,
+            price: variantData.price || 0,
+            title: productData.name 
+              ? `${productData.name} - ${variantData.title}` 
+              : variantData.title || 'Неизвестный товар',
+            thumbnail: Array.isArray(productData.image_urls) && productData.image_urls.length > 0 
+              ? productData.image_urls[0] 
+              : null
+          };
+        }
       }
-
+  
       // Если не нашли как вариант, ищем как основной продукт
       const { data: productData, error: productError } = await supabase
         .from('products')
         .select('id, name, price, image_urls')
         .eq('id', variantId)
         .single();
-
+  
       if (productData && !productError) {
         return {
           id: productData.id,
@@ -91,7 +94,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
             : null
         };
       }
-
+  
       throw new Error('Product not found');
     } catch (error) {
       console.error('Error fetching product data:', error);

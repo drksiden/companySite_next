@@ -45,7 +45,7 @@ export async function middleware(req: NextRequest) {
 
     // Дополнительная проверка роли
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('role')
       .eq('id', session.user.id)
       .single()
@@ -60,7 +60,7 @@ export async function middleware(req: NextRequest) {
   // Редирект с логина если уже авторизован
   if (req.nextUrl.pathname === '/admin/login' && session) {
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('role')
       .eq('id', session.user.id)
       .single()
