@@ -1,16 +1,10 @@
+import { COMPANY_NAME_SHORT } from '@/data/constants'
 import './globals.css'
-import { Inter } from 'next/font/google'
 import { Metadata } from 'next'
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap'
-})
-
 export const metadata: Metadata = {
-  title: 'Ваш сайт',
-  description: 'Описание сайта',
+  title: COMPANY_NAME_SHORT,
+  description: 'Профессиональный подход, разумное решение',
 }
 
 export default function RootLayout({
@@ -20,10 +14,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body 
-        className={`${inter.variable} font-sans antialiased`}
-        suppressHydrationWarning
-      >
+      <head />
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

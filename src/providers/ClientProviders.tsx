@@ -1,3 +1,4 @@
+// src/providers/ClientProviders.tsx
 'use client';
 
 import { ThemeProvider } from 'next-themes';
@@ -8,35 +9,41 @@ import { Footer } from '@/components/Footer';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from 'react';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ 
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-inter',
+  display: 'swap'
+});
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
-   // Избегаем гидратации на стороне сервера
-   useEffect(() => {
+  useEffect(() => {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    // Показываем fallback до монтирования на клиенте
-    return (
-      <div suppressHydrationWarning>
-        {children}
-      </div>
-    )
-  }
-
   return (
-    <SessionProvider>
-      <CartProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <Header />
-            <main className="flex-grow">{children}</main>
-            <Footer />
-            <ScrollToTopButton />
-            <Toaster richColors />
+    <div className={inter.variable} suppressHydrationWarning>
+      <SessionProvider>
+        <CartProvider>
+          <ThemeProvider 
+            attribute="class" 
+            defaultTheme="system" 
+            enableSystem 
+            disableTransitionOnChange
+          >
+            <div className={`min-h-screen bg-background font-sans antialiased ${mounted ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+              <Header />
+              <main className="flex-grow">{children}</main>
+              <Footer />
+              <ScrollToTopButton />
+              <Toaster richColors />
+            </div>
           </ThemeProvider>
         </CartProvider>
-    </SessionProvider>
+      </SessionProvider>
+    </div>
   );
 }
