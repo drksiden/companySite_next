@@ -228,3 +228,8 @@
 .dark .bg-muted {
   background-color: oklch(0.25 0.02 260);
 }
+
+.no-transitions * {
+  transition: none !important;
+  animation: none !important;
+}

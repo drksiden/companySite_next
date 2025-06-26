@@ -4,8 +4,6 @@ import React, { createContext, useContext, useEffect, useState, useMemo, ReactNo
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
-import { CartStorage } from '@/lib/cart-storage';
-import { CartUtils } from '@/lib/cart-utils';
 import type { Cart, CartItem, CartContextType, CreateOrderData, Order } from '@/types/cart';
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -18,6 +16,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
   const { data: session, status } = useSession();
   const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sessionId] = useState(() => {
     // Генерируем уникальный ID сессии для гостей
     if (typeof window !== 'undefined') {
@@ -53,8 +52,9 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
       if (variantData && !variantError) {
         return {
-          variant_id: variantData.id,
-          product_id: variantData.product_id,
+          id: variantData.id,
+          productId: variantData.product_id,
+          variantId: variantData.id,
           price: variantData.price || 0,
           title: variantData.products?.title 
             ? `${variantData.products.title} - ${variantData.title}` 
@@ -72,8 +72,9 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
       if (productData && !productError) {
         return {
-          variant_id: productData.id,
-          product_id: productData.id,
+          id: productData.id,
+          productId: productData.id,
+          variantId: undefined,
           price: productData.price || 0,
           title: productData.name || 'Неизвестный товар',
           thumbnail: Array.isArray(productData.image_urls) && productData.image_urls.length > 0 
@@ -94,8 +95,8 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     try {
       const cartData = {
         items: [],
-        total: 0,
-        ...(session?.user ? { user_id: session.user.id } : { session_id: sessionId })
+        session_id: session?.user ? undefined : sessionId,
+        user_id: session?.user?.id || undefined
       };
 
       const { data, error } = await supabase
@@ -106,7 +107,19 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
       if (error) throw error;
 
-      const newCart = data as Cart;
+      const newCart: Cart = {
+        id: data.id,
+        items: [],
+        subtotal: 0,
+        total: 0,
+        itemsCount: 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        shipping: 0,
+        tax: 0,
+        discount: 0,
+      };
+
       setCart(newCart);
       
       // Сохраняем ID корзины в localStorage
@@ -145,7 +158,20 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const foundCart = data[0] as Cart;
+        const dbCart = data[0];
+        const foundCart: Cart = {
+          id: dbCart.id,
+          items: Array.isArray(dbCart.items) ? dbCart.items : [],
+          subtotal: dbCart.total || 0,
+          total: dbCart.total || 0,
+          itemsCount: Array.isArray(dbCart.items) ? dbCart.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) : 0,
+          createdAt: dbCart.created_at,
+          updatedAt: dbCart.updated_at,
+          shipping: 0,
+          tax: 0,
+          discount: 0,
+        };
+        
         setCart(foundCart);
         
         // Обновляем localStorage
@@ -175,7 +201,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       }
     } catch (error) {
       console.error('Error syncing cart:', error);
-      toast.error('Не удалось синхронизировать корзину');
+      setError('Не удалось синхронизировать корзину');
     } finally {
       setIsLoading(false);
     }
@@ -186,13 +212,15 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     if (!cart) return;
 
     try {
-      const total = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const shipping = subtotal >= 50000 ? 0 : 2000;
+      const total = subtotal + shipping;
 
       const { data, error } = await supabase
         .from('carts')
         .update({ 
           items: updatedItems, 
-          total,
+          total: total,
           updated_at: new Date().toISOString()
         })
         .eq('id', cart.id)
@@ -201,7 +229,17 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
       if (error) throw error;
 
-      setCart(data as Cart);
+      const updatedCart: Cart = {
+        ...cart,
+        items: updatedItems,
+        subtotal,
+        shipping,
+        total,
+        itemsCount: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
+        updatedAt: data.updated_at,
+      };
+
+      setCart(updatedCart);
     } catch (error) {
       console.error('Error updating cart:', error);
       throw error;
@@ -209,10 +247,10 @@ export const CartProvider = ({ children }: CartProviderProps) => {
   }, [cart]);
 
   // Добавление товара в корзину
-  const addItem = useCallback(async (variantId: string, quantity: number = 1) => {
+  const addItem = useCallback(async (productId: string, variantId?: string, quantity: number = 1) => {
     try {
       // Получаем данные о товаре
-      const productData = await getProductData(variantId);
+      const productData = await getProductData(variantId || productId);
       
       let currentCart = cart;
       
@@ -222,7 +260,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       }
 
       const existingItemIndex = currentCart.items.findIndex(
-        item => item.variant_id === variantId
+        item => item.productId === productId && item.variantId === variantId
       );
 
       let updatedItems: CartItem[];
@@ -238,8 +276,8 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         // Добавляем новый товар
         const newItem: CartItem = {
           id: crypto.randomUUID(),
-          variant_id: productData.variant_id,
-          product_id: productData.product_id,
+          productId: productData.productId,
+          variantId: productData.variantId,
           quantity,
           price: productData.price,
           title: productData.title,
@@ -249,14 +287,16 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       }
 
       await updateCartInDB(updatedItems);
+      toast.success('Товар добавлен в корзину');
     } catch (error) {
       console.error('Error adding item to cart:', error);
+      toast.error('Не удалось добавить товар в корзину');
       throw error;
     }
   }, [cart, createCart, getProductData, updateCartInDB]);
 
   // Обновление количества товара
-  const updateItemQuantity = useCallback(async (itemId: string, quantity: number) => {
+  const updateItemQuantity = useCallback((itemId: string, quantity: number) => {
     if (!cart) return;
 
     try {
@@ -264,38 +304,98 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         item.id === itemId ? { ...item, quantity } : item
       ).filter(item => item.quantity > 0); // Удаляем товары с количеством 0
 
-      await updateCartInDB(updatedItems);
+      updateCartInDB(updatedItems);
     } catch (error) {
       console.error('Error updating item quantity:', error);
-      throw error;
+      toast.error('Не удалось обновить количество товара');
     }
   }, [cart, updateCartInDB]);
 
   // Удаление товара из корзины
-  const removeItem = useCallback(async (itemId: string) => {
+  const removeItem = useCallback((itemId: string) => {
     if (!cart) return;
 
     try {
       const updatedItems = cart.items.filter(item => item.id !== itemId);
-      await updateCartInDB(updatedItems);
+      updateCartInDB(updatedItems);
+      toast.success('Товар удален из корзины');
     } catch (error) {
       console.error('Error removing item from cart:', error);
-      throw error;
+      toast.error('Не удалось удалить товар');
     }
   }, [cart, updateCartInDB]);
 
   // Очистка корзины
-  const clearCart = useCallback(async () => {
+  const clearCart = useCallback(() => {
     if (!cart) return;
 
     try {
-      await updateCartInDB([]);
+      updateCartInDB([]);
       toast.success('Корзина очищена');
     } catch (error) {
       console.error('Error clearing cart:', error);
       toast.error('Не удалось очистить корзину');
     }
   }, [cart, updateCartInDB]);
+
+  // Получение товара из корзины
+  const getItem = useCallback((productId: string, variantId?: string): CartItem | undefined => {
+    if (!cart) return undefined;
+    return cart.items.find(item => 
+      item.productId === productId && item.variantId === variantId
+    );
+  }, [cart]);
+
+  // Проверка наличия товара в корзине
+  const hasItem = useCallback((productId: string, variantId?: string): boolean => {
+    return !!getItem(productId, variantId);
+  }, [getItem]);
+
+  // Валидация корзины
+  const validateCart = useCallback(async (): Promise<{ isValid: boolean; errors: string[] }> => {
+    const errors: string[] = [];
+    
+    if (!cart || cart.items.length === 0) {
+      errors.push('Корзина пуста');
+    }
+
+    // Можно добавить дополнительные проверки
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }, [cart]);
+
+  // Создание заказа
+  const createOrder = useCallback(async (orderData: CreateOrderData): Promise<Order> => {
+    if (!cart || cart.items.length === 0) {
+      throw new Error('Корзина пуста');
+    }
+
+    // Имитация создания заказа
+    const order: Order = {
+      id: crypto.randomUUID(),
+      orderNumber: `ORD-${Date.now()}`,
+      status: 'pending',
+      items: cart.items,
+      subtotal: cart.subtotal,
+      shipping: cart.shipping || 0,
+      tax: cart.tax || 0,
+      total: cart.total,
+      customerInfo: orderData.customerInfo,
+      shippingAddress: orderData.shippingAddress,
+      billingAddress: orderData.billingAddress,
+      notes: orderData.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // После создания заказа очищаем корзину
+    clearCart();
+
+    return order;
+  }, [cart, clearCart]);
 
   // Инициализация корзины при загрузке
   useEffect(() => {
@@ -306,7 +406,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
 
   // Синхронизация при изменении сессии
   useEffect(() => {
-    if (status === 'authenticated' && session?.user && cart?.session_id) {
+    if (status === 'authenticated' && session?.user && cart?.id) {
       // Пользователь вошел в систему, нужно привязать корзину к пользователю
       const migrateCart = async () => {
         try {
@@ -326,7 +426,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       
       migrateCart();
     }
-  }, [status, session?.user, cart?.session_id, syncCart]);
+  }, [status, session?.user, cart?.id, syncCart]);
 
   // Вычисляемые значения
   const totalItems = useMemo(() => 
@@ -337,26 +437,40 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     cart?.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0
   , [cart?.items]);
 
-  const value = useMemo(() => ({
+  const isEmpty = useMemo(() => 
+    !cart || cart.items.length === 0
+  , [cart]);
+
+  const value: CartContextType = useMemo(() => ({
     cart,
     isLoading,
+    error,
     totalItems,
     totalPrice,
+    isEmpty,
     addItem,
     removeItem,
     updateItemQuantity,
     clearCart,
-    syncCart
+    getItem,
+    hasItem,
+    validateCart,
+    createOrder
   }), [
     cart,
     isLoading,
+    error,
     totalItems,
     totalPrice,
+    isEmpty,
     addItem,
     removeItem,
     updateItemQuantity,
     clearCart,
-    syncCart
+    getItem,
+    hasItem,
+    validateCart,
+    createOrder
   ]);
 
   return (

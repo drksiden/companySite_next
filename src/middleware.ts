@@ -1,29 +1,80 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export default withAuth(
-  function middleware(req) {
-    // Проверяем доступ к админке
-    if (req.nextUrl.pathname.startsWith('/admin')) {
-      const userRole = typeof req.nextauth.token?.role === 'string' ? req.nextauth.token.role : undefined;
-      
-      if (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole)) {
-        return NextResponse.redirect(new URL('/auth/signin', req.url));
-      }
+export async function middleware(req: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request: req,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request: req,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
     }
+  )
+
+  // Обновляем пользователя, если это необходимо
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // Защищаем админские роуты
+  if (req.nextUrl.pathname.startsWith('/admin') && 
+      !req.nextUrl.pathname.startsWith('/admin/login')) {
     
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+    if (!session) {
+      const url = req.nextUrl.clone()
+      url.pathname = '/admin/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Дополнительная проверка роли
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      const url = req.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
-);
+
+  // Редирект с логина если уже авторизован
+  if (req.nextUrl.pathname === '/admin/login' && session) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profile?.role === 'admin') {
+      const url = req.nextUrl.clone()
+      url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  return supabaseResponse
+}
 
 export const config = {
-  matcher: [
-    '/admin/:path*',
-    '/api/admin/:path*'
-  ],
-};
+  matcher: ['/admin/:path*']
+}
