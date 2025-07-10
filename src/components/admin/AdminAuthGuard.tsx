@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 interface AdminAuthGuardProps {
   children: ReactNode;
-  requiredRole?: ('manager' | 'admin' | 'super_admin')[];
+  requiredRole?: ('customer' | 'manager' | 'admin' | 'super_admin')[];
   fallback?: ReactNode;
 }
 
@@ -103,7 +103,7 @@ export function AdminAuthGuard({
 }
 
 // Хук для проверки прав доступа
-export function useAdminAuth(requiredRole?: ('manager' | 'admin' | 'super_admin')[]) {
+export function useAdminAuth(requiredRole?: ('customer' |'manager' | 'admin' | 'super_admin')[]) {
   const { data: session, status } = useSession();
   
   const hasAccess = () => {
