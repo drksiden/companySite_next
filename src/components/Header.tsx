@@ -1,4 +1,3 @@
-// src/components/layout/Header.tsx (или ваш путь)
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,8 +44,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-import { useCart } from '@/providers/cart'; // Импортируем хук корзины
-import { HttpTypes } from '@medusajs/types'; // Для типизации цены, если нужно
+// import { useCart } from '@/providers/cart'; // Импортируем хук корзины
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 
@@ -117,7 +115,7 @@ export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false); // Для десктопного поиска
 
   // Используем useCart
-  const { cart, totalItems, isLoading: isCartLoading } = useCart();
+//  const { cart, totalItems, isLoading: isCartLoading } = useCart();
 
   const { data: session, status: nextAuthStatus } = useSession();
   const router = useRouter();
@@ -133,7 +131,7 @@ export function Header() {
   const nextAuthUser = session?.user;
   const userFullName = nextAuthUser?.name;
   const userEmail = nextAuthUser?.email;
-  const avatarUrl = nextAuthUser?.image;
+  // const avatarUrl = nextAuthUser?.image;
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
@@ -324,177 +322,13 @@ export function Header() {
             />
           </Link>
 
-          <nav className="hidden lg:flex items-center space-x-1 mx-auto"> {/* mx-auto для центрирования навигации */}
+          <nav className="hidden lg:flex space-x-1 justify-end"> 
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} />
             ))}
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-                  aria-label="Корзина"
-                >
-                  <ShoppingBag className="h-5 w-5" />
-                  <AnimatePresence>
-                    {totalItems > 0 && (
-                      <motion.div
-                        className="absolute -top-1 -right-1"
-                        variants={badgeVariants}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                      >
-                        <Badge variant="destructive" className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs">
-                          {totalItems}
-                        </Badge>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 bg-card border-border shadow-xl">
-                <DropdownMenuLabel className="font-medium text-lg px-4 py-3 border-b border-border">
-                  Корзина
-                </DropdownMenuLabel>
-                
-                {isCartLoading ? (
-                  <div className="py-10 text-center">
-                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
-                    <p className="text-muted-foreground">Загрузка корзины...</p>
-                  </div>
-                ) : cart && cart.items && cart.items.length > 0 ? (
-                  <>
-                    <ScrollArea className="max-h-80 p-4"> {/* ScrollArea для списка товаров */}
-                      <div className="space-y-4">
-                        {cart.items.map((item: HttpTypes.StoreCartLineItem) => ( // Явная типизация item
-                          <div key={item.id} className="flex items-center gap-4 py-2 border-b border-border/50 last:border-b-0">
-                            <div className="bg-muted rounded h-16 w-16 flex items-center justify-center shrink-0">
-                              {item.thumbnail ? (
-                                <Image src={item.thumbnail} alt={item.title} width={64} height={64} className="object-contain h-full w-full" />
-                              ) : (
-                                <Package className="h-8 w-8 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.quantity} × {formatPrice(item.unit_price, cart.region?.currency_code)}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground whitespace-nowrap">
-                              {formatPrice((item.unit_price || 0) * (item.quantity || 0), cart.region?.currency_code)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                    
-                    <div className="p-4 border-t border-border">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-base text-foreground font-medium">Итого:</span>
-                        <span className="text-lg font-bold text-foreground">
-                          {formatPrice(cart.subtotal, cart.region?.currency_code)}
-                        </span>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button asChild variant="outline" size="lg" className="flex-1">
-                          <Link href="/cart">В корзину</Link>
-                        </Button>
-                        <Button asChild variant="default" size="lg" className="flex-1 bg-primary hover:bg-primary/90">
-                          <Link href="/checkout">Оформить</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-10 text-center px-4">
-                    <ShoppingBag className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-muted-foreground mb-4">Ваша корзина пуста</p>
-                    <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
-                      <Link href="/catalog">Перейти в каталог</Link>
-                    </Button>
-                  </div>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-                  aria-label="Профиль пользователя"
-                >
-                  {isLoadingSession ? (
-                    <Skeleton className="h-6 w-6 rounded-full" />
-                  ) : (
-                    <User className="h-5 w-5" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 bg-card border-border shadow-xl">
-                {isAuthenticated && nextAuthUser ? (
-                  <>
-                    <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2.5">
-                      <Avatar className="h-10 w-10">
-                        {avatarUrl && <AvatarImage src={avatarUrl} alt={userFullName || userEmail || "User"} />}
-                        <AvatarFallback className="text-sm bg-primary/10 text-primary">
-                          {getInitials(userFullName, userEmail)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold truncate text-foreground">
-                          {userFullName || "Пользователь"}
-                        </p>
-                        {userEmail && (
-                          <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-                        )}
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/account" className="flex items-center cursor-pointer">
-                        <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span>Мой аккаунт</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/account/orders" className="flex items-center cursor-pointer">
-                        <Package className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span>Мои заказы</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="flex items-center text-destructive focus:text-destructive cursor-pointer"
-                      onClick={handleSignOut}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Выйти</span>
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <div className="p-3 space-y-2">
-                     <p className="text-sm text-muted-foreground text-center mb-3">
-                        Войдите или создайте аккаунт
-                      </p>
-                    <Button asChild variant="default" size="sm" className="w-full bg-primary hover:bg-primary/90">
-                      <Link href="/auth/signin">Войти</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link href="/auth/signup">Регистрация</Link>
-                    </Button>
-                  </div>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <Button
               variant="ghost"
               size="icon"
