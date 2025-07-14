@@ -1,6 +1,6 @@
 'use client';
 
-import { SignUpForm } from "@/components/auth/signup-form"; // Убедитесь, что путь правильный
+import { SignUpForm } from "@/features/auth/components/signup-form";
 import { motion } from "framer-motion";
 
 export default function SignUpPage() {

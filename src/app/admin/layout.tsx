@@ -42,7 +42,7 @@ import {
 interface NavigationItem {
   title: string;
   href: string;
-  icon: any;
+  icon: React.ComponentType<any>;
   badge?: string;
   requiredRole?: string[];
   children?: NavigationItem[];
@@ -59,8 +59,8 @@ const navigation: NavigationItem[] = [
     href: '/admin/catalog',
     icon: Package,
     children: [
-      { title: 'Товары', href: '/admin/catalog/products', icon: Package },
       { title: 'Категории', href: '/admin/catalog/categories', icon: Folder },
+      { title: 'Товары', href: '/admin/catalog/products', icon: ShoppingBag },
       { title: 'Бренды', href: '/admin/catalog/brands', icon: Tag },
       { title: 'Коллекции', href: '/admin/catalog/collections', icon: Palette },
       { title: 'Атрибуты', href: '/admin/catalog/attributes', icon: Database },

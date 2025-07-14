@@ -27,7 +27,7 @@ export interface Product {
   category_id?: string | null;
   brand_id?: string | null;
   // Связанные данные от Supabase joins
-  brands?: Brand | null; // Изменили с brand на brands
+  brands?: Brand[] | null; // Изменили с brand на brands
   categories?: Category | null; // Добавили categories для join
   handle?: string | null; 
   sku?: string | null;
@@ -41,14 +41,14 @@ export interface Product {
 
 // Вспомогательные типы для работы с продуктами
 export interface ProductWithBrand extends Product {
-  brands: Brand;
-}
-
-export interface ProductWithCategory extends Product {
-  categories: Category;
-}
-
-export interface ProductWithRelations extends Product {
-  brands?: Brand;
-  categories?: Category;
-}
+  brands: Brand[];
+  }
+  
+  export interface ProductWithCategory extends Product {
+    categories: Category;
+  }
+  
+  export interface ProductWithRelations extends Product {
+    brands?: Brand[];
+    categories?: Category;
+  }

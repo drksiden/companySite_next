@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +28,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import {
   Menu,
   ShoppingBag,
@@ -62,10 +62,10 @@ const navItems = [
 ];
 
 const easeTransition = {
-  type: "spring",
+  type: 'spring',
   stiffness: 260,
-  damping: 20
-};
+  damping: 20,
+} as const;
 
 const underlineVariants = {
   hidden: { width: 0, opacity: 0 },
@@ -94,7 +94,6 @@ const formatPrice = (amount?: number, currencyCode: string = 'KZT'): string => {
   }).format(amount / 100); // Делим на 100
 };
 
-
 interface NavItemProps {
   item: {
     href: string;
@@ -121,9 +120,8 @@ export function Header() {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    localStorage.removeItem('medusa_jwt'); // Очищаем токен Medusa при выходе из NextAuth
     await signOut({ redirect: false });
-    router.push("/"); 
+    router.push("/");
   };
 
   const isLoadingSession = nextAuthStatus === "loading";
@@ -172,7 +170,7 @@ export function Header() {
 
     if (item.children && !mobile) {
       return (
-        <div 
+        <div
           className="relative"
           onMouseEnter={() => setIsDropdownOpen(true)}
           onMouseLeave={() => setIsDropdownOpen(false)}
@@ -322,7 +320,7 @@ export function Header() {
             />
           </Link>
 
-          <nav className="hidden lg:flex space-x-1 justify-end"> 
+          <nav className="hidden lg:flex space-x-1 ml-auto"> 
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} />
             ))}
@@ -363,16 +361,11 @@ export function Header() {
               </SheetTrigger>
               <SheetContent side="right" className="lg:hidden w-full max-w-xs sm:max-w-sm p-0 border-l border-border bg-card">
                 <SheetHeader className="p-4 border-b border-border bg-muted/30">
-                  <SheetClose asChild>
-                    <div className="flex justify-between items-center">
-                       <SheetTitle className="text-left text-lg font-semibold text-foreground">
-                        Меню
-                      </SheetTitle>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <X className="h-5 w-5" />
-                      </Button>
-                    </div>
-                  </SheetClose>
+                  <div className="flex justify-between items-center">
+                     <SheetTitle className="text-left text-lg font-semibold text-foreground">
+                      Меню
+                    </SheetTitle>
+                  </div>
                 </SheetHeader>
                 
                 <div className="p-4 border-b border-border">
@@ -397,9 +390,9 @@ export function Header() {
                     </nav>
                     
                     <div className="mt-4 pt-4 border-t border-border">
-                      <Button 
-                        variant="ghost" 
-                        asChild 
+                      <Button
+                        variant="ghost"
+                        asChild
                         className="justify-start text-base w-full mb-1 px-3 py-2 h-auto"
                         onClick={() => setOpenMobileMenu(false)}
                       >

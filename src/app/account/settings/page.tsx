@@ -43,7 +43,7 @@ export default function SettingsPage() {
         phone,
       })
       toast.success("Профиль обновлён")
-    } catch (err) {
+    } catch {
       toast.error("Ошибка при обновлении")
     } finally {
       setLoading(false)

@@ -80,6 +80,7 @@ export interface Collection {
   
   // Связанные данные
   brand?: Brand;
+  subcategory_id?: string;
 }
 
 export interface AttributeGroup {

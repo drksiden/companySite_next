@@ -39,7 +39,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,8 +50,7 @@ import {
   Trash2, 
   Shield,
   Ban,
-  CheckCircle,
-  Filter
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
@@ -522,9 +520,9 @@ function EditUserForm({
       {canEditRole && (
         <div className="space-y-2">
           <Label htmlFor="role">Роль</Label>
-          <Select 
-            value={formData.role} 
-            onValueChange={(value) => setFormData({ ...formData, role: value as any })}
+          <Select
+            value={formData.role}
+            onValueChange={(value) => setFormData({ ...formData, role: value as "customer" | "manager" | "admin" | "super_admin" })}
           >
             <SelectTrigger>
               <SelectValue />

@@ -125,42 +125,75 @@ const antSlides = [
   },
 ];
 
-export const TekoSection: React.FC = () => (
-  <ProductSection
-    slides={tekoSlides}
-    brandName="TEKO"
-    brandLogoUrl="/images/logos/teko-logo.svg"
-    brandLogoUrlDark="/images/logos/teko-logo.svg"
-    brandTagline="Надежные Системы Безопасности"
-    description='Полный спектр оборудования НПО "ТЕКО" в Казахстане. От радиоканальных систем "Астра" до адресных решений для защиты вашего объекта.'
-    catalogLink="/catalog/manufacturer/teko"
-    badgeText="Официальный дилер"
-    sectionBgClass="bg-gray-50 dark:bg-gray-900"   />
-);
+type SectionType = "teko" | "flexem" | "ant";
 
-export const FlexemSection: React.FC = () => (
-  <ProductSection
-    slides={flexemSlides}
-    brandName="FLEXEM"
-    brandLogoUrl="/images/logos/flexem-logo-white.png"
-    brandLogoUrlDark="/images/logos/flexem-logo-white.png"
-    brandTagline="Инновационные Решения"
-    description="Современное оборудование FLEXEM для автоматизации и управления. Надежные HMI-панели и IoT-решения для промышленности и бизнеса в Казахстане."
-    catalogLink="/catalog/manufacturer/flexem"
-    badgeText="Официальный дистрибьютор"
-    sectionBgClass="bg-white dark:bg-gray-800"  />
-);
+interface ProductSectionsProps {
+  sectionType: SectionType;
+}
 
-export const AntSection: React.FC = () => (
-  <ProductSection
-    slides={antSlides}
-    brandName="ANT"
-    brandLogoUrl="/images/logos/ant-logo-light.svg"
-    brandLogoUrlDark='/images/logos/ant-logo-dark.svg'
-    brandTagline="Сетевое Оборудование"
-    description="Профессиональные решения ANT для создания надежных и масштабируемых сетевых инфраструктур."
-    catalogLink="/catalog/manufacturer/ant"
-    badgeText="Сетевые решения"
-    sectionBgClass="bg-gray-50 dark:bg-gray-900"
-  />
-);
+export const ProductSections: React.FC<ProductSectionsProps> = ({ sectionType }) => {
+  let slides,
+    brandName,
+    brandLogoUrl,
+    brandLogoUrlDark,
+    brandTagline,
+    description,
+    catalogLink,
+    badgeText,
+    sectionBgClass;
+
+  switch (sectionType) {
+    case "teko":
+      slides = tekoSlides;
+      brandName = "TEKO";
+      brandLogoUrl = "/images/logos/teko-logo.svg";
+      brandLogoUrlDark = "/images/logos/teko-logo.svg";
+      brandTagline = "Надежные Системы Безопасности";
+      description =
+        'Полный спектр оборудования НПО "ТЕКО" в Казахстане. От радиоканальных систем "Астра" до адресных решений для защиты вашего объекта.';
+      catalogLink = "/catalog/manufacturer/teko";
+      badgeText = "Официальный дилер";
+      sectionBgClass = "bg-gray-50 dark:bg-gray-900";
+      break;
+    case "flexem":
+      slides = flexemSlides;
+      brandName = "FLEXEM";
+      brandLogoUrl = "/images/logos/flexem-logo-white.png";
+      brandLogoUrlDark = "/images/logos/flexem-logo-white.png";
+      brandTagline = "Инновационные Решения";
+      description =
+        "Современное оборудование FLEXEM для автоматизации и управления. Надежные HMI-панели и IoT-решения для промышленности и бизнеса в Казахстане.";
+      catalogLink = "/catalog/manufacturer/flexem";
+      badgeText = "Официальный дистрибьютор";
+      sectionBgClass = "bg-white dark:bg-gray-800";
+      break;
+    case "ant":
+      slides = antSlides;
+      brandName = "ANT";
+      brandLogoUrl = "/images/logos/ant-logo-light.svg";
+      brandLogoUrlDark = "/images/logos/ant-logo-dark.svg";
+      brandTagline = "Сетевое Оборудование";
+      description =
+        "Профессиональные решения ANT для создания надежных и масштабируемых сетевых инфраструктур.";
+      catalogLink = "/catalog/manufacturer/ant";
+      badgeText = "Сетевые решения";
+      sectionBgClass = "bg-gray-50 dark:bg-gray-900";
+      break;
+    default:
+      return null; // Or a default section
+  }
+
+  return (
+    <ProductSection
+      slides={slides}
+      brandName={brandName}
+      brandLogoUrl={brandLogoUrl}
+      brandLogoUrlDark={brandLogoUrlDark}
+      brandTagline={brandTagline}
+      description={description}
+      catalogLink={catalogLink}
+      badgeText={badgeText}
+      sectionBgClass={sectionBgClass}
+    />
+  );
+};

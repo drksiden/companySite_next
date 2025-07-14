@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const signInSchema = z.object({
   email: z.string().email({ message: "Введите корректный email адрес." }).min(1, {message: "Email обязателен."}),
-  password: z.string().min(1, { message: "Пароль обязателен." }).min(8, {message: "Пароль должен быть не менее 8 символов."}),
+  password: z.string().min(1, { message: "Пароль обязателен." }),
 });
 
 export type SignInFormData = z.infer<typeof signInSchema>;

@@ -1,7 +1,7 @@
 // src/app/auth/signin/page.tsx
 'use client';
 
-import { SignInForm } from "@/components/auth/signin-form"; // Убедитесь, что путь правильный
+import { SignInForm } from "@/features/auth/components/signin-form";
 import { motion } from "framer-motion";
 
 export default function SignInPage() {

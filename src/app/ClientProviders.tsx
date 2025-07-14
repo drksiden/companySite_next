@@ -1,23 +1,26 @@
 'use client';
-
+ 
 import { ThemeProvider } from 'next-themes';
 import { SessionProvider } from 'next-auth/react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Toaster } from "@/components/ui/sonner";
-import { Car } from 'lucide-react';
-
+import { usePathname } from 'next/navigation';
+ 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith('/admin');
+ 
   return (
     <SessionProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Header />
-          <main className="flex-grow">{children}</main>
-            <Footer />
-            <ScrollToTopButton />
-            <Toaster richColors />
-          </ThemeProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        {!isAdminRoute && <Header />}
+        <main className="flex-grow">{children}</main>
+        {!isAdminRoute && <Footer />}
+        <ScrollToTopButton />
+        <Toaster richColors />
+      </ThemeProvider>
     </SessionProvider>
   );
 }

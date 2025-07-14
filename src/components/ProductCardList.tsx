@@ -13,17 +13,7 @@ interface ProductCardListProps {
   products: Product[]; // Use Supabase Product type
 }
 
-// Modified formatPrice function
-const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): string => {
-  if (amount == null) {
-    return 'Цена по запросу';
-  }
-  // Assuming 'amount' is already in the correct denomination
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: currencyCode.toUpperCase(),
-  }).format(amount);
-};
+import { formatPrice } from '@/utils';
 
 export function ProductCardList({ products }: ProductCardListProps) {
   const containerVariants = {
@@ -116,14 +106,14 @@ export function ProductCardList({ products }: ProductCardListProps) {
                       {productName || 'Без названия'}
                     </Link>
                   </h3>
-                  {product.brand?.name && (
+                  {product.brands && product.brands.length > 0 && product.brands[0].name && (
                     <div className="mb-2 text-xs text-muted-foreground"> {/* Adjusted margin and styling */}
-                      {product.brand.handle ? (
-                        <Link href={`/brand/${product.brand.handle}`} className="hover:text-primary hover:underline">
-                          {product.brand.name}
+                      {product.brands[0].handle ? (
+                        <Link href={`/brand/${product.brands[0].handle}`} className="hover:text-primary hover:underline">
+                          {product.brands[0].name}
                         </Link>
                       ) : (
-                        product.brand.name
+                        product.brands[0].name
                       )}
                     </div>
                   )}

@@ -1,65 +1,61 @@
-// src/middleware.ts
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { type NextRequest } from 'next/server'
+import { getToken } from "next-auth/jwt";
 
-export default withAuth(
-  function middleware(req) {
-    const { pathname } = req.nextUrl;
-    const token = req.nextauth.token;
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const token = await getToken({ req });
 
-    // Проверяем доступ к админке
-    if (pathname.startsWith('/admin')) {
-      const userRole = token?.role;
-      
-      if (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole)) {
-        // Перенаправляем на страницу входа с указанием откуда пришел запрос
-        const signInUrl = new URL('/auth/signin', req.url);
-        signInUrl.searchParams.set('callbackUrl', req.url);
-        return NextResponse.redirect(signInUrl);
-      }
-
-      // Проверяем специфичные права для определенных разделов
-      if (pathname.startsWith('/admin/users') && userRole !== 'super_admin' && userRole !== 'admin') {
-        return NextResponse.redirect(new URL('/admin', req.url));
-      }
-
-      if (pathname.startsWith('/admin/settings') && userRole !== 'super_admin') {
-        return NextResponse.redirect(new URL('/admin', req.url));
-      }
+  // Проверяем доступ к админке
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    if (!token) {
+      // Redirect to signin page if no token
+      const signInUrl = new URL('/auth/signin', req.url);
+      signInUrl.searchParams.set('callbackUrl', req.url);
+      return NextResponse.redirect(signInUrl);
     }
 
-    // Проверяем API маршруты админки
-    if (pathname.startsWith('/api/admin')) {
-      const userRole = token?.role;
-      
-      if (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole)) {
-        return NextResponse.json(
-          { error: 'Недостаточно прав доступа' },
-          { status: 403 }
-        );
-      }
+    const userRole = token?.role;
+
+    if (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole)) {
+      // Перенаправляем на страницу входа с указанием откуда пришел запрос
+      const signInUrl = new URL('/auth/signin', req.url);
+      signInUrl.searchParams.set('callbackUrl', req.url);
+      return NextResponse.redirect(signInUrl);
     }
-    
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        // Для админских маршрутов требуется токен
-        if (req.nextUrl.pathname.startsWith('/admin') || 
-            req.nextUrl.pathname.startsWith('/api/admin')) {
-          return !!token;
-        }
-        return true;
-      },
-    },
+
+    // Проверяем специфичные права для определенных разделов
+    if (pathname.startsWith('/admin/users') && userRole !== 'super_admin' && userRole !== 'admin') {
+      return NextResponse.redirect(new URL('/admin', req.url));
+    }
+
+    if (pathname.startsWith('/admin/settings') && userRole !== 'super_admin') {
+      return NextResponse.redirect(new URL('/admin', req.url));
+    }
+
+    if (pathname.startsWith('/api/admin') && (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole))) {
+      return NextResponse.json(
+        { error: 'Недостаточно прав доступа' },
+        { status: 403 }
+      );
+    }
   }
-);
+
+  // Разрешаем доступ к остальным маршрутам
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
     '/admin/:path*',
-    '/api/admin/:path*'
+    '/api/admin/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
-

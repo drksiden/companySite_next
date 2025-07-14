@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Hero } from '@/components/Hero';
 import { PartnersCarousel } from '@/components/PartnersCarousel';
-import { TekoSection, FlexemSection, AntSection } from '@/components/ProductSections';
+import { ProductSections } from '@/components/ProductSections';
 import { PromoCard } from '@/components/PromoCard';
 import { Services } from '@/components/Services';
 import { SectionWrapper } from '@/components/SectionWrapper';
@@ -23,13 +23,13 @@ export default function HomePage() {
           <PartnersCarousel />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <TekoSection />
+          <ProductSections sectionType="teko" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <FlexemSection />
+          <ProductSections sectionType="flexem" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <AntSection />
+          <ProductSections sectionType="ant" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
           <PromoCard />
