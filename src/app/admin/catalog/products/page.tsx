@@ -1,49 +1,28 @@
-import { Product } from '@/types/catalog';
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { ProductList } from '@/components/admin/ProductList';
-import ProductFormClient from './ProductFormClient';
+import { createClient } from '@/utils/supabase/server';
+import { ProductManagerClient } from '@/components/admin/ProductManagerClient';
 
-async function createClient() {
-  const cookieStore = cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        async getAll() {
-          const store = await cookieStore;
-          return store.getAll()
-        },
-      },
-    }
-  )
-}
-
-async function getProducts(): Promise<Product[]> {
+export default async function ProductsPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('name', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching products:', error);
-    return [];
+  const { data: products } = await supabase.from('products').select('*');
+  const { data: categories } = await supabase.from('categories').select('*');
+  const { data: brands } = await supabase.from('brands').select('*');
+  const { data: collections } = await supabase.from('collections').select('*');
+  const { data: currencies } = await supabase.from('currencies').select('*');
+
+  if (!products || !categories || !brands || !collections || !currencies) {
+    return <div>Ошибка загрузки данных.</div>;
   }
 
-  return data || [];
-}
-
-export default async function AdminCatalogProductsPage() {
-  const products = await getProducts();
-
   return (
-    <div>
-      <h1>Products</h1>
-      <ProductFormClient />
-      <ProductList products={products} />
+    <div className="p-6">
+      <ProductManagerClient
+        initialProducts={products}
+        categories={categories}
+        brands={brands}
+        collections={collections}
+        currencies={currencies}
+      />
     </div>
   );
 }

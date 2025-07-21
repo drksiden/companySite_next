@@ -71,7 +71,8 @@ export interface Collection {
   name: string;
   slug: string;
   description?: string;
-  brand_id: string;
+  brand_id?: string;
+  category_id?: string;
   image_url?: string;
   is_active: boolean;
   sort_order: number;
@@ -334,30 +335,45 @@ export type BrandWithStats = Brand & {
 // ==============================================
 
 export interface ProductFormData {
+  id: string | null;
   name: string;
   slug: string;
-  sku?: string;
-  short_description?: string;
-  description?: string;
-  technical_description?: string;
+  sku?: string | null;
+  barcode?: string | null;
+  short_description?: string | null;
+  description?: string | null;
+  technical_description?: string | null;
   category_id: string;
-  brand_id?: string;
-  collection_id?: string;
-  base_price?: number;
-  sale_price?: number;
-  inventory_quantity: number;
+  brand_id?: string | null;
+  collection_id?: string | null;
+  base_price?: number | null;
+  sale_price?: number | null;
+  cost_price?: number | null;
+  currency_id?: string;
   track_inventory: boolean;
+  inventory_quantity: number;
+  min_stock_level: number;
   allow_backorder: boolean;
-  weight?: number;
-  dimensions?: Product['dimensions'];
+  weight?: number | null;
+  dimensions?: {
+    length?: number | null;
+    width?: number | null;
+    height?: number | null;
+  };
   unit_id?: string;
-  images: string[];
-  specifications: Record<string, any>;
+  images?: string[];
+  thumbnail?: string | null;
+  documents?: ProductDocument[];
+  specifications?: Record<string, any>;
   status: ProductStatus;
   is_featured: boolean;
-  meta_title?: string;
-  meta_description?: string;
-  meta_keywords?: string;
+  is_digital: boolean;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  meta_keywords?: string | null;
+  sort_order: number;
+  view_count?: number;
+  sales_count?: number;
 }
 
 export interface CategoryFormData {

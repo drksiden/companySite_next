@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
         pathname: '/static/**',
       },
       {
-        protocol: 'https', // Cloudflare R2 обычно использует https
-        hostname: 'pub-1e1504bc9c9d447f9ac06a9f65bbac2f.r2.dev',
-        port: '', // Порт обычно не нужен для HTTPS и стандартных доменов
-        pathname: '/**', // Разрешает любые пути на этом хосте
+        protocol: 'https',
+        hostname: 'pub-1506276de6ac4a07aa6fe582457507c1.r2.dev',
+        port: '',
+        pathname: '/**',
       },
     ],
     
