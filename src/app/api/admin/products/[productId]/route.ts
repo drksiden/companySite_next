@@ -104,78 +104,54 @@ export async function PUT(
         newDocuments.push({ url, name: file.name, type: file.type });
       }
     }
-    const documentsToDelete = (currentProduct.documents as any[] || []).filter(
+    const documentsToDelete = Array.isArray(currentProduct.documents)
+  ? currentProduct.documents.filter(
       (doc: any) => !existingDocuments.some((existingDoc: any) => existingDoc.url === doc.url)
-    );
+    )
+  : [];
     for (const doc of documentsToDelete) {
       await deleteFileFromR2(doc.url);
     }
     const allDocuments = [...existingDocuments, ...newDocuments];
 
-    // --- Обработка спецификаций (аналогично документам) ---
-    const existingSpecs = formData.get('specifications') ? JSON.parse(formData.get('specifications') as string) : [];
-    const specFiles = formData.getAll('specFiles') as File[];
-    
-    const newSpecs = [];
-    for (const file of specFiles) {
-      if (file.size > 0) {
-        const url = await uploadFileToR2(file, 'specifications');
-        newSpecs.push({ url, name: file.name, type: file.type });
-      }
-    }
-    const specsToDelete = (currentProduct.specifications as any[] || []).filter(
-      (spec: any) => !existingSpecs.some((existingSpec: any) => existingSpec.url === spec.url)
-    );
-    for (const spec of specsToDelete) {
-      await deleteFileFromR2(spec.url);
-    }
-    const allSpecs = [...existingSpecs, ...newSpecs];
+  // --- Обработка спецификаций ---
+  const existingSpecs = formData.get('specifications') ? JSON.parse(formData.get('specifications') as string) : [];
+
+  // Спецификации не являются файлами, поэтому нет логики для удаления старых
+  // и добавления новых файлов.
+  // allSpecs - это просто массив, который пришел с формы
+  const allSpecs = existingSpecs;
     
 
-    // --- Сборка данных для обновления ---
+// --- Сборка данных для обновления ---
     const updatedProductData: { [key: string]: any } = {};
-
-    for (const [key, value] of formData.entries()) {
-      // Исключаем поля, которые мы обрабатываем вручную
-      if (['imageFiles', 'images[]', 'documentFiles', 'documents', 'specFiles', 'specifications'].includes(key)) continue;
-      
-      // Преобразование типов
-      if (typeof value === 'string') {
-        switch (key) {
-          case 'base_price':
-          case 'sale_price':
-          case 'cost_price':
-          case 'inventory_quantity':
-          case 'min_stock_level':
-          case 'sort_order':
-            updatedProductData[key] = parseFloat(value);
-            break;
-          case 'track_inventory':
-          case 'allow_backorder':
-          case 'is_featured':
-          case 'is_digital':
-            updatedProductData[key] = value === 'true';
-            break;
-          case 'brand_id':
-          case 'collection_id':
-          case 'unit_id':
-            updatedProductData[key] = value === 'null' ? null : value;
-            break;
-          case 'dimensions':
-            try {
-              updatedProductData[key] = value ? JSON.parse(value) : null;
-            } catch (e) {
-              updatedProductData[key] = null;
-            }
-            break;
-          default:
-            updatedProductData[key] = value;
-            break;
-        }
-      }
-    }
     
-    // Добавляем обновленные массивы
+    // Получаем все поля напрямую из formData.get()
+    updatedProductData.name = formData.get('name');
+    updatedProductData.slug = formData.get('slug');
+    updatedProductData.category_id = formData.get('category_id');
+    updatedProductData.short_description = formData.get('short_description') || null;
+    updatedProductData.description = formData.get('description') || null;
+    updatedProductData.technical_description = formData.get('technical_description') || null;
+    updatedProductData.base_price = parseFloat(formData.get('base_price') as string);
+    updatedProductData.inventory_quantity = parseInt(formData.get('inventory_quantity') as string);
+    updatedProductData.track_inventory = formData.get('track_inventory') === 'on';
+    updatedProductData.min_stock_level = parseInt(formData.get('min_stock_level') as string);
+    updatedProductData.allow_backorder = formData.get('allow_backorder') === 'on';
+    updatedProductData.is_featured = formData.get('is_featured') === 'on';
+    updatedProductData.is_digital = formData.get('is_digital') === 'on';
+    updatedProductData.sort_order = parseInt(formData.get('sort_order') as string);
+    updatedProductData.status = formData.get('status');
+    updatedProductData.meta_title = formData.get('meta_title') || null;
+    updatedProductData.meta_description = formData.get('meta_description') || null;
+    updatedProductData.meta_keywords = formData.get('meta_keywords') || null;
+
+    // Вложенные объекты
+    updatedProductData.dimensions = formData.get('dimensions') ? JSON.parse(formData.get('dimensions') as string) : null;
+    updatedProductData.brand_id = formData.get('brand_id') === 'null' ? null : formData.get('brand_id');
+    updatedProductData.collection_id = formData.get('collection_id') === 'null' ? null : formData.get('collection_id');
+    
+    // Массивы, которые мы обработали выше
     updatedProductData.images = allImageUrls;
     updatedProductData.documents = allDocuments;
     updatedProductData.specifications = allSpecs;

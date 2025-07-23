@@ -1,143 +1,129 @@
+// src/app/api/admin/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/config/auth';
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { UserProfile, UserCreatePayload } from '@/lib/services/user'; // Убедитесь, что эти типы определены или импортированы
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// GET /api/admin/users - получить список пользователей
-export async function GET(request: NextRequest) {
+// Вспомогательная функция для проверки авторизации
+async function authorizeAdmin(req: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const { data: { user }, error: authUserError } = await supabase.auth.getUser();
+
+  if (!user || authUserError) {
+    console.error('Authentication error:', authUserError?.message);
+    return { authorized: false, response: NextResponse.json({ message: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  // Предполагается, что роль 'admin' хранится в app_metadata пользователя
+  if (user.app_metadata.role !== 'admin') {
+    return { authorized: false, response: NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 }) };
+  }
+
+  return { authorized: true, user };
+}
+
+
+// GET /api/admin/users - List all users
+export async function GET(req: NextRequest) {
+  const authResult = await authorizeAdmin(req);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userRole = (session.user as any).role;
-    if (!['admin', 'super_admin'].includes(userRole)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const search = searchParams.get('search') || '';
-    const role = searchParams.get('role') || '';
-    const status = searchParams.get('status') || '';
-
-    let query = supabase
-      .from('user_profiles')
-      .select('*', { count: 'exact' })
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    // Применяем фильтры
-    if (search) {
-      query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,company_name.ilike.%${search}%`);
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError);
+      return NextResponse.json({ message: 'Error fetching user profiles', error: profilesError.message }, { status: 500 });
     }
 
-    if (role && role !== 'all') {
-      query = query.eq('role', role);
-    }
+    return NextResponse.json(profiles as UserProfile[], { status: 200 });
 
-    if (status && status !== 'all') {
-      query = query.eq('is_active', status === 'active');
-    }
-
-    // Пагинация
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      users: data,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-      }
-    });
-
-  } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Unexpected error in GET /api/admin/users:', error);
+    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
 
-// POST /api/admin/users - создать нового пользователя
-export async function POST(request: NextRequest) {
+// POST /api/admin/users - Create a new user
+export async function POST(req: NextRequest) {
+  const authResult = await authorizeAdmin(req);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
+
+  const { email, password, ...profileData }: UserCreatePayload = await req.json();
+
+  if (!email || !password) {
+    return NextResponse.json({ message: 'Email и пароль обязательны' }, { status: 400 });
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-   const userRole = (session.user as any)?.role;
-   if (!['admin', 'super_admin'].includes(userRole)) {
-     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { email, password, first_name, last_name, role = 'customer', phone, company_name, position } = body;
-
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
-    }
-
-    // Только super_admin может создавать super_admin
-    if (role === 'super_admin' && userRole !== 'super_admin') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    }
-
-    // Создаем пользователя в auth.users
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // 1. Create user in Supabase Auth using admin API
+    // Также можно добавить role в user_metadata, чтобы она была доступна сразу в app_metadata
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: true, // Auto-confirm email for admin-created users
       user_metadata: {
-        first_name,
-        last_name,
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone: profileData.phone,
+        // Добавляем роль в user_metadata, чтобы она попала в app_metadata
+        role: profileData.role || 'customer', 
       }
     });
 
     if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 });
+      if (authError.message.includes('already registered')) {
+        return NextResponse.json({ message: 'Пользователь с таким email уже зарегистрирован.' }, { status: 409 });
+      }
+      console.error('Error creating auth user:', authError);
+      return NextResponse.json({ message: `Ошибка создания пользователя: ${authError.message}` }, { status: 500 });
     }
 
-    // Обновляем профиль пользователя
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .update({
-        first_name,
-        last_name,
-        role,
-        phone,
-        company_name,
-        position,
-        is_active: true,
-      })
-      .eq('id', authData.user.id)
+    if (!authData.user) {
+      return NextResponse.json({ message: 'Не удалось получить данные нового пользователя после регистрации.' }, { status: 500 });
+    }
+
+    // 2. Create profile in public.profiles table
+    const { data: newProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email: email, // Store email in profile for easier search, though it's in auth.users too
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone: profileData.phone,
+        role: profileData.role || 'customer', // Default to 'customer' if not provided
+        is_active: profileData.is_active ?? true,
+        company_id: profileData.company_id,
+        position: profileData.position,
+        avatar_url: profileData.avatar_url,
+        timezone: profileData.timezone || 'Asia/Almaty',
+        locale: profileData.locale || 'ru-RU',
+        permissions: profileData.permissions || [],
+        address: profileData.address || {},
+      } as Omit<UserProfile, 'created_at' | 'updated_at'>) // Cast to ensure type compatibility
       .select()
       .single();
 
     if (profileError) {
-      console.error('Profile update error:', profileError);
-      // Удаляем созданного пользователя если не удалось обновить профиль
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 });
+      console.error('Error creating user profile:', profileError);
+      // Attempt to delete auth user if profile creation fails for cleanup
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json({ message: 'Ошибка создания профиля пользователя', error: profileError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ user: profileData }, { status: 201 });
+    return NextResponse.json(newProfile, { status: 201 });
 
-  } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Unexpected error in POST /api/admin/users:', error);
+    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
