@@ -81,40 +81,66 @@ const sidebarVariants = {
   collapsed: { width: 80, transition: { duration: 0.3, ease: 'easeInOut' } },
 };
 
-// NavigationLink component
-const MotionLink = motion(forwardRef(function MotionLink(props: any, ref) {
-  return <Link ref={ref} {...props} />;
-}));
-
-const NavigationLink = memo(function NavigationLink({ item, index, sidebarCollapsed }: {
-  item: any;
-  index: number;
-  sidebarCollapsed: boolean;
-}) {
+// Enhanced NavigationLink component with Tooltip for collapsed state
+const NavigationLink = memo(({ item, sidebarCollapsed }: { item: any; sidebarCollapsed: boolean; }) => {
   const pathname = usePathname();
-  const isActive = pathname === item.href || (item.children && item.children.some((child: any) => child.href === pathname));
-  return (
-    <MotionLink
-      href={item.href}
+  const isActive = pathname === item.href || (item.children && item.children.some((child: any) => pathname.startsWith(child.href)));
+
+  const linkContent = (
+    <div
       className={cn(
         'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
         isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent',
         sidebarCollapsed ? 'justify-center' : 'justify-start'
       )}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      layoutId={`nav-link-${item.href}`}
     >
-      {item.icon && <item.icon className="h-5 w-5" />}
-      {!sidebarCollapsed && (
-        <span className="truncate flex-1">{item.title}</span>
+      {item.icon && <item.icon className="h-5 w-5 flex-shrink-0" />}
+      <AnimatePresence>
+        {!sidebarCollapsed && (
+          <motion.span
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.2 }}
+            className="truncate flex-1"
+          >
+            {item.title}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      {!sidebarCollapsed && item.badge && (
+        <Badge variant={isActive ? "primary" : "secondary"} className="ml-auto text-xs">
+          {item.badge}
+        </Badge>
       )}
-      {item.badge && !sidebarCollapsed && (
-        <Badge variant="secondary" className="ml-2 text-xs">{item.badge}</Badge>
-      )}
-    </MotionLink>
+    </div>
+  );
+
+  if (sidebarCollapsed) {
+    return (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link href={item.href} className="block">
+              {linkContent}
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{item.title}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <Link href={item.href}>
+      {linkContent}
+    </Link>
   );
 });
+
+NavigationLink.displayName = 'NavigationLink';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -248,8 +274,8 @@ export function Sidebar({ sidebarOpen, sidebarCollapsed, setSidebarOpen, setSide
               animate="visible"
             >
               <LayoutGroup>
-                {filteredNavigation.map((item, index) => (
-                  <NavigationLink key={item.href} item={item} index={index} sidebarCollapsed={sidebarCollapsed} />
+                {filteredNavigation.map((item) => (
+                  <NavigationLink key={item.href} item={item} sidebarCollapsed={sidebarCollapsed} />
                 ))}
               </LayoutGroup>
             </motion.nav>

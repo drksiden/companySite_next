@@ -137,35 +137,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Не удалось получить ID нового пользователя.' }, { status: 500 });
     }
 
-    // Создаём профиль пользователя в user_profiles через supabaseAdmin (service_role key)
-    const { error: profileError } = await supabaseAdmin
+    // Создаём профиль пользователя в user_profiles
+    const profilePayload = {
+      id: newUserId,
+      email,
+      first_name,
+      last_name,
+      phone,
+      avatar_url,
+      role: role || 'customer',
+      is_active: is_active ?? true,
+      client_type: client_type || 'individual',
+      company_id: company_id || null,
+      position: position || null,
+    };
+
+    const { data: newProfile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .insert([
-        {
-          id: newUserId,
-          email,
-          first_name,
-          last_name,
-          phone,
-          avatar_url,
-          role: role || 'customer',
-          is_active: is_active ?? true,
-          client_type: client_type || 'individual',
-          company_id: company_id || null,
-          position: position || null,
-        },
-      ]);
+      .insert(profilePayload)
+      .select()
+      .single();
+
     if (profileError) {
+      // Если создание профиля не удалось, откатываем создание пользователя в Auth
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
       return NextResponse.json({
-        message: 'Ошибка создания профиля пользователя',
+        message: 'Ошибка создания профиля пользователя. Пользователь в Auth был удален.',
         error: profileError.message,
         details: profileError,
-        newUserId,
-        email,
       }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Пользователь успешно создан.' }, { status: 201 });
+    // Возвращаем созданный профиль
+    return NextResponse.json(newProfile, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({
       message: error.message || 'Ошибка сервера.',

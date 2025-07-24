@@ -532,6 +532,8 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedUserIds = selectedRows.map((row) => row.original.id);
 
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlusCircle } from 'lucide-react';
   if (loading) {
     return <div className="p-4 text-center">Загрузка данных пользователей и компаний...</div>;
   }
@@ -541,78 +543,35 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
   }
 
   return (
-    <div className="w-full">
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Поиск по email..."
-          value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
-          onChange={(event) =>
-            table.getColumn('email')?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
-        <div className="ml-auto flex items-center space-x-2">
-          {selectedRows.length > 0 && (
+    <Card>
+      <CardHeader>
+        <CardTitle>Пользователи</CardTitle>
+        <CardDescription>
+          Управление пользователями, их ролями и доступом.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-2 py-4">
+          <Input
+            placeholder="Поиск по email..."
+            value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
+            onChange={(event) =>
+              table.getColumn('email')?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+          <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Действия ({selectedRows.length}) <ChevronDown className="ml-2 h-4 w-4" />
+                <Button variant="outline" className="ml-auto">
+                  Колонки <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleDeleteUsers(selectedUserIds)}>
-                  Удалить выбранных
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDeactivateUsers(selectedUserIds, true)}>
-                  Активировать выбранных
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDeactivateUsers(selectedUserIds, false)}>
-                  Деактивировать выбранных
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          <Select onValueChange={setFilterRole} value={filterRole}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Фильтр по роли" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все роли</SelectItem>
-              {USER_ROLES.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select onValueChange={setFilterClientType} value={filterClientType}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Фильтр по типу клиента" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все типы</SelectItem>
-              {CLIENT_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type === 'individual' ? 'Физическое лицо' : 'Юридическое лицо'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
-                Колонки <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => (
                     <DropdownMenuCheckboxItem
                       key={column.id}
                       className="capitalize"
@@ -623,100 +582,102 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
                     >
                       {column.id}
                     </DropdownMenuCheckboxItem>
-                  );
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleOpenCreateModal}>Создать пользователя</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{editingUser ? 'Редактировать пользователя' : 'Создать пользователя'}</DialogTitle>
-                <DialogDescription>
-                  {editingUser ? 'Внесите изменения в данные пользователя.' : 'Добавьте нового пользователя в систему.'}
-                </DialogDescription>
-              </DialogHeader>
-              <UserForm
-                initialData={editingUser}
-                companies={companies} // Теперь `companies` гарантированно `Company[]`
-                onSuccess={handleFormSuccess}
-                onClose={handleCloseModal}
-              />
-            </DialogContent>
-          </Dialog>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={handleOpenCreateModal}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Создать
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>{editingUser ? 'Редактировать пользователя' : 'Создать пользователя'}</DialogTitle>
+                  <DialogDescription>
+                    {editingUser ? 'Внесите изменения в данные пользователя.' : 'Добавьте нового пользователя в систему.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <UserForm
+                  initialData={editingUser}
+                  companies={companies}
+                  onSuccess={handleFormSuccess}
+                  onClose={handleCloseModal}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                     </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Нет результатов.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} из{' '}
-          {table.getFilteredRowModel().rows.length} строк(а) выбрано.
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && 'selected'}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    Нет результатов.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Предыдущая
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Следующая
-          </Button>
+      </CardContent>
+      <CardFooter>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {table.getFilteredSelectedRowModel().rows.length} из{' '}
+            {table.getFilteredRowModel().rows.length} строк(а) выбрано.
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Предыдущая
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Следующая
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 };

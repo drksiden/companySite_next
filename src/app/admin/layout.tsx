@@ -16,11 +16,11 @@ import { useTheme } from 'next-themes';
 import { AdminAuthGuard } from '@/components/admin/AdminAuthGuard';
 import { Sidebar } from '@/components/admin/Sidebar';
 
-// Framer Motion variants for page transitions
+// Updated Framer Motion variants for a smoother page transition
 const pageTransitionVariants = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeInOut' } },
-  exit: { opacity: 0, y: -16, transition: { duration: 0.2, ease: 'easeInOut' } },
+  initial: { opacity: 0, x: -10 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, x: 10, transition: { duration: 0.2, ease: [0.7, 0, 0.84, 0] } },
 };
 
 export default function AdminLayout({
@@ -29,17 +29,16 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [isPending] = useTransition();
   const { theme, setTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
 
   return (
     <AdminAuthGuard>
-      <div className="flex h-screen bg-background overflow-hidden">
+      <div className="flex h-screen bg-muted/40 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar 
+        <Sidebar
           sidebarOpen={sidebarOpen}
           sidebarCollapsed={sidebarCollapsed}
           setSidebarOpen={setSidebarOpen}
@@ -48,22 +47,22 @@ export default function AdminLayout({
 
         {/* Main Content */}
         <div className={cn(
-          "flex flex-1 flex-col transition-all duration-300",
+          "flex flex-1 flex-col transition-all duration-300 ease-in-out",
           sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
         )}>
-          {/* Mobile Header */}
-          <header className="sticky top-0 z-10 bg-background flex h-16 items-center justify-between border-b px-6 lg:hidden">
+          {/* Header */}
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <Button
               variant="ghost"
               size="icon"
+              className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Открыть панель навигации"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <div className="flex items-center space-x-2">
-              <Package className="h-6 w-6 text-primary" />
-              <span className="text-lg font-semibold">Admin</span>
+            <div className="relative ml-auto flex-1 md:grow-0">
+              {/* This could be a global search bar in the future */}
             </div>
             <Button
               variant="ghost"
@@ -75,20 +74,18 @@ export default function AdminLayout({
             </Button>
           </header>
 
-          {/* Page Content with loading state */}
-          <main className="flex-1 overflow-y-auto relative">
+          {/* Page Content */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 relative">
             <AnimatePresence mode="wait">
-              {(isPending || isNavigating) && (
+              {isPending && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center"
+                  transition={{ duration: 0.1 }}
+                  className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Загрузка...</p>
-                  </div>
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -113,7 +110,7 @@ export default function AdminLayout({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/60 lg:hidden"
               onClick={() => setSidebarOpen(false)}
               aria-hidden="true"
             />
