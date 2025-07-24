@@ -1,129 +1,180 @@
-// src/app/api/admin/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { UserProfile, UserCreatePayload } from '@/lib/services/user'; // Убедитесь, что эти типы определены или импортированы
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Вспомогательная функция для проверки авторизации
-async function authorizeAdmin(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
-  const { data: { user }, error: authUserError } = await supabase.auth.getUser();
+export async function GET(req: NextRequest) {
+  const cookieStore = await cookies();
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  );
 
-  if (!user || authUserError) {
-    console.error('Authentication error:', authUserError?.message);
-    return { authorized: false, response: NextResponse.json({ message: 'Unauthorized' }, { status: 401 }) };
+  // Получаем текущего пользователя
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  // Предполагается, что роль 'admin' хранится в app_metadata пользователя
-  if (user.app_metadata.role !== 'admin') {
-    return { authorized: false, response: NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 }) };
+  // Получаем роль из user_profiles
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+  if (!['admin', 'manager', 'super_admin'].includes(profile.role)) {
+    return NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 });
   }
 
-  return { authorized: true, user };
+  // Получаем список пользователей из user_profiles
+  const { data: profiles, error: profilesError } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (profilesError) {
+    return NextResponse.json({ message: 'Error fetching user profiles', error: profilesError.message }, { status: 500 });
+  }
+  return NextResponse.json(profiles, { status: 200 });
 }
 
-
-// GET /api/admin/users - List all users
-export async function GET(req: NextRequest) {
-  const authResult = await authorizeAdmin(req);
-  if (!authResult.authorized) {
-    return authResult.response;
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Для админ-операций используем supabaseAdmin (service_role key)
+    // Но для проверки прав используем обычный supabase (по кукам)
+    const cookieStore = await cookies();
+    const { supabaseAdmin } = await import('@/lib/supabaseAdmin');
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {}
+          },
+        },
+      }
+    );
 
-    if (profilesError) {
-      console.error('Error fetching user profiles:', profilesError);
-      return NextResponse.json({ message: 'Error fetching user profiles', error: profilesError.message }, { status: 500 });
+    // Проверка прав (только админ/менеджер/суперадмин)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (!profile || !['admin', 'manager', 'super_admin'].includes(profile.role)) {
+      return NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    return NextResponse.json(profiles as UserProfile[], { status: 200 });
+    // Получаем данные из тела запроса
+    const body = await req.json();
+    const { email, password, first_name, last_name, phone, avatar_url, role, is_active, client_type, company_id, position } = body;
+    if (!email || !password) {
+      return NextResponse.json({ message: 'Email и пароль обязательны.' }, { status: 400 });
+    }
 
-  } catch (error: any) {
-    console.error('Unexpected error in GET /api/admin/users:', error);
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
-  }
-}
-
-// POST /api/admin/users - Create a new user
-export async function POST(req: NextRequest) {
-  const authResult = await authorizeAdmin(req);
-  if (!authResult.authorized) {
-    return authResult.response;
-  }
-
-  const { email, password, ...profileData }: UserCreatePayload = await req.json();
-
-  if (!email || !password) {
-    return NextResponse.json({ message: 'Email и пароль обязательны' }, { status: 400 });
-  }
-
-  try {
-    // 1. Create user in Supabase Auth using admin API
-    // Также можно добавить role в user_metadata, чтобы она была доступна сразу в app_metadata
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Создаём пользователя в Supabase Auth через supabaseAdmin
+    const { data: signUpData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm email for admin-created users
+      email_confirm: true,
       user_metadata: {
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        phone: profileData.phone,
-        // Добавляем роль в user_metadata, чтобы она попала в app_metadata
-        role: profileData.role || 'customer', 
-      }
+        first_name,
+        last_name,
+        phone,
+        avatar_url,
+      },
+      app_metadata: {
+        role: role || 'customer',
+      },
     });
-
-    if (authError) {
-      if (authError.message.includes('already registered')) {
-        return NextResponse.json({ message: 'Пользователь с таким email уже зарегистрирован.' }, { status: 409 });
-      }
-      console.error('Error creating auth user:', authError);
-      return NextResponse.json({ message: `Ошибка создания пользователя: ${authError.message}` }, { status: 500 });
+    if (signUpError) {
+      return NextResponse.json({
+        message: 'Ошибка создания пользователя в Auth',
+        error: signUpError.message,
+        details: signUpError,
+        supabaseKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        email,
+        passwordLength: password?.length,
+      }, { status: 500 });
+    }
+    const newUserId = signUpData.user?.id;
+    if (!newUserId) {
+      return NextResponse.json({ message: 'Не удалось получить ID нового пользователя.' }, { status: 500 });
     }
 
-    if (!authData.user) {
-      return NextResponse.json({ message: 'Не удалось получить данные нового пользователя после регистрации.' }, { status: 500 });
-    }
-
-    // 2. Create profile in public.profiles table
-    const { data: newProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: email, // Store email in profile for easier search, though it's in auth.users too
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        phone: profileData.phone,
-        role: profileData.role || 'customer', // Default to 'customer' if not provided
-        is_active: profileData.is_active ?? true,
-        company_id: profileData.company_id,
-        position: profileData.position,
-        avatar_url: profileData.avatar_url,
-        timezone: profileData.timezone || 'Asia/Almaty',
-        locale: profileData.locale || 'ru-RU',
-        permissions: profileData.permissions || [],
-        address: profileData.address || {},
-      } as Omit<UserProfile, 'created_at' | 'updated_at'>) // Cast to ensure type compatibility
-      .select()
-      .single();
-
+    // Создаём профиль пользователя в user_profiles через supabaseAdmin (service_role key)
+    const { error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .insert([
+        {
+          id: newUserId,
+          email,
+          first_name,
+          last_name,
+          phone,
+          avatar_url,
+          role: role || 'customer',
+          is_active: is_active ?? true,
+          client_type: client_type || 'individual',
+          company_id: company_id || null,
+          position: position || null,
+        },
+      ]);
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      // Attempt to delete auth user if profile creation fails for cleanup
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json({ message: 'Ошибка создания профиля пользователя', error: profileError.message }, { status: 500 });
+      return NextResponse.json({
+        message: 'Ошибка создания профиля пользователя',
+        error: profileError.message,
+        details: profileError,
+        newUserId,
+        email,
+      }, { status: 500 });
     }
 
-    return NextResponse.json(newProfile, { status: 201 });
-
+    return NextResponse.json({ message: 'Пользователь успешно создан.' }, { status: 201 });
   } catch (error: any) {
-    console.error('Unexpected error in POST /api/admin/users:', error);
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+    return NextResponse.json({
+      message: error.message || 'Ошибка сервера.',
+      error: error,
+      stack: error?.stack,
+      env: {
+        SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      }
+    }, { status: 500 });
   }
 }

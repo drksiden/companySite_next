@@ -3,7 +3,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useSession, signOut } from "next-auth/react";
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -44,17 +43,14 @@ import {
   Loader2
 } from 'lucide-react';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
-// import { useCart } from '@/providers/cart'; // Импортируем хук корзины
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
+import { supabase } from '@/lib/supabaseClient';
 
 const navItems = [
   { 
     href: '/catalog', 
     label: 'Каталог',
-    // children: [
-    //   { href: '/catalog/cables', label: 'Охранные системы' },
-    // ]
   },
   { href: '/services', label: 'Услуги' },
   { href: '/about', label: 'О нас' },
@@ -83,15 +79,14 @@ const badgeVariants = {
   exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } }
 };
 
-// Функция форматирования цены (Medusa хранит цены в минорных единицах)
 const formatPrice = (amount?: number, currencyCode: string = 'KZT'): string => {
   if (typeof amount !== 'number' || amount === null) {
-    return 'N/A'; // Или другое значение по умолчанию
+    return 'N/A';
   }
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: currencyCode.toUpperCase(),
-  }).format(amount / 100); // Делим на 100
+  }).format(amount / 100);
 };
 
 interface NavItemProps {
@@ -109,27 +104,47 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const [openMobileMenu, setOpenMobileMenu] = useState(false);
   const pathname = usePathname();
-  
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // Для десктопного поиска
-
-  // Используем useCart
-//  const { cart, totalItems, isLoading: isCartLoading } = useCart();
-
-  const { data: session, status: nextAuthStatus } = useSession();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter();
 
+  // Supabase auth state
+  const [user, setUser] = useState<any>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function fetchUser() {
+      setLoadingUser(true);
+      const { data } = await supabase.auth.getUser();
+      if (!ignore) {
+        setUser(data?.user || null);
+        setLoadingUser(false);
+      }
+    }
+    fetchUser();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      fetchUser();
+    });
+    return () => {
+      ignore = true;
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
+    await supabase.auth.signOut();
     router.push("/");
   };
 
-  const isLoadingSession = nextAuthStatus === "loading";
-  const isAuthenticated = nextAuthStatus === "authenticated";
-  const nextAuthUser = session?.user;
-  const userFullName = nextAuthUser?.name;
-  const userEmail = nextAuthUser?.email;
-  // const avatarUrl = nextAuthUser?.image;
+  const isAuthenticated = !!user;
+  const userFullName = user?.user_metadata?.name || user?.user_metadata?.full_name;
+  const userEmail = user?.email;
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
@@ -144,10 +159,6 @@ export function Header() {
     }
     return "U";
   };
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -220,12 +231,12 @@ export function Header() {
     if (mobile) {
       return item.children ? (
         <div className="mb-1">
-          <DropdownMenu> {/* Используем DropdownMenu для мобильных подменю */}
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "justify-between text-base w-full mb-1 px-3 py-2 h-auto", // Увеличим padding для мобильных
+                  "justify-between text-base w-full mb-1 px-3 py-2 h-auto",
                   isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
                 )}
               >
@@ -233,7 +244,7 @@ export function Header() {
                 <ChevronDown className="ml-auto h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-card w-[calc(100%-2rem)] ml-3"> {/* Ширина контента */}
+            <DropdownMenuContent className="bg-card w-[calc(100%-2rem)] ml-3">
               {item.children.map((child) => (
                 <DropdownMenuItem key={child.href} asChild onClick={onClose}>
                   <Link href={child.href} className="w-full">
@@ -279,7 +290,7 @@ export function Header() {
         </Link>
         {(isActive || isHovered) && (
           <motion.div
-            layoutId="underline" // Для красивой анимации подчеркивания при смене активного элемента
+            layoutId="underline"
             className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
             initial="hidden"
             animate="visible"
@@ -290,7 +301,7 @@ export function Header() {
     );
   };
 
-  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>; // Placeholder для избежания CLS
+  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>;
 
   return (
     <motion.header
@@ -381,7 +392,7 @@ export function Header() {
                   </form>
                 </div>
                 
-                <ScrollArea className="h-[calc(100vh-140px)]"> {/* Регулируем высоту для прокрутки */}
+                <ScrollArea className="h-[calc(100vh-140px)]">
                   <div className="py-4 px-3">
                     <nav className="flex flex-col gap-1">
                       {navItems.map((item) => (
@@ -406,10 +417,64 @@ export function Header() {
                 </ScrollArea>
               </SheetContent>
             </Sheet>
+
+            {/* User menu */}
+            {loadingUser ? (
+              <Skeleton className="h-10 w-10 rounded-full" />
+            ) : isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Avatar>
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={userFullName || userEmail || 'User'} />
+                      ) : (
+                        <AvatarFallback>{getInitials(userFullName, userEmail)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    <div className="font-semibold">{userFullName || userEmail}</div>
+                    <div className="text-xs text-muted-foreground">{userEmail}</div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/account">
+                      <User className="mr-2 h-4 w-4" />Профиль
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/orders">
+                      <Package className="mr-2 h-4 w-4" />Мои заказы
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/wishlist">
+                      <Heart className="mr-2 h-4 w-4" />Избранное
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin">
+                      <Settings className="mr-2 h-4 w-4" />Админка
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />Выйти
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline" onClick={() => router.push('/auth/signin')}>
+                Войти
+              </Button>
+            )}
           </div>
         </div>
       </div>
     </motion.header>
   );
 }
-

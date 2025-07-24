@@ -68,6 +68,7 @@ export const userService = {
   async listUserProfiles(): Promise<UserProfile[]> {
     const response = await fetch('/api/admin/users', {
       method: 'GET',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store' // Always re-fetch latest data for admin panel
     });
@@ -81,6 +82,7 @@ export const userService = {
   async getUserProfile(id: string): Promise<UserProfile | null> {
     const response = await fetch(`/api/admin/users/${id}`, {
       method: 'GET',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store'
     });
@@ -114,6 +116,7 @@ export const userService = {
   async createUser(payload: UserCreatePayload): Promise<UserProfile> {
     const response = await fetch('/api/admin/users', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -127,6 +130,7 @@ export const userService = {
   async updateUserProfile(id: string, payload: UserUpdatePayload): Promise<UserProfile> {
     const response = await fetch(`/api/admin/users/${id}`, {
       method: 'PATCH', // Using PATCH for partial updates
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -140,6 +144,7 @@ export const userService = {
   async deleteUser(id: string): Promise<void> {
     const response = await fetch(`/api/admin/users/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
     });
     if (!response.ok) {
@@ -159,6 +164,7 @@ export const userService = {
   async resetUserPassword(email: string): Promise<void> {
     const response = await fetch('/api/admin/users/reset-password', { // Assuming a dedicated route for password reset
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });

@@ -1,61 +1,66 @@
 import { NextResponse } from "next/server";
-import { type NextRequest } from 'next/server'
-import { getToken } from "next-auth/jwt";
+import { type NextRequest } from 'next/server';
+
+function parseSupabaseCookie(cookieValue: string) {
+  if (cookieValue.startsWith('base64-')) {
+    const base64 = cookieValue.replace('base64-', '');
+    const json = Buffer.from(base64, 'base64').toString();
+    return JSON.parse(json);
+  }
+  return null;
+}
+
+function parseJwt(token: string) {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+  } catch {
+    return null;
+  }
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const token = await getToken({ req });
+  
+  // (debug logging removed)
+  
+  const cookieValue = req.cookies.get('sb-mxcxvkdbrqgsmbebrsjx-auth-token')?.value;
+  // (debug logging removed)
 
-  // Проверяем доступ к админке
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-    if (!token) {
-      // Redirect to signin page if no token
-      const signInUrl = new URL('/auth/signin', req.url);
-      signInUrl.searchParams.set('callbackUrl', req.url);
-      return NextResponse.redirect(signInUrl);
+  let isAuthenticated = false;
+  let payload = null;
+  if (cookieValue) {
+    let accessToken = cookieValue;
+    // Если это supabase-кука нового формата, декодируем её
+    if (cookieValue.startsWith('base64-')) {
+      const session = parseSupabaseCookie(cookieValue);
+      accessToken = session?.access_token;
     }
-
-    const userRole = token?.role;
-
-    if (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole)) {
-      // Перенаправляем на страницу входа с указанием откуда пришел запрос
-      const signInUrl = new URL('/auth/signin', req.url);
-      signInUrl.searchParams.set('callbackUrl', req.url);
-      return NextResponse.redirect(signInUrl);
-    }
-
-    // Проверяем специфичные права для определенных разделов
-    if (pathname.startsWith('/admin/users') && userRole !== 'super_admin' && userRole !== 'admin') {
-      return NextResponse.redirect(new URL('/admin', req.url));
-    }
-
-    if (pathname.startsWith('/admin/settings') && userRole !== 'super_admin') {
-      return NextResponse.redirect(new URL('/admin', req.url));
-    }
-
-    if (pathname.startsWith('/api/admin') && (!userRole || !['manager', 'admin', 'super_admin'].includes(userRole))) {
-      return NextResponse.json(
-        { error: 'Недостаточно прав доступа' },
-        { status: 403 }
-      );
+    if (accessToken) {
+      payload = parseJwt(accessToken);
+      // (debug logging removed)
+      isAuthenticated = payload?.role === 'authenticated';
+    } else {
+      // (debug logging removed)
     }
   }
+  
+  // (debug logging removed)
 
-  // Разрешаем доступ к остальным маршрутам
+  if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && !isAuthenticated) {
+    // (debug logging removed)
+    const signInUrl = new URL('/auth/signin', req.url);
+    signInUrl.searchParams.set('callbackUrl', req.url);
+    return NextResponse.redirect(signInUrl);
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/admin/:path*',
+    // Временно отключаем middleware для /admin
+    // '/admin/:path*',
     '/api/admin/:path*',
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

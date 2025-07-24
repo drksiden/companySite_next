@@ -7,7 +7,8 @@ import { cookies } from 'next/headers';
 
 // Вспомогательная функция для проверки авторизации
 async function authorizeAdmin(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const cookieStore = await cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
   const { data: { user }, error: authUserError } = await supabase.auth.getUser();
 
   if (!user || authUserError) {
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   try {
     const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
+      .from('user_profiles')
       .select('*')
       .eq('id', id)
       .single();
@@ -72,9 +73,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   try {
-    // 1. Обновляем профиль пользователя в таблице 'profiles'
+    // 1. Обновляем профиль пользователя в таблице 'user_profiles'
     const { data: updatedProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
+      .from('user_profiles')
       .update(profileUpdates) // profileUpdates теперь не содержит email и role
       .eq('id', id)
       .select()

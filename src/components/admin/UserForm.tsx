@@ -354,7 +354,7 @@ export const UserForm: React.FC<UserFormProps> = ({
                   </FormControl>
                   <SelectContent>
                     {companies.length === 0 ? (
-                      <SelectItem value="" disabled>Нет доступных компаний</SelectItem>
+                      <SelectItem value="none" disabled>Нет доступных компаний</SelectItem>
                     ) : (
                       companies.map((company) => (
                         <SelectItem key={company.id} value={company.id}>

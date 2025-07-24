@@ -1,5 +1,7 @@
-'use client';
+"use client";
 
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema, type SignInFormData } from "@/lib/schemas";
@@ -7,11 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export function SignInForm() {
   const router = useRouter();
@@ -27,32 +27,65 @@ export function SignInForm() {
 
   const onSubmit = async (data: SignInFormData) => {
     setError(null);
+    
     try {
-      const result = await signIn('credentials', {
-        redirect: false,
+      console.log('SignInForm - Attempting login with:', data.email);
+      
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
-      if (result?.error) {
-        setError(
-          result.error || "Произошла неизвестная ошибка. Пожалуйста, попробуйте еще раз.");
-      } else if (result?.ok) {
-        // Если это админский callbackUrl или пользователь имеет админские права
-        // Перенаправляем соответственно
-        if (callbackUrl.includes('/admin')) {
-          router.push(callbackUrl);
-        } else {
-          // Для обычных пользователей проверяем их роль и перенаправляем
-          router.push(callbackUrl);
-        }
-        router.refresh();
-      } else {
-        setError("Произошла неизвестная ошибка при входе.");
+      console.log('SignInForm - Auth result:', { user: authData?.user?.id, session: !!authData?.session, error: authError });
+
+      if (authError) {
+        setError(authError.message || 'Ошибка входа. Проверьте email и пароль.');
+        return;
       }
-    } catch (err) {
-      console.error("Sign in error catch:", err);
-      setError("Не удалось войти. Пожалуйста, проверьте соединение или попробуйте еще раз.");
+
+      if (!authData.user || !authData.session) {
+        setError('Не удалось войти в систему.');
+        return;
+      }
+
+      // Проверяем профиль пользователя
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('is_active')
+        .eq('id', authData.user.id)
+        .single();
+
+      console.log('SignInForm - Profile check:', { profile, error: profileError });
+
+      if (profileError || !profile) {
+        setError('Ошибка получения профиля пользователя.');
+        return;
+      }
+
+      if (!profile.is_active) {
+        setError('Аккаунт деактивирован. Обратитесь к администратору.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      // Принудительно устанавливаем сессию (на случай если куки не установились автоматически)
+      console.log('SignInForm - Setting session manually');
+      await supabase.auth.setSession({
+        access_token: authData.session.access_token,
+        refresh_token: authData.session.refresh_token,
+      });
+
+      // Небольшая задержка для установки куков
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      console.log('SignInForm - Redirecting to:', callbackUrl);
+      
+      // Успешный вход - перенаправляем
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (error: any) {
+      console.error('SignInForm - Error:', error);
+      setError(error.message || 'Произошла непредвиденная ошибка.');
     }
   };
 
@@ -138,10 +171,18 @@ export function SignInForm() {
             </span>
           </div>
         </div>
+        {/* Google OAuth через Supabase */}
         <Button
           variant="outline"
           className="w-full border-slate-600 hover:bg-slate-700/50 text-slate-300 hover:text-white"
-          onClick={() => signIn('google', { callbackUrl })}
+          onClick={async () => {
+            setError(null);
+            const { error: oauthError } = await supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: `${window.location.origin}${callbackUrl}` },
+            });
+            if (oauthError) setError(oauthError.message);
+          }}
           disabled={isSubmitting}
         >
           {isSubmitting ? (

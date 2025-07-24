@@ -7,7 +7,8 @@ import { UserRole } from '@/lib/services/user'; // Assuming UserRole is defined 
 
 // Вспомогательная функция для проверки авторизации (повторно используем из предыдущих файлов)
 async function authorizeAdmin(req: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const cookieStore = await cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
   const { data: { user }, error: authUserError } = await supabase.auth.getUser();
 
   if (!user || authUserError) {
