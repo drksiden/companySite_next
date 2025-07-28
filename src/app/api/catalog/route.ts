@@ -1,8 +1,8 @@
 // src/app/api/catalog/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import { catalogApi } from '@/lib/api/catalog';
-import type { ProductListParams, SearchProductsParams } from '@/types/catalog';
+import { NextRequest, NextResponse } from "next/server";
+import { catalogAPI } from "@/lib/api/catalog";
+import type { ProductListParams, SearchProductsParams } from "@/types/catalog";
 
 // ==============================================
 // GET /api/catalog
@@ -10,63 +10,63 @@ import type { ProductListParams, SearchProductsParams } from '@/types/catalog';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const action = searchParams.get('action') || 'products';
+  const action = searchParams.get("action") || "products";
 
   try {
     switch (action) {
-      case 'products':
+      case "products":
         return await handleProductsRequest(searchParams);
-      
-      case 'product':
+
+      case "product":
         return await handleProductRequest(searchParams);
-      
-      case 'search':
+
+      case "search":
         return await handleSearchRequest(searchParams);
-      
-      case 'categories':
+
+      case "categories":
         return await handleCategoriesRequest(searchParams);
-      
-      case 'category':
+
+      case "category":
         return await handleCategoryRequest(searchParams);
-      
-      case 'category-tree':
+
+      case "category-tree":
         return await handleCategoryTreeRequest();
-      
-      case 'category-filters':
+
+      case "category-filters":
         return await handleCategoryFiltersRequest(searchParams);
-      
-      case 'brands':
+
+      case "brands":
         return await handleBrandsRequest();
-      
-      case 'brand':
+
+      case "brand":
         return await handleBrandRequest(searchParams);
-      
-      case 'collections':
+
+      case "collections":
         return await handleCollectionsRequest(searchParams);
-      
-      case 'collection':
+
+      case "collection":
         return await handleCollectionRequest(searchParams);
-      
+
       default:
         return NextResponse.json(
-          { error: 'Invalid action parameter', success: false },
-          { status: 400 }
+          { error: "Invalid action parameter", success: false },
+          { status: 400 },
         );
     }
   } catch (error: any) {
     console.error(`Catalog API Error [${action}]:`, error);
-    
-    const isNotFound = error.code === 'NOT_FOUND';
+
+    const isNotFound = error.code === "NOT_FOUND";
     const statusCode = isNotFound ? 404 : 500;
-    
+
     return NextResponse.json(
       {
-        error: error.message || 'Internal server error',
+        error: error.message || "Internal server error",
         success: false,
         code: error.code,
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+        ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
       },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 }
@@ -81,28 +81,30 @@ export async function GET(request: NextRequest) {
  */
 async function handleProductsRequest(searchParams: URLSearchParams) {
   const params: ProductListParams = {
-    page: parseInt(searchParams.get('page') || '1'),
-    limit: Math.min(parseInt(searchParams.get('limit') || '20'), 100), // максимум 100
-    sortBy: (searchParams.get('sortBy') as any) || 'name_asc',
-    search: searchParams.get('search') || undefined,
-    categories: searchParams.get('categories')?.split(',').filter(Boolean) || undefined,
-    brands: searchParams.get('brands')?.split(',').filter(Boolean) || undefined,
-    collections: searchParams.get('collections')?.split(',').filter(Boolean) || undefined,
-    inStockOnly: searchParams.get('inStockOnly') === 'true',
-    featured: searchParams.get('featured') === 'true',
+    page: parseInt(searchParams.get("page") || "1"),
+    limit: Math.min(parseInt(searchParams.get("limit") || "20"), 100), // максимум 100
+    sortBy: (searchParams.get("sortBy") as any) || "name_asc",
+    search: searchParams.get("search") || undefined,
+    categories:
+      searchParams.get("categories")?.split(",").filter(Boolean) || undefined,
+    brands: searchParams.get("brands")?.split(",").filter(Boolean) || undefined,
+    collections:
+      searchParams.get("collections")?.split(",").filter(Boolean) || undefined,
+    inStockOnly: searchParams.get("inStockOnly") === "true",
+    featured: searchParams.get("featured") === "true",
   };
 
   // Обработка ценового диапазона
-  const minPrice = searchParams.get('minPrice');
-  const maxPrice = searchParams.get('maxPrice');
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
   if (minPrice || maxPrice) {
     params.priceRange = {
       min: minPrice ? parseFloat(minPrice) : 0,
-      max: maxPrice ? parseFloat(maxPrice) : 0
+      max: maxPrice ? parseFloat(maxPrice) : 0,
     };
   }
 
-  const response = await catalogApi.products.getProducts(params);
+  const response = await catalogAPI.getProducts(params);
   return NextResponse.json(response);
 }
 
@@ -111,16 +113,16 @@ async function handleProductsRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=product&slug=product-slug
  */
 async function handleProductRequest(searchParams: URLSearchParams) {
-  const slug = searchParams.get('slug');
-  
+  const slug = searchParams.get("slug");
+
   if (!slug) {
     return NextResponse.json(
-      { error: 'Product slug is required', success: false },
-      { status: 400 }
+      { error: "Product slug is required", success: false },
+      { status: 400 },
     );
   }
 
-  const response = await catalogApi.products.getProduct(slug);
+  const response = await catalogAPI.getProduct(slug);
   return NextResponse.json(response);
 }
 
@@ -130,21 +132,26 @@ async function handleProductRequest(searchParams: URLSearchParams) {
  */
 async function handleSearchRequest(searchParams: URLSearchParams) {
   const params: SearchProductsParams = {
-    search_query: searchParams.get('q') || undefined,
-    category_ids: searchParams.get('categories')?.split(',').filter(Boolean) || undefined,
-    brand_ids: searchParams.get('brands')?.split(',').filter(Boolean) || undefined,
-    in_stock_only: searchParams.get('inStockOnly') === 'true',
-    limit: Math.min(parseInt(searchParams.get('limit') || '20'), 50), // максимум 50 для поиска
-    offset: parseInt(searchParams.get('offset') || '0')
+    search_query: searchParams.get("q") || undefined,
+    category_ids:
+      searchParams.get("categories")?.split(",").filter(Boolean) || undefined,
+    brand_ids:
+      searchParams.get("brands")?.split(",").filter(Boolean) || undefined,
+    in_stock_only: searchParams.get("inStockOnly") === "true",
+    limit: Math.min(parseInt(searchParams.get("limit") || "20"), 50), // максимум 50 для поиска
+    offset: parseInt(searchParams.get("offset") || "0"),
   };
 
   // Обработка ценового диапазона
-  const minPrice = searchParams.get('minPrice');
-  const maxPrice = searchParams.get('maxPrice');
+  const minPrice = searchParams.get("minPrice");
+  const maxPrice = searchParams.get("maxPrice");
   if (minPrice) params.min_price = parseFloat(minPrice);
   if (maxPrice) params.max_price = parseFloat(maxPrice);
 
-  const response = await catalogApi.products.searchProducts(params);
+  const response = await catalogAPI.searchProducts(
+    params.search_query || "",
+    params.limit,
+  );
   return NextResponse.json(response);
 }
 
@@ -153,8 +160,8 @@ async function handleSearchRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=categories&parentId=uuid
  */
 async function handleCategoriesRequest(searchParams: URLSearchParams) {
-  const parentId = searchParams.get('parentId') || undefined;
-  const response = await catalogApi.categories.getCategories(parentId);
+  const parentId = searchParams.get("parentId") || undefined;
+  const response = await catalogAPI.getCategories({ parent_id: parentId });
   return NextResponse.json(response);
 }
 
@@ -163,16 +170,16 @@ async function handleCategoriesRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=category&slug=category-slug
  */
 async function handleCategoryRequest(searchParams: URLSearchParams) {
-  const slug = searchParams.get('slug');
-  
+  const slug = searchParams.get("slug");
+
   if (!slug) {
     return NextResponse.json(
-      { error: 'Category slug is required', success: false },
-      { status: 400 }
+      { error: "Category slug is required", success: false },
+      { status: 400 },
     );
   }
 
-  const response = await catalogApi.categories.getCategory(slug);
+  const response = await catalogAPI.getCategory(slug);
   return NextResponse.json(response);
 }
 
@@ -181,7 +188,7 @@ async function handleCategoryRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=category-tree
  */
 async function handleCategoryTreeRequest() {
-  const response = await catalogApi.categories.getCategoryTree();
+  const response = await catalogAPI.getCategories();
   return NextResponse.json(response);
 }
 
@@ -190,16 +197,16 @@ async function handleCategoryTreeRequest() {
  * GET /api/catalog?action=category-filters&categoryId=uuid
  */
 async function handleCategoryFiltersRequest(searchParams: URLSearchParams) {
-  const categoryId = searchParams.get('categoryId');
-  
+  const categoryId = searchParams.get("categoryId");
+
   if (!categoryId) {
     return NextResponse.json(
-      { error: 'Category ID is required', success: false },
-      { status: 400 }
+      { error: "Category ID is required", success: false },
+      { status: 400 },
     );
   }
 
-  const response = await catalogApi.categories.getCategoryFilters(categoryId);
+  const response = await catalogAPI.getProducts({ category: categoryId });
   return NextResponse.json(response);
 }
 
@@ -208,7 +215,7 @@ async function handleCategoryFiltersRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=brands
  */
 async function handleBrandsRequest() {
-  const response = await catalogApi.brands.getBrands();
+  const response = await catalogAPI.getBrands();
   return NextResponse.json(response);
 }
 
@@ -217,16 +224,16 @@ async function handleBrandsRequest() {
  * GET /api/catalog?action=brand&slug=brand-slug
  */
 async function handleBrandRequest(searchParams: URLSearchParams) {
-  const slug = searchParams.get('slug');
-  
+  const slug = searchParams.get("slug");
+
   if (!slug) {
     return NextResponse.json(
-      { error: 'Brand slug is required', success: false },
-      { status: 400 }
+      { error: "Brand slug is required", success: false },
+      { status: 400 },
     );
   }
 
-  const response = await catalogApi.brands.getBrand(slug);
+  const response = await catalogAPI.getBrand(slug);
   return NextResponse.json(response);
 }
 
@@ -235,8 +242,8 @@ async function handleBrandRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=collections&brandId=uuid
  */
 async function handleCollectionsRequest(searchParams: URLSearchParams) {
-  const brandId = searchParams.get('brandId') || undefined;
-  const response = await catalogApi.collections.getCollections(brandId);
+  const brandId = searchParams.get("brandId") || undefined;
+  const response = await catalogAPI.getProducts({ brand: brandId });
   return NextResponse.json(response);
 }
 
@@ -245,16 +252,16 @@ async function handleCollectionsRequest(searchParams: URLSearchParams) {
  * GET /api/catalog?action=collection&slug=collection-slug
  */
 async function handleCollectionRequest(searchParams: URLSearchParams) {
-  const slug = searchParams.get('slug');
-  
+  const slug = searchParams.get("slug");
+
   if (!slug) {
     return NextResponse.json(
-      { error: 'Collection slug is required', success: false },
-      { status: 400 }
+      { error: "Collection slug is required", success: false },
+      { status: 400 },
     );
   }
 
-  const response = await catalogApi.collections.getCollection(slug);
+  const response = await catalogAPI.getProducts({ search: slug });
   return NextResponse.json(response);
 }
 
@@ -268,10 +275,10 @@ async function handleCollectionRequest(searchParams: URLSearchParams) {
 export async function POST(request: NextRequest) {
   // TODO: Добавить проверку прав доступа
   // TODO: Реализовать создание продуктов, категорий, брендов
-  
+
   return NextResponse.json(
-    { error: 'Method not implemented', success: false },
-    { status: 501 }
+    { error: "Method not implemented", success: false },
+    { status: 501 },
   );
 }
 
@@ -281,10 +288,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   // TODO: Добавить проверку прав доступа
   // TODO: Реализовать обновление продуктов, категорий, брендов
-  
+
   return NextResponse.json(
-    { error: 'Method not implemented', success: false },
-    { status: 501 }
+    { error: "Method not implemented", success: false },
+    { status: 501 },
   );
 }
 
@@ -294,10 +301,10 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   // TODO: Добавить проверку прав доступа
   // TODO: Реализовать удаление продуктов, категорий, брендов
-  
+
   return NextResponse.json(
-    { error: 'Method not implemented', success: false },
-    { status: 501 }
+    { error: "Method not implemented", success: false },
+    { status: 501 },
   );
 }
 
@@ -309,7 +316,8 @@ export async function DELETE(request: NextRequest) {
  * Валидация UUID
  */
 function isValidUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
 }
 
@@ -325,9 +333,9 @@ function isValidSlug(str: string): boolean {
  * Очистка и валидация параметров пагинации
  */
 function sanitizePaginationParams(page?: string, limit?: string) {
-  const pageNum = Math.max(1, parseInt(page || '1') || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit || '20') || 20));
-  
+  const pageNum = Math.max(1, parseInt(page || "1") || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit || "20") || 20));
+
   return { page: pageNum, limit: limitNum };
 }
 
@@ -336,9 +344,9 @@ function sanitizePaginationParams(page?: string, limit?: string) {
  */
 function sanitizeIdArray(idsString?: string): string[] | undefined {
   if (!idsString) return undefined;
-  
+
   return idsString
-    .split(',')
-    .map(id => id.trim())
-    .filter(id => id && isValidUUID(id));
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id && isValidUUID(id));
 }

@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import { useRouter, usePathname } from 'next/navigation';
-import { useState, useTransition } from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Package,
-  Menu,
-  Moon,
-  Sun,
-  Loader2
-} from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { AdminAuthGuard } from '@/components/admin/AdminAuthGuard';
-import { Sidebar } from '@/components/admin/Sidebar';
+import { useRouter, usePathname } from "next/navigation";
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { Package, Menu, Moon, Sun, Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { AdminAuthGuard } from "@/components/admin/AdminAuthGuard";
+import { Sidebar } from "@/components/admin/Sidebar";
 
 // Updated Framer Motion variants for a smoother page transition
 const pageTransitionVariants = {
   initial: { opacity: 0, x: -10 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
-  exit: { opacity: 0, x: 10, transition: { duration: 0.2, ease: [0.7, 0, 0.84, 0] } },
+  animate: {
+    opacity: 1,
+    x: 0,
+  },
+  exit: {
+    opacity: 0,
+    x: 10,
+  },
 };
 
 export default function AdminLayout({
@@ -46,10 +46,12 @@ export default function AdminLayout({
         />
 
         {/* Main Content */}
-        <div className={cn(
-          "flex flex-1 flex-col transition-all duration-300 ease-in-out",
-          sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
-        )}>
+        <div
+          className={cn(
+            "flex flex-1 flex-col transition-all duration-300 ease-in-out",
+            sidebarCollapsed ? "lg:ml-20" : "lg:ml-64",
+          )}
+        >
           {/* Header */}
           <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <Button
@@ -67,10 +69,18 @@ export default function AdminLayout({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label={theme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на темную тему'}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={
+                theme === "dark"
+                  ? "Переключить на светлую тему"
+                  : "Переключить на темную тему"
+              }
             >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </Button>
           </header>
 
@@ -89,13 +99,17 @@ export default function AdminLayout({
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <motion.div
               key={pathname}
               variants={pageTransitionVariants}
               initial="initial"
               animate="animate"
               exit="exit"
+              transition={{
+                duration: 0.4,
+                ease: [0.16, 1, 0.3, 1],
+              }}
               className="h-full"
             >
               {children}

@@ -10,9 +10,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  } from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +29,24 @@ import { supabase } from "@/lib/supabaseClient";
 
 interface UserMenuProps {
   sidebarCollapsed: boolean;
+}
+
+interface UserProfile {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  role?: string;
+  avatar_url?: string | null;
+}
+
+export function UserMenu({ sidebarCollapsed }: UserMenuProps) {
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
     async function fetchUserData() {
       try {
         const {
@@ -48,9 +67,14 @@ interface UserMenuProps {
       } finally {
         setLoading(false);
       }
+    }
+
+    fetchUserData();
+  }, []);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-        router.push("/");
+    router.push("/");
   };
 
   const getInitials = (
@@ -64,12 +88,12 @@ interface UserMenuProps {
     if (firstName) {
       return firstName[0]?.toUpperCase() || "U";
     }
-      return email?.[0]?.toUpperCase() || "U";
+    return email?.[0]?.toUpperCase() || "U";
   };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-          case "super_admin":
+      case "super_admin":
         return "Супер Админ";
       case "admin":
         return "Админ";
@@ -114,21 +138,22 @@ interface UserMenuProps {
   const userEmail = user?.email;
   const userRole = userProfile?.role;
   const avatarUrl = userProfile?.avatar_url;
+
+  return (
     <div className="border-t p-4 space-y-3">
       {/* Theme Toggle */}
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className={cn(
-              "w-full justify-start relative overflow-hidden group",
-              "hover:bg-gradient-to-r hover:from-accent/50 hover:to-accent/20",
-              "transition-all duration-300 border border-transparent hover:border-accent/20",
-              sidebarCollapsed && "justify-center",
-            )}
-
-                      aria-label={
+      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className={cn(
+            "w-full justify-start relative overflow-hidden group",
+            "hover:bg-gradient-to-r hover:from-accent/50 hover:to-accent/20",
+            "transition-all duration-300 border border-transparent hover:border-accent/20",
+            sidebarCollapsed && "justify-center",
+          )}
+          aria-label={
             theme === "dark"
               ? "Переключить на светлую тему"
               : "Переключить на темную тему"
@@ -181,7 +206,7 @@ interface UserMenuProps {
       {/* User Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               variant="ghost"
               className={cn(
@@ -203,7 +228,7 @@ interface UserMenuProps {
                     !sidebarCollapsed && "mr-3",
                   )}
                 >
-                                  <AvatarImage src={avatarUrl || ""} />
+                  <AvatarImage src={avatarUrl || ""} />
                   <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-foreground font-semibold">
                     {getInitials(
                       userProfile?.first_name,
@@ -236,7 +261,7 @@ interface UserMenuProps {
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.1 }}
                     >
-                                          {userName || userEmail}
+                      {userName || userEmail}
                     </motion.div>
                     <motion.div
                       className="flex items-center gap-2"
@@ -245,7 +270,7 @@ interface UserMenuProps {
                       transition={{ delay: 0.15 }}
                     >
                       <Badge
-                        variant={getRoleBadgeVariant(userRole || "")}
+                        variant={getRoleBadgeVariant(userRole || "") as any}
                         className={cn(
                           "text-xs font-medium px-2 py-0.5 rounded-full",
                           "shadow-sm border border-current/20",
@@ -281,7 +306,7 @@ interface UserMenuProps {
           )}
           sideOffset={8}
         >
-                  {/* Header */}
+          {/* Header */}
           <div className="px-3 py-3 border-b border-border/30 mb-2">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-primary/20">
@@ -300,7 +325,7 @@ interface UserMenuProps {
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge
-                    variant={getRoleBadgeVariant(userRole || "")}
+                    variant={getRoleBadgeVariant(userRole || "") as any}
                     className="text-xs font-medium"
                   >
                     {getRoleLabel(userRole || "")}
@@ -336,7 +361,7 @@ interface UserMenuProps {
               </Link>
             </DropdownMenuItem>
 
-            <div className="my-2 border-t border-border/30" />
+            <DropdownMenuSeparator className="my-2" />
 
             <DropdownMenuItem asChild>
               <Link
@@ -348,7 +373,7 @@ interface UserMenuProps {
               </Link>
             </DropdownMenuItem>
 
-            <div className="my-2 border-t border-border/30" />
+            <DropdownMenuSeparator className="my-2" />
 
             <DropdownMenuItem
               onClick={handleSignOut}

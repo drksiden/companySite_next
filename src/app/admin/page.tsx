@@ -48,8 +48,9 @@ interface DashboardStats {
 interface RecentActivity {
   id: string;
   type: "order" | "user" | "product";
-  message: string;
-  timestamp: string;
+  title: string;
+  description: string;
+  time: string;
   status: "success" | "warning" | "error";
 }
 
@@ -58,7 +59,7 @@ interface TopProduct {
   name: string;
   sales: number;
   revenue: number;
-  image?: string;
+  change: number;
 }
 
 // Анимационные варианты
@@ -78,10 +79,6 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut",
-    },
   },
 };
 
@@ -106,421 +103,423 @@ const StatCard = ({
   const isPositive = change >= 0;
   const TrendIcon = trend === "up" ? ArrowUpRight : ArrowDownRight;
 
-  const CardWrapper = href ? Link : "div";
-  const cardProps = href ? { href } : {};
-
-  return (
-    <CardWrapper {...cardProps} className={href ? "block" : ""}>
-      <motion.div variants={itemVariants}>
-        <Card
-          className={cn(
-            "relative overflow-hidden transition-all duration-300",
-            href && "hover:shadow-lg hover:scale-105 cursor-pointer group",
-          )}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {title}
-            </CardTitle>
-            <div
+  const content = (
+    <motion.div variants={itemVariants}>
+      <Card
+        className={cn(
+          "relative overflow-hidden transition-all duration-300",
+          href && "hover:shadow-lg hover:scale-105 cursor-pointer group",
+        )}
+      >
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{value}</div>
+          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+            <TrendIcon
               className={cn(
-                "p-2 rounded-lg transition-colors",
-                href && "group-hover:bg-primary/10",
+                "h-3 w-3",
+                isPositive ? "text-green-500" : "text-red-500",
+              )}
+            />
+            <span
+              className={cn(
+                "font-medium",
+                isPositive ? "text-green-600" : "text-red-600",
               )}
             >
-              <Icon className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-            <div className="flex items-center text-xs mt-1">
-              <TrendIcon
-                className={cn(
-                  "mr-1 h-3 w-3",
-                  isPositive ? "text-green-500" : "text-red-500",
-                )}
-              />
-              <span
-                className={cn(
-                  "font-medium",
-                  isPositive ? "text-green-500" : "text-red-500",
-                )}
-              >
-                {Math.abs(change)}%
-              </span>
-              {description && (
-                <span className="text-muted-foreground ml-1">
-                  {description}
-                </span>
-              )}
-            </div>
-          </CardContent>
+              {Math.abs(change)}%
+            </span>
+            <span>с прошлого месяца</span>
+          </div>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          )}
+        </CardContent>
 
-          {/* Декоративный градиент */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 to-accent/50" />
-        </Card>
-      </motion.div>
-    </CardWrapper>
+        {/* Декоративный градиент */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 to-accent/50" />
+      </Card>
+    </motion.div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 };
 
-// Компонент активности
+// Компонент элемента активности
 const ActivityItem = ({ activity }: { activity: RecentActivity }) => {
-  const getStatusIcon = () => {
-    switch (activity.status) {
-      case "success":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "error":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+  const getIcon = () => {
+    switch (activity.type) {
+      case "order":
+        return ShoppingBag;
+      case "user":
+        return Users;
+      case "product":
+        return Package;
       default:
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return Activity;
     }
   };
 
-  const getTypeIcon = () => {
-    switch (activity.type) {
-      case "order":
-        return <ShoppingBag className="h-4 w-4" />;
-      case "user":
-        return <Users className="h-4 w-4" />;
-      case "product":
-        return <Package className="h-4 w-4" />;
+  const getStatusColor = () => {
+    switch (activity.status) {
+      case "success":
+        return "text-green-500";
+      case "warning":
+        return "text-yellow-500";
+      case "error":
+        return "text-red-500";
       default:
-        return <Activity className="h-4 w-4" />;
+        return "text-muted-foreground";
     }
   };
+
+  const Icon = getIcon();
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+      transition={{ duration: 0.3 }}
+      className="flex items-center space-x-4 p-4 rounded-lg hover:bg-muted/50 transition-colors"
     >
-      <div className="flex-shrink-0">{getTypeIcon()}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{activity.message}</p>
-        <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+      <div className={cn("rounded-full p-2 bg-muted", getStatusColor())}>
+        <Icon className="h-4 w-4" />
       </div>
-      <div className="flex-shrink-0">{getStatusIcon()}</div>
+      <div className="flex-1 space-y-1">
+        <p className="text-sm font-medium leading-none">{activity.title}</p>
+        <p className="text-sm text-muted-foreground">{activity.description}</p>
+      </div>
+      <div className="text-xs text-muted-foreground">{activity.time}</div>
     </motion.div>
   );
 };
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalProducts: 1248,
-    totalUsers: 892,
-    totalOrders: 156,
-    totalRevenue: 24890,
+    totalProducts: 1234,
+    totalUsers: 567,
+    totalOrders: 89,
+    totalRevenue: 12345,
     productsChange: 12.5,
-    usersChange: 8.2,
-    ordersChange: -3.1,
-    revenueChange: 15.8,
+    usersChange: -2.1,
+    ordersChange: 8.3,
+    revenueChange: 15.7,
   });
 
-  const [recentActivities] = useState<RecentActivity[]>([
+  const [recentActivity] = useState<RecentActivity[]>([
     {
       id: "1",
       type: "order",
-      message: "Новый заказ #1234 от Иван Петров",
-      timestamp: "2 минуты назад",
+      title: "Новый заказ #1234",
+      description: "Заказ на сумму 2500₽ от Иван Петров",
+      time: "2 мин назад",
       status: "success",
     },
     {
       id: "2",
       type: "user",
-      message: "Новый пользователь зарегистрирован",
-      timestamp: "15 минут назад",
+      title: "Новый пользователь",
+      description: "Анна Сидорова зарегистрировалась",
+      time: "15 мин назад",
       status: "success",
     },
     {
       id: "3",
       type: "product",
-      message: 'Товар "iPhone 15" заканчивается на складе',
-      timestamp: "1 час назад",
+      title: "Товар закончился",
+      description: "iPhone 15 Pro недоступен на складе",
+      time: "1 час назад",
       status: "warning",
     },
     {
       id: "4",
       type: "order",
-      message: "Заказ #1230 отменен",
-      timestamp: "2 часа назад",
+      title: "Заказ отменен",
+      description: "Заказ #1230 отменен клиентом",
+      time: "2 часа назад",
       status: "error",
     },
   ]);
 
   const [topProducts] = useState<TopProduct[]>([
-    { id: "1", name: "iPhone 15 Pro", sales: 45, revenue: 67500 },
-    { id: "2", name: "Samsung Galaxy S24", sales: 32, revenue: 38400 },
-    { id: "3", name: "MacBook Pro M3", sales: 18, revenue: 54000 },
-    { id: "4", name: "iPad Air", sales: 28, revenue: 22400 },
+    {
+      id: "1",
+      name: "iPhone 15 Pro",
+      sales: 45,
+      revenue: 135000,
+      change: 12.5,
+    },
+    {
+      id: "2",
+      name: "Samsung Galaxy S24",
+      sales: 32,
+      revenue: 96000,
+      change: 8.3,
+    },
+    {
+      id: "3",
+      name: "MacBook Air M2",
+      sales: 18,
+      revenue: 180000,
+      change: -2.1,
+    },
   ]);
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-8"
-    >
+    <div className="flex-1 space-y-8 p-8 pt-6">
       {/* Заголовок */}
       <motion.div
-        variants={itemVariants}
-        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Панель управления
-          </h1>
-          <p className="text-muted-foreground">
-            Добро пожаловать в административную панель. Здесь вы можете
-            управлять всеми аспектами вашего магазина.
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            <Activity className="mr-1 h-3 w-3" />
-            Система работает
-          </Badge>
-          <Button size="sm" asChild>
-            <Link href="/admin/analytics">
+        <div className="flex items-center justify-between space-y-2">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">
+              Панель управления
+            </h2>
+            <p className="text-muted-foreground">
+              Добро пожаловать в административную панель
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm">
+              <Calendar className="mr-2 h-4 w-4" />
+              Сегодня
+            </Button>
+            <Button size="sm">
               <BarChart3 className="mr-2 h-4 w-4" />
-              Подробная аналитика
-            </Link>
-          </Button>
+              Экспорт
+            </Button>
+          </div>
         </div>
       </motion.div>
 
       {/* Статистические карточки */}
-      <motion.div variants={itemVariants}>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Всего товаров"
-            value={stats.totalProducts.toLocaleString()}
-            change={stats.productsChange}
-            icon={Package}
-            href="/admin/catalog/products"
-            description="за месяц"
-          />
-          <StatCard
-            title="Пользователи"
-            value={stats.totalUsers.toLocaleString()}
-            change={stats.usersChange}
-            icon={Users}
-            href="/admin/users"
-            description="за месяц"
-          />
-          <StatCard
-            title="Заказы"
-            value={stats.totalOrders.toLocaleString()}
-            change={stats.ordersChange}
-            trend="down"
-            icon={ShoppingBag}
-            href="/admin/orders"
-            description="за месяц"
-          />
-          <StatCard
-            title="Выручка"
-            value={`${stats.totalRevenue.toLocaleString()} ₸`}
-            change={stats.revenueChange}
-            icon={DollarSign}
-            href="/admin/analytics"
-            description="за месяц"
-          />
-        </div>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+      >
+        <StatCard
+          title="Общее количество товаров"
+          value={stats.totalProducts.toLocaleString()}
+          change={stats.productsChange}
+          icon={Package}
+          description="Активные товары в каталоге"
+          href="/admin/catalog/products"
+        />
+        <StatCard
+          title="Пользователи"
+          value={stats.totalUsers.toLocaleString()}
+          change={stats.usersChange}
+          icon={Users}
+          trend={stats.usersChange >= 0 ? "up" : "down"}
+          description="Зарегистрированные пользователи"
+          href="/admin/users"
+        />
+        <StatCard
+          title="Заказы"
+          value={stats.totalOrders.toLocaleString()}
+          change={stats.ordersChange}
+          icon={ShoppingBag}
+          description="Заказы за текущий месяц"
+          href="/admin/orders"
+        />
+        <StatCard
+          title="Выручка"
+          value={`${stats.totalRevenue.toLocaleString()}₽`}
+          change={stats.revenueChange}
+          icon={DollarSign}
+          description="Общая выручка за месяц"
+        />
       </motion.div>
 
-      {/* Основной контент */}
-      <motion.div variants={itemVariants}>
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Обзор</TabsTrigger>
-            <TabsTrigger value="products">Товары</TabsTrigger>
-            <TabsTrigger value="activity">Активность</TabsTrigger>
-          </TabsList>
+      {/* Контент с вкладками */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="analytics">Аналитика</TabsTrigger>
+          <TabsTrigger value="reports">Отчеты</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Топ товары */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Star className="mr-2 h-5 w-5 text-yellow-500" />
-                    Топ товары
-                  </CardTitle>
-                  <CardDescription>
-                    Самые продаваемые товары за последний месяц
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {topProducts.map((product, index) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg flex items-center justify-center">
-                          <span className="text-sm font-bold">{index + 1}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {product.sales} продаж
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          {product.revenue.toLocaleString()} ₸
-                        </p>
-                        <p className="text-sm text-muted-foreground">выручка</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Быстрые действия */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Быстрые действия</CardTitle>
-                  <CardDescription>
-                    Часто используемые функции управления
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="justify-start h-auto p-4"
-                  >
-                    <Link href="/admin/catalog/products">
-                      <Package className="mr-3 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">Добавить товар</div>
-                        <div className="text-sm text-muted-foreground">
-                          Создать новый товар в каталоге
-                        </div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="justify-start h-auto p-4"
-                  >
-                    <Link href="/admin/catalog/categories">
-                      <BarChart3 className="mr-3 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">
-                          Управление категориями
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Добавить или изменить категории
-                        </div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="justify-start h-auto p-4"
-                  >
-                    <Link href="/admin/orders">
-                      <ShoppingBag className="mr-3 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">Просмотр заказов</div>
-                        <div className="text-sm text-muted-foreground">
-                          Обработка и управление заказами
-                        </div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="justify-start h-auto p-4"
-                  >
-                    <Link href="/admin/users">
-                      <Users className="mr-3 h-5 w-5" />
-                      <div className="text-left">
-                        <div className="font-medium">
-                          Управление пользователями
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Просмотр и редактирование пользователей
-                        </div>
-                      </div>
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="products" className="space-y-6">
-            <Card>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            {/* График продаж */}
+            <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Статистика товаров</CardTitle>
+                <CardTitle>Продажи</CardTitle>
                 <CardDescription>
-                  Информация о состоянии каталога товаров
+                  Общие продажи за последние 12 месяцев
                 </CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="h-80 flex items-center justify-center bg-muted/30 rounded-lg"
+                >
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-sm text-muted-foreground">
+                      График будет здесь
+                    </p>
+                  </div>
+                </motion.div>
+              </CardContent>
+            </Card>
+
+            {/* Последняя активность */}
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Последняя активность</CardTitle>
+                <CardDescription>Недавние действия в системе</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">892</div>
-                    <div className="text-sm text-muted-foreground">
-                      Активные товары
-                    </div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      156
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Заканчиваются
-                    </div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-red-600">23</div>
-                    <div className="text-sm text-muted-foreground">
-                      Нет в наличии
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ staggerChildren: 0.1 }}
+                  className="space-y-2"
+                >
+                  {recentActivity.map((activity) => (
+                    <ActivityItem key={activity.id} activity={activity} />
+                  ))}
+                </motion.div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="activity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Activity className="mr-2 h-5 w-5" />
-                  Последняя активность
-                </CardTitle>
-                <CardDescription>
-                  Недавние события и изменения в системе
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {recentActivities.map((activity) => (
-                  <ActivityItem key={activity.id} activity={activity} />
+          {/* Топ товары */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Топ товары</CardTitle>
+              <CardDescription>
+                Самые продаваемые товары за последний месяц
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ staggerChildren: 0.1 }}
+                className="space-y-4"
+              >
+                {topProducts.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className="flex items-center justify-between p-4 rounded-lg border"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="text-2xl font-bold text-muted-foreground">
+                        #{index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product.sales} продаж
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {product.revenue.toLocaleString()}₽
+                      </p>
+                      <div className="flex items-center space-x-1 text-xs">
+                        {product.change >= 0 ? (
+                          <TrendingUp className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500" />
+                        )}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            product.change >= 0
+                              ? "text-green-600"
+                              : "text-red-600",
+                          )}
+                        >
+                          {Math.abs(product.change)}%
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
                 ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
-    </motion.div>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Аналитика</CardTitle>
+              <CardDescription>Подробная аналитика и метрики</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="h-96 flex items-center justify-center bg-muted/30 rounded-lg"
+              >
+                <div className="text-center">
+                  <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-2">
+                    Раздел в разработке
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Здесь будет подробная аналитика
+                  </p>
+                </div>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Отчеты</CardTitle>
+              <CardDescription>Генерация и просмотр отчетов</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="h-96 flex items-center justify-center bg-muted/30 rounded-lg"
+              >
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-2">
+                    Отчеты скоро будут доступны
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Система отчетности в разработке
+                  </p>
+                </div>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
