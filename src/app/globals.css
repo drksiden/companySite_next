@@ -4,227 +4,461 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
 }
 
 :root {
-  --radius: 0.75rem;
+    --radius: 0.75rem;
 
-  /* Улучшенные основные цвета - светлая тема */
-  --background: oklch(0.98 0.005 250);
-  --foreground: oklch(0.2 0.02 260);
+    /* Улучшенные основные цвета - светлая тема */
+    --background: oklch(0.98 0.005 250);
+    --foreground: oklch(0.2 0.02 260);
 
-  --card: oklch(0.97 0.008 240);
-  --card-foreground: oklch(0.2 0.02 260);
+    --card: oklch(0.97 0.008 240);
+    --card-foreground: oklch(0.2 0.02 260);
 
-  --popover: oklch(0.99 0.003 240);
-  --popover-foreground: oklch(0.2 0.02 260);
+    --popover: oklch(0.99 0.003 240);
+    --popover-foreground: oklch(0.2 0.02 260);
 
-  /* Основные кнопки и акценты */
-  --primary: oklch(0.55 0.18 260);
-  --primary-foreground: oklch(0.98 0.003 240);
+    /* Основные кнопки и акценты */
+    --primary: oklch(0.55 0.18 260);
+    --primary-foreground: oklch(0.98 0.003 240);
 
-  --secondary: oklch(0.9 0.05 250);
-  --secondary-foreground: oklch(0.25 0.08 260);
+    --secondary: oklch(0.9 0.05 250);
+    --secondary-foreground: oklch(0.25 0.08 260);
 
-  --accent: oklch(0.75 0.14 220);
-  --accent-foreground: oklch(0.2 0.02 260);
+    --accent: oklch(0.75 0.14 220);
+    --accent-foreground: oklch(0.2 0.02 260);
 
-  --destructive: oklch(0.7 0.2 30);
-  --destructive-foreground: oklch(0.98 0.003 240);
+    --destructive: oklch(0.7 0.2 30);
+    --destructive-foreground: oklch(0.98 0.003 240);
 
-  /* Вспомогательные цвета */
-  --muted: oklch(0.94 0.01 240);
-  --muted-foreground: oklch(0.42 0.02 250);
+    /* Вспомогательные цвета */
+    --muted: oklch(0.94 0.01 240);
+    --muted-foreground: oklch(0.42 0.02 250);
 
-  --border: oklch(0.85 0.02 240);
-  --input: oklch(0.85 0.02 240);
-  --ring: oklch(0.6 0.15 260);
+    --border: oklch(0.85 0.02 240);
+    --input: oklch(0.85 0.02 240);
+    --ring: oklch(0.6 0.15 260);
 
-  /* Для header/footer */
-  --header-background: oklch(0.2 0.04 260);
-  --header-foreground: oklch(0.98 0.003 240);
+    /* Для header/footer */
+    --header-background: oklch(0.2 0.04 260);
+    --header-foreground: oklch(0.98 0.003 240);
 
-  --footer-background: oklch(0.25 0.03 260);
-  --footer-foreground: oklch(0.95 0.01 240);
+    --footer-background: oklch(0.25 0.03 260);
+    --footer-foreground: oklch(0.95 0.01 240);
 
-  /* Боковая панель */
-  --sidebar: oklch(0.95 0.02 250);
-  --sidebar-foreground: oklch(0.2 0.04 260);
-  --sidebar-primary: oklch(0.55 0.18 260);
-  --sidebar-primary-foreground: oklch(0.98 0.003 240);
-  --sidebar-accent: oklch(0.75 0.14 220);
-  --sidebar-accent-foreground: oklch(0.2 0.02 260);
-  --sidebar-border: oklch(0.85 0.02 240);
-  --sidebar-ring: oklch(0.6 0.15 260);
+    /* Боковая панель */
+    --sidebar: oklch(0.95 0.02 250);
+    --sidebar-foreground: oklch(0.2 0.04 260);
+    --sidebar-primary: oklch(0.55 0.18 260);
+    --sidebar-primary-foreground: oklch(0.98 0.003 240);
+    --sidebar-accent: oklch(0.75 0.14 220);
+    --sidebar-accent-foreground: oklch(0.2 0.02 260);
+    --sidebar-border: oklch(0.85 0.02 240);
+    --sidebar-ring: oklch(0.6 0.15 260);
 
-  /* Цвета для графиков */
-  --chart-1: oklch(0.55 0.18 260);
-  --chart-2: oklch(0.65 0.17 220);
-  --chart-3: oklch(0.7 0.18 180);
-  --chart-4: oklch(0.6 0.16 300);
-  --chart-5: oklch(0.75 0.15 140);
+    /* Цвета для графиков */
+    --chart-1: oklch(0.55 0.18 260);
+    --chart-2: oklch(0.65 0.17 220);
+    --chart-3: oklch(0.7 0.18 180);
+    --chart-4: oklch(0.6 0.16 300);
+    --chart-5: oklch(0.75 0.15 140);
 }
 
 .dark {
-  /* Улучшенные основные цвета - темная тема */
-  --background: oklch(0.15 0.02 260);
-  --foreground: oklch(0.95 0.02 250);
+    /* Улучшенные основные цвета - темная тема */
+    --background: oklch(0.15 0.02 260);
+    --foreground: oklch(0.95 0.02 250);
 
-  --card: oklch(0.2 0.02 260);
-  --card-foreground: oklch(0.95 0.02 250);
+    --card: oklch(0.2 0.02 260);
+    --card-foreground: oklch(0.95 0.02 250);
 
-  --popover: oklch(0.18 0.02 260);
-  --popover-foreground: oklch(0.95 0.02 250);
+    --popover: oklch(0.18 0.02 260);
+    --popover-foreground: oklch(0.95 0.02 250);
 
-  /* Основные кнопки и акценты */
-  --primary: oklch(0.65 0.18 260);
-  --primary-foreground: oklch(0.15 0.02 260);
+    /* Основные кнопки и акценты */
+    --primary: oklch(0.65 0.18 260);
+    --primary-foreground: oklch(0.15 0.02 260);
 
-  --secondary: oklch(0.3 0.08 250);
-  --secondary-foreground: oklch(0.95 0.02 250);
+    --secondary: oklch(0.3 0.08 250);
+    --secondary-foreground: oklch(0.95 0.02 250);
 
-  --accent: oklch(0.6 0.16 220);
-  --accent-foreground: oklch(0.15 0.02 260);
+    --accent: oklch(0.6 0.16 220);
+    --accent-foreground: oklch(0.15 0.02 260);
 
-  --destructive: oklch(0.65 0.22 30);
-  --destructive-foreground: oklch(0.98 0.01 240);
+    --destructive: oklch(0.65 0.22 30);
+    --destructive-foreground: oklch(0.98 0.01 240);
 
-  /* Вспомогательные цвета */
-  --muted: oklch(0.25 0.02 260);
-  --muted-foreground: oklch(0.7 0.05 250);
+    /* Вспомогательные цвета */
+    --muted: oklch(0.25 0.02 260);
+    --muted-foreground: oklch(0.7 0.05 250);
 
-  --border: oklch(0.35 0.05 260);
-  --input: oklch(0.35 0.05 260);
-  --ring: oklch(0.65 0.18 260);
+    --border: oklch(0.35 0.05 260);
+    --input: oklch(0.35 0.05 260);
+    --ring: oklch(0.65 0.18 260);
 
-  /* Для header/footer */
-  --header-background: oklch(0.1 0.02 260);
-  --header-foreground: oklch(0.95 0.02 250);
+    /* Для header/footer */
+    --header-background: oklch(0.1 0.02 260);
+    --header-foreground: oklch(0.95 0.02 250);
 
-  --footer-background: oklch(0.12 0.02 260);
-  --footer-foreground: oklch(0.9 0.01 250);
+    --footer-background: oklch(0.12 0.02 260);
+    --footer-foreground: oklch(0.9 0.01 250);
 
-  /* Боковая панель */
-  --sidebar: oklch(0.18 0.02 260);
-  --sidebar-foreground: oklch(0.9 0.02 250);
-  --sidebar-primary: oklch(0.65 0.18 260);
-  --sidebar-primary-foreground: oklch(0.15 0.02 260);
-  --sidebar-accent: oklch(0.6 0.16 220);
-  --sidebar-accent-foreground: oklch(0.15 0.02 260);
-  --sidebar-border: oklch(0.3 0.04 260);
-  --sidebar-ring: oklch(0.65 0.18 260);
+    /* Боковая панель */
+    --sidebar: oklch(0.18 0.02 260);
+    --sidebar-foreground: oklch(0.9 0.02 250);
+    --sidebar-primary: oklch(0.65 0.18 260);
+    --sidebar-primary-foreground: oklch(0.15 0.02 260);
+    --sidebar-accent: oklch(0.6 0.16 220);
+    --sidebar-accent-foreground: oklch(0.15 0.02 260);
+    --sidebar-border: oklch(0.3 0.04 260);
+    --sidebar-ring: oklch(0.65 0.18 260);
 
-  /* Цвета для графиков */
-  --chart-1: oklch(0.65 0.18 260);
-  --chart-2: oklch(0.7 0.17 220);
-  --chart-3: oklch(0.75 0.18 180);
-  --chart-4: oklch(0.68 0.16 300);
-  --chart-5: oklch(0.72 0.15 140);
+    /* Цвета для графиков */
+    --chart-1: oklch(0.65 0.18 260);
+    --chart-2: oklch(0.7 0.17 220);
+    --chart-3: oklch(0.75 0.18 180);
+    --chart-4: oklch(0.68 0.16 300);
+    --chart-5: oklch(0.72 0.15 140);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-  }
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+    }
 
-  h1 {
-    @apply text-3xl font-bold tracking-tight text-foreground;
-  }
+    h1 {
+        @apply text-3xl font-bold tracking-tight text-foreground;
+    }
 
-  h2 {
-    @apply text-2xl font-semibold tracking-tight text-foreground;
-  }
+    h2 {
+        @apply text-2xl font-semibold tracking-tight text-foreground;
+    }
 
-  h3 {
-    @apply text-xl font-semibold text-foreground;
-  }
+    h3 {
+        @apply text-xl font-semibold text-foreground;
+    }
 
-  h4,
-  h5,
-  h6 {
-    @apply font-medium text-foreground;
-  }
+    h4,
+    h5,
+    h6 {
+        @apply font-medium text-foreground;
+    }
 
-  p,
-  li,
-  blockquote {
-    @apply text-foreground/90 leading-relaxed;
-  }
+    p,
+    li,
+    blockquote {
+        @apply text-foreground/90 leading-relaxed;
+    }
 
-  a {
-    @apply text-primary hover:text-primary/90 underline-offset-4 transition-colors;
-  }
+    a {
+        @apply text-primary hover:text-primary/90 underline-offset-4 transition-colors;
+    }
 
-  /* Стили для header и footer */
-  header {
-    @apply bg-[var(--header-background)] text-[var(--header-foreground)];
-  }
+    /* Стили для header и footer */
+    header {
+        @apply bg-[var(--header-background)] text-[var(--header-foreground)];
+    }
 
-  footer {
-    @apply bg-[var(--footer-background)] text-[var(--footer-foreground)];
-  }
+    footer {
+        @apply bg-[var(--footer-background)] text-[var(--footer-foreground)];
+    }
 
-  /* Дополнительные классы для лучшей читаемости */
-  .text-subtle {
-    @apply text-muted-foreground;
-  }
+    /* Дополнительные классы для лучшей читаемости */
+    .text-subtle {
+        @apply text-muted-foreground;
+    }
 
-  .high-contrast {
-    @apply text-foreground font-medium;
-  }
+    .high-contrast {
+        @apply text-foreground font-medium;
+    }
 
-  /* Улучшение доступности фокуса */
-  :focus-visible {
-    @apply outline-primary/70 outline-offset-2 outline-2;
-  }
+    /* Улучшение доступности фокуса */
+    :focus-visible {
+        @apply outline-primary/70 outline-offset-2 outline-2;
+    }
 }
 
 /* Дополнительные стили для обеспечения контраста */
 .dark .text-muted-foreground {
-  color: oklch(0.7 0.05 250);
+    color: oklch(0.7 0.05 250);
 }
 
 .dark .bg-muted {
-  background-color: oklch(0.25 0.02 260);
+    background-color: oklch(0.25 0.02 260);
+}
+
+/* Стили для улучшенной боковой панели */
+@layer components {
+    /* Анимации для sidebar */
+    .sidebar-enter {
+        animation: sidebar-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .sidebar-exit {
+        animation: sidebar-slide-out 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    @keyframes sidebar-slide-in {
+        from {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes sidebar-slide-out {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+    }
+
+    /* Glassmorphism эффекты */
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dark .glass-effect {
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Hover эффекты для навигации */
+    .nav-item-hover {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .nav-item-hover::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.1),
+            transparent
+        );
+        transition: left 0.6s ease;
+    }
+
+    .nav-item-hover:hover::before {
+        left: 100%;
+    }
+
+    /* Ripple эффект */
+    .ripple {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ripple::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition:
+            width 0.6s,
+            height 0.6s;
+    }
+
+    .ripple:active::after {
+        width: 300px;
+        height: 300px;
+    }
+
+    /* Улучшенные тени */
+    .enhanced-shadow {
+        box-shadow:
+            0 4px 6px -1px rgba(0, 0, 0, 0.1),
+            0 2px 4px -1px rgba(0, 0, 0, 0.06),
+            0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+
+    .dark .enhanced-shadow {
+        box-shadow:
+            0 4px 6px -1px rgba(0, 0, 0, 0.3),
+            0 2px 4px -1px rgba(0, 0, 0, 0.2),
+            0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    /* Gradient borders */
+    .gradient-border {
+        position: relative;
+    }
+
+    .gradient-border::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        padding: 1px;
+        background: linear-gradient(
+            135deg,
+            hsl(var(--primary)),
+            hsl(var(--accent))
+        );
+        border-radius: inherit;
+        mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        mask-composite: xor;
+    }
+
+    /* Пульсирующий эффект для активных элементов */
+    .pulse-active {
+        animation: pulse-glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-glow {
+        from {
+            box-shadow: 0 0 5px hsl(var(--primary) / 0.3);
+        }
+        to {
+            box-shadow:
+                0 0 20px hsl(var(--primary) / 0.6),
+                0 0 30px hsl(var(--primary) / 0.4);
+        }
+    }
+
+    /* Стили для скроллбара */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: hsl(var(--border));
+        border-radius: 3px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--border) / 0.8);
+    }
+
+    /* Анимация появления для элементов меню */
+    .menu-item-enter {
+        animation: menu-item-slide-in 0.3s ease-out forwards;
+    }
+
+    @keyframes menu-item-slide-in {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* Эффект loading skeleton */
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            hsl(var(--muted)) 25%,
+            hsl(var(--muted) / 0.5) 50%,
+            hsl(var(--muted)) 75%
+        );
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes skeleton-loading {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+
+    /* Floating animation для декоративных элементов */
+    .float {
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    /* Эффект свечения для важных элементов */
+    .glow-primary {
+        box-shadow: 0 0 10px hsl(var(--primary) / 0.3);
+        transition: box-shadow 0.3s ease;
+    }
+
+    .glow-primary:hover {
+        box-shadow:
+            0 0 20px hsl(var(--primary) / 0.5),
+            0 0 40px hsl(var(--primary) / 0.3);
+    }
 }
