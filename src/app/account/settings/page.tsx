@@ -1,54 +1,84 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { sdk } from "@/lib/sdk"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  const [company, setCompany] = useState("")
-  const [phone, setPhone] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setLoading(true)
-    sdk.store.customer
-      .retrieve()
-      .then(({ customer }) => {
-        setFirstName(customer.first_name || "")
-        setLastName(customer.last_name || "")
-        setCompany(customer.company_name || "")
-        setPhone(customer.phone || "")
-      })
-      .catch(() => {
-        toast.error("Не удалось загрузить профиль")
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    const loadProfile = async () => {
+      setLoading(true);
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault()
+        if (user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("first_name, last_name, company_name, phone")
+            .eq("id", user.id)
+            .single();
 
-    setLoading(true)
+          if (profile) {
+            setFirstName(profile.first_name || "");
+            setLastName(profile.last_name || "");
+            setCompany(profile.company_name || "");
+            setPhone(profile.phone || "");
+          }
+        }
+      } catch (error) {
+        toast.error("Не удалось загрузить профиль");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const supabase = createClient();
+
     try {
-      await sdk.store.customer.update({
-        first_name: firstName,
-        last_name: lastName,
-        company_name: company,
-        phone,
-      })
-      toast.success("Профиль обновлён")
-    } catch {
-      toast.error("Ошибка при обновлении")
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { error } = await supabase
+          .from("user_profiles")
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            company_name: company,
+            phone,
+          })
+          .eq("id", user.id);
+
+        if (error) throw error;
+        toast.success("Профиль обновлен");
+      }
+    } catch (error) {
+      toast.error("Не удалось обновить профиль");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen px-4">
@@ -57,7 +87,7 @@ export default function SettingsPage() {
           <CardTitle>Редактирование профиля</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={handleEdit}>
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <Input
               placeholder="Имя"
               value={firstName}
@@ -86,5 +116,5 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

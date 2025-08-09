@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
-import { StaticImport } from 'next/dist/shared/lib/get-img-props';
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { StaticImport } from "next/dist/shared/lib/get-img-props";
 
 interface SlideData {
   id: string;
@@ -44,24 +44,42 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
       setDirection(newDirection);
       setCurrentSlide(newIndex);
     },
-    [currentSlide, slides.length]
+    [currentSlide, slides.length],
   );
 
   useEffect(() => {
     if (isPaused) return;
-    const timer = setTimeout(() => changeSlide(currentSlide + 1), AUTO_INTERVAL);
+    const timer = setTimeout(
+      () => changeSlide(currentSlide + 1),
+      AUTO_INTERVAL,
+    );
     return () => clearTimeout(timer);
   }, [currentSlide, isPaused, changeSlide]);
 
   const slideVariants = {
-    enter: (direction: number) => ({ x: direction > 0 ? 200 : -200, opacity: 0 }),
+    enter: (direction: number) => ({
+      x: direction > 0 ? 200 : -200,
+      opacity: 0,
+    }),
     center: { zIndex: 1, x: 0, opacity: 1 },
-    exit: (direction: number) => ({ zIndex: 0, x: direction < 0 ? 200 : -200, opacity: 0 }),
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 200 : -200,
+      opacity: 0,
+    }),
   };
 
-  const textVariants = {
-    enter: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut', delay: 0.2 } },
-    exit: { opacity: 0, y: -10, transition: { duration: 0.2, ease: 'easeIn' } },
+  const textVariants: any = {
+    enter: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.4, ease: "easeOut", delay: 0.2 },
+    },
+    exit: {
+      opacity: 0,
+      y: -10,
+      transition: { duration: 0.2, ease: "easeIn" },
+    },
   };
 
   return (
@@ -96,19 +114,24 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ x: { type: 'spring', stiffness: 300, damping: 30 }, opacity: { duration: 0.3 } }}
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.3 },
+            }}
           >
-            <Link href={slides[currentSlide].catalogUrl} className="block w-full h-full group">
+            <Link
+              href={slides[currentSlide].catalogUrl}
+              className="block w-full h-full group"
+            >
               <div className="relative w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
                 <div className="absolute w-64 h-64 rounded-full bg-blue-500/10 dark:bg-blue-500/10 blur-xl transform transition-all duration-500 group-hover:scale-110" />
                 <Image
-                    src={slides[currentSlide].imageUrl}
-                    alt={slides[currentSlide].alt}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw" // Это пример, ты можешь адаптировать для своей ситуации
-                    className="object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md dark:drop-shadow-lg z-10"
-                    />
-
+                  src={slides[currentSlide].imageUrl}
+                  alt={slides[currentSlide].alt}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw" // Это пример, ты можешь адаптировать для своей ситуации
+                  className="object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md dark:drop-shadow-lg z-10"
+                />
               </div>
             </Link>
           </motion.div>
@@ -124,9 +147,15 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
           >
             <motion.div
               className="h-full bg-blue-500 rounded-full"
-              initial={{ width: '0%' }}
-              animate={{ width: currentSlide === index ? '100%' : '0%' }}
-              transition={{ duration: currentSlide === index && !isPaused ? AUTO_INTERVAL / 1000 : 0.4, ease: 'linear' }}
+              initial={{ width: "0%" }}
+              animate={{ width: currentSlide === index ? "100%" : "0%" }}
+              transition={{
+                duration:
+                  currentSlide === index && !isPaused
+                    ? AUTO_INTERVAL / 1000
+                    : 0.4,
+                ease: "linear",
+              }}
               key={`${currentSlide}-${index}-${isPaused}`}
             />
           </button>
@@ -142,7 +171,9 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
             exit="exit"
             className="py-2"
           >
-            <p className="text-lg line-clamp-3 md:line-clamp-2">{slides[currentSlide].description}</p>
+            <p className="text-lg line-clamp-3 md:line-clamp-2">
+              {slides[currentSlide].description}
+            </p>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -161,12 +192,12 @@ export function ProductSection({
   badgeText,
   sectionBgClass,
 }: ProductSectionProps) {
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 30 },
+  const sectionVariants: any = {
+    hidden: { opacity: 0, y: 20 },
     visible: (i: number = 0) => ({
       opacity: 1,
       y: 0,
-      transition: { delay: i * 0.1, duration: 0.6, ease: 'easeOut' },
+      transition: { delay: i * 0.1, duration: 0.6, ease: "easeOut" },
     }),
   };
 
@@ -174,7 +205,7 @@ export function ProductSection({
 
   const renderBrandLogo = () => {
     if (!brandLogoUrl || !logoVisible) return null;
-    const logoBgClass = brandName === 'FLEXEM' ? 'bg-gray-800' : '';
+    const logoBgClass = brandName === "FLEXEM" ? "bg-gray-800" : "";
     return (
       <motion.div
         className="flex items-center justify-center mb-4"
@@ -197,13 +228,14 @@ export function ProductSection({
           className={`hidden dark:block h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
           onError={() => setLogoVisible(false)}
         />
-        
       </motion.div>
     );
   };
 
   return (
-    <section className={`py-16 lg:py-24 px-4 ${sectionBgClass} w-full overflow-hidden`}>
+    <section
+      className={`py-16 lg:py-24 px-4 ${sectionBgClass} w-full overflow-hidden`}
+    >
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
@@ -227,7 +259,10 @@ export function ProductSection({
               custom={3}
               variants={sectionVariants}
             >
-              {brandTagline} <span className="text-blue-700 dark:text-blue-300">{brandName}</span>
+              {brandTagline}{" "}
+              <span className="text-blue-700 dark:text-blue-300">
+                {brandName}
+              </span>
             </motion.h2>
             <motion.p
               className="text-base text-gray-600 dark:text-blue-100 leading-relaxed"
@@ -248,7 +283,7 @@ export function ProductSection({
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
             className="w-full"
           >
             <Carousel slides={slides} />

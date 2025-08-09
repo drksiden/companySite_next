@@ -45,3 +45,10 @@ export interface Database {
           sort_order?: number;
           meta_title?: string | null;
           meta_description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+    };
+  };
+}

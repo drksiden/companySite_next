@@ -44,25 +44,36 @@ export async function GET(req: NextRequest) {
         is_featured,
         status,
         created_at,
-        brand:brands(
+        view_count,
+        sales_count,
+        brands:brand_id(
           id,
           name,
-          slug
+          slug,
+          logo_url
         ),
-        category:categories(
+        categories:category_id(
           id,
           name,
-          slug
+          slug,
+          path,
+          level
         ),
-        currency:currencies(
+        currencies:currency_id(
           id,
           code,
-          symbol
+          symbol,
+          name
+        ),
+        collections:collection_id(
+          id,
+          name,
+          slug
         )
       `,
         { count: "exact" },
       )
-      .eq("status", "active");
+      .eq("status", "published");
 
     // Применяем фильтры
     if (categories.length > 0) {
@@ -158,7 +169,12 @@ export async function GET(req: NextRequest) {
         final_price: finalPrice,
         is_on_sale: isOnSale,
         discount_percentage: discountPercentage,
-        formatted_price: formatPrice(finalPrice),
+        formatted_price: formatPrice(
+          finalPrice,
+          product.currencies?.[0]?.symbol,
+        ),
+        brand_name: product.brands?.[0]?.name,
+        category_name: product.categories?.[0]?.name,
       };
     });
 
@@ -198,6 +214,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function formatPrice(price: number): string {
-  return `${price.toLocaleString("ru-RU")} ₸`;
+function formatPrice(price: number, symbol: string = "₸"): string {
+  return `${price.toLocaleString("ru-RU")} ${symbol}`;
 }

@@ -2,13 +2,17 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { ProductFilters } from "@/components/catalog/ProductFilters";
 import { CategoryCard } from "@/components/catalog/CategoryCard";
+import { QuickView } from "@/components/catalog/QuickView";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -23,7 +27,15 @@ import {
   List,
   AlertTriangle,
   Loader2,
+  SlidersHorizontal,
+  X,
+  ArrowUpDown,
+  LayoutGrid,
+  Rows3,
+  Package,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type {
   Category,
   Brand,
@@ -31,7 +43,7 @@ import type {
   ProductListResponse,
   ProductFilters as FilterType,
   ProductSortBy,
-  CategoryFilter,
+  SearchProductsResult,
 } from "@/types/catalog";
 
 interface CatalogClientProps {
@@ -51,7 +63,7 @@ export default function CatalogClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Данные, полученные с сервера
+  // Core data state
   const [productData, setProductData] = useState<ProductListResponse | null>(
     initialProducts,
   );
@@ -59,13 +71,21 @@ export default function CatalogClient({
   const [brands] = useState<Brand[]>(initialBrands);
   const [collections] = useState<Collection[]>(initialCollections);
 
-  // Состояние UI, управляемое на клиенте
+  // UI state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
+  const [quickViewProduct, setQuickViewProduct] =
+    useState<SearchProductsResult | null>(null);
+  const [wishlist, setWishlist] = useState<Set<string>>(new Set());
 
-  // Состояние фильтров и поиска, синхронизированное с URL
+  // Sync search input with URL
+  useEffect(() => {
+    setSearchInput(searchParams.get("search") || "");
+  }, [searchParams]);
+
+  // Active filters from URL
   const activeFilters: FilterType = useMemo(
     () => ({
       search: searchParams.get("search") || undefined,
@@ -92,419 +112,447 @@ export default function CatalogClient({
   const updateUrl = useCallback(
     (newParams: Record<string, string | number | undefined>) => {
       const params = new URLSearchParams(searchParams.toString());
+
       for (const [key, value] of Object.entries(newParams)) {
-        if (value) {
-          params.set(key, String(value));
-        } else {
+        if (value === undefined || value === "" || value === 0) {
           params.delete(key);
+        } else {
+          params.set(key, String(value));
         }
       }
-      // Сбрасываем страницу при изменении фильтров
-      if (!("page" in newParams)) {
+
+      // Reset to first page when filters change
+      if (Object.keys(newParams).some((key) => key !== "page")) {
         params.delete("page");
       }
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+
+      const newUrl = `${pathname}?${params.toString()}`;
+      router.push(newUrl);
     },
     [searchParams, pathname, router],
   );
 
-  const handleSearch = (query: string) => {
-    updateUrl({ search: query });
-  };
+  const handleSearch = useCallback(
+    (query: string) => {
+      updateUrl({ search: query });
+    },
+    [updateUrl],
+  );
 
   const handleFiltersChange = useCallback(
-    async (newFilters: FilterType) => {
-      setIsLoading(true);
-
-      try {
-        // Сначала обновляем URL
-        updateUrl({
-          categories: newFilters.categories?.length
-            ? newFilters.categories?.join(",")
-            : undefined,
-          brands: newFilters.brands?.length
-            ? newFilters.brands?.join(",")
-            : undefined,
-          collections: newFilters.collections?.length
-            ? newFilters.collections?.join(",")
-            : undefined,
-          inStockOnly: newFilters.inStockOnly ? "true" : undefined,
-          featured: newFilters.featured ? "true" : undefined,
-          minPrice: newFilters.priceRange?.min || undefined,
-          maxPrice: newFilters.priceRange?.max || undefined,
-        });
-
-        // Затем загружаем новые данные
-        const response = await fetch(
-          "/api/catalog/products?" +
-            new URLSearchParams({
-              ...(newFilters.categories?.length && {
-                categories: newFilters.categories.join(","),
-              }),
-              ...(newFilters.brands?.length && {
-                brands: newFilters.brands.join(","),
-              }),
-              ...(newFilters.collections?.length && {
-                collections: newFilters.collections.join(","),
-              }),
-              ...(newFilters.inStockOnly && { inStockOnly: "true" }),
-              ...(newFilters.featured && { featured: "true" }),
-              ...(newFilters.priceRange?.min && {
-                minPrice: newFilters.priceRange.min.toString(),
-              }),
-              ...(newFilters.priceRange?.max && {
-                maxPrice: newFilters.priceRange.max.toString(),
-              }),
-              ...(newFilters.search && { search: newFilters.search }),
-              sortBy,
-              page: "1", // Сбрасываем на первую страницу при изменении фильтров
-              limit: "20",
-            }).toString(),
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setProductData(result.data);
-          }
-        }
-      } catch (error) {
-        console.error("Error applying filters:", error);
-      } finally {
-        setIsLoading(false);
-      }
+    (filters: FilterType) => {
+      updateUrl({
+        categories: filters.categories?.join(","),
+        brands: filters.brands?.join(","),
+        collections: filters.collections?.join(","),
+        minPrice: filters.priceRange?.min || undefined,
+        maxPrice: filters.priceRange?.max || undefined,
+        inStockOnly: filters.inStockOnly ? "true" : undefined,
+        featured: filters.featured ? "true" : undefined,
+      });
     },
-    [updateUrl, sortBy],
+    [updateUrl],
   );
 
-  const handleSortChange = (newSortBy: ProductSortBy) => {
-    updateUrl({ sortBy: newSortBy });
-  };
+  const handleSortChange = useCallback(
+    (newSortBy: ProductSortBy) => {
+      updateUrl({ sortBy: newSortBy });
+    },
+    [updateUrl],
+  );
 
   const handlePageChange = useCallback(
-    async (page: number) => {
-      setIsLoading(true);
+    (page: number) => {
       updateUrl({ page });
-
-      try {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("page", page.toString());
-
-        const response = await fetch(
-          "/api/catalog/products?" + params.toString(),
-        );
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setProductData(result.data);
-          }
-        }
-      } catch (error) {
-        console.error("Error changing page:", error);
-      } finally {
-        setIsLoading(false);
-      }
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [updateUrl, searchParams],
+    [updateUrl],
   );
 
-  const clearAllFilters = useCallback(async () => {
-    setIsLoading(true);
-    router.push(pathname, { scroll: false });
+  const clearAllFilters = useCallback(() => {
+    router.push(pathname);
+  }, [pathname, router]);
 
+  const handleAddToWishlist = useCallback((product: SearchProductsResult) => {
+    setWishlist((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(product.slug)) {
+        newSet.delete(product.slug);
+        toast.success("Товар удален из избранного");
+      } else {
+        newSet.add(product.slug);
+        toast.success("Товар добавлен в избранное");
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleAddToCart = useCallback((product: SearchProductsResult) => {
+    toast.success(`Товар "${product.name}" добавлен в корзину`);
+  }, []);
+
+  const products = productData?.products || [];
+  const totalProducts = productData?.pagination?.total || 0;
+  const totalPages = productData?.pagination?.totalPages || 1;
+  const hasProducts = products.length > 0;
+
+  const activeFiltersCount =
+    (activeFilters.categories?.length || 0) +
+    (activeFilters.brands?.length || 0) +
+    (activeFilters.collections?.length || 0) +
+    (activeFilters.inStockOnly ? 1 : 0) +
+    (activeFilters.featured ? 1 : 0) +
+    ((activeFilters.priceRange?.min || 0) > 0 ? 1 : 0) +
+    ((activeFilters.priceRange?.max || 0) > 0 ? 1 : 0);
+
+  const hasActiveFilters = activeFiltersCount > 0;
+
+  // Loading state for fetching products
+  const fetchProducts = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch("/api/catalog/products?limit=20");
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          setProductData(result.data);
-        }
+      const params = new URLSearchParams();
+
+      if (activeFilters.search) params.set("search", activeFilters.search);
+      if (activeFilters.categories?.length)
+        params.set("categories", activeFilters.categories.join(","));
+      if (activeFilters.brands?.length)
+        params.set("brands", activeFilters.brands.join(","));
+      if (activeFilters.collections?.length)
+        params.set("collections", activeFilters.collections.join(","));
+      if (activeFilters.priceRange?.min)
+        params.set("minPrice", activeFilters.priceRange.min.toString());
+      if (activeFilters.priceRange?.max)
+        params.set("maxPrice", activeFilters.priceRange.max.toString());
+      if (activeFilters.inStockOnly) params.set("inStockOnly", "true");
+      if (activeFilters.featured) params.set("featured", "true");
+      if (sortBy) params.set("sortBy", sortBy);
+      if (currentPage > 1) params.set("page", currentPage.toString());
+
+      const response = await fetch(
+        `/api/catalog/products?${params.toString()}`,
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setProductData(data.data);
       }
     } catch (error) {
-      console.error("Error clearing filters:", error);
+      console.error("Error fetching products:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [router, pathname]);
+  };
 
-  const hasActiveFilters = Object.values(activeFilters).some((value) =>
-    Array.isArray(value) ? value.length > 0 : !!value,
-  );
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        searchParams.toString() !==
+        new URLSearchParams(window.location.search).toString()
+      ) {
+        fetchProducts();
+      }
+    }, 300);
 
-  const showCategories = !hasActiveFilters && categories.length > 0;
-  const showProducts = productData?.products.length || 0;
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-10">
-      <Breadcrumbs
-        items={[
-          { label: "Главная", href: "/" },
-          { label: "Каталог", href: "/catalog" },
-        ]}
-        className="mb-8"
-      />
-
-      {!showProducts && !hasActiveFilters && (
-        <div className="mb-6">
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              В каталоге пока нет товаров.
-              <a
-                href="/test-catalog/add-test-data"
-                className="ml-1 underline text-blue-600 hover:text-blue-800"
-              >
-                Добавить тестовые данные
-              </a>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Каталог</h1>
-        <div className="hidden lg:flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Поиск товаров..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                handleSearch(e.target.value);
-              }}
-              className="pl-10 w-80"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:hidden mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Поиск товаров..."
-            value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              handleSearch(e.target.value);
-            }}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {showCategories && (
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold mb-6">Категории</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {categories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                showProductCount={true}
-                className="h-32"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col lg:flex-row gap-8">
-        <div className="w-full lg:w-64 shrink-0">
-          <div className="sticky top-24">
-            <Button
-              variant="outline"
-              className="lg:hidden w-full mb-4"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Фильтры
-              {hasActiveFilters && (
-                <span className="ml-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
-                  !
-                </span>
-              )}
-            </Button>
-            <div className={`${showFilters ? "block" : "hidden"} lg:block`}>
+        {/* Filters Sidebar */}
+        <div className="w-full lg:w-80 flex-shrink-0">
+          <div className="lg:sticky lg:top-4">
+            {/* Mobile Filter Toggle */}
+            <div className="lg:hidden mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Фильтры
+                  {hasActiveFilters && (
+                    <Badge variant="secondary">{activeFiltersCount}</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearAllFilters();
+                      }}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Очистить
+                    </Button>
+                  )}
+                </div>
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <div className={cn("lg:block", showFilters ? "block" : "hidden")}>
               <ProductFilters
+                filters={activeFilters}
                 categories={categories}
                 brands={brands}
                 collections={collections}
-                categoryFilters={[]} // TODO: Load category filters
-                activeFilters={activeFilters}
-                onFilterChange={handleFiltersChange}
+                onFiltersChange={handleFiltersChange}
               />
-              {hasActiveFilters && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="w-full mt-4"
-                >
-                  Сбросить фильтры
-                </Button>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="flex-1">
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Загрузка...</span>
-            </div>
-          )}
-
-          {!isLoading && showProducts > 0 && (
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-sm text-muted-foreground">
-                {productData
-                  ? `Найдено ${productData.pagination.total} товаров`
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Каталог товаров
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {totalProducts > 0
+                  ? `Найдено ${totalProducts} товаров`
                   : "Товары не найдены"}
+              </p>
+            </div>
+
+            {/* Search and Sort */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Поиск товаров..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch(searchInput);
+                    }
+                  }}
+                  className="pl-10 w-full sm:w-64"
+                />
               </div>
-              <Select
-                value={sortBy}
-                onValueChange={(value) =>
-                  handleSortChange(value as ProductSortBy)
-                }
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
+
+              {/* Sort */}
+              <Select value={sortBy} onValueChange={handleSortChange}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Сортировка" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="name_asc">По названию (А-Я)</SelectItem>
                   <SelectItem value="name_desc">По названию (Я-А)</SelectItem>
-                  <SelectItem value="price_asc">
-                    По цене (возрастание)
-                  </SelectItem>
-                  <SelectItem value="price_desc">По цене (убывание)</SelectItem>
+                  <SelectItem value="price_asc">По цене (возр.)</SelectItem>
+                  <SelectItem value="price_desc">По цене (убыв.)</SelectItem>
                   <SelectItem value="created_desc">Сначала новые</SelectItem>
-                  <SelectItem value="created_asc">Сначала старые</SelectItem>
                   <SelectItem value="featured">Рекомендуемые</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* View Mode */}
+              <div className="flex items-center border rounded-lg p-1">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  className="h-8 w-8 p-0"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="h-8 w-8 p-0"
+                >
+                  <Rows3 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Filters Summary */}
+          {hasActiveFilters && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-900">
+                  Активные фильтры ({activeFiltersCount})
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Очистить все
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {searchQuery && (
+                  <Badge variant="secondary" className="text-xs">
+                    Поиск: {searchQuery}
+                    <X
+                      className="h-3 w-3 ml-1 cursor-pointer"
+                      onClick={() => handleSearch("")}
+                    />
+                  </Badge>
+                )}
+
+                {activeFilters.inStockOnly && (
+                  <Badge variant="secondary" className="text-xs">
+                    В наличии
+                    <X
+                      className="h-3 w-3 ml-1 cursor-pointer"
+                      onClick={() =>
+                        handleFiltersChange({
+                          ...activeFilters,
+                          inStockOnly: false,
+                        })
+                      }
+                    />
+                  </Badge>
+                )}
+
+                {activeFilters.featured && (
+                  <Badge variant="secondary" className="text-xs">
+                    Рекомендуемые
+                    <X
+                      className="h-3 w-3 ml-1 cursor-pointer"
+                      onClick={() =>
+                        handleFiltersChange({
+                          ...activeFilters,
+                          featured: false,
+                        })
+                      }
+                    />
+                  </Badge>
+                )}
+              </div>
             </div>
           )}
 
-          {!isLoading && productData?.products.length ? (
+          {/* Products Grid/List */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-600">Загрузка товаров...</span>
+            </div>
+          ) : hasProducts ? (
             <>
               <div
-                className={`grid gap-6 ${
+                className={cn(
                   viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                    : "grid-cols-1"
-                }`}
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    : "space-y-4",
+                )}
               >
-                {productData.products.map((product) => (
+                {products.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={product.slug}
                     product={product}
                     variant={viewMode}
                     showQuickView={true}
                     showWishlist={true}
+                    onQuickView={setQuickViewProduct}
+                    onAddToWishlist={handleAddToWishlist}
+                    onAddToCart={handleAddToCart}
                   />
                 ))}
               </div>
 
-              {productData.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center mt-12 gap-2">
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center mt-8 gap-2">
                   <Button
                     variant="outline"
-                    disabled={!productData.pagination.hasPrev || isLoading}
                     onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
                   >
-                    {isLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Предыдущая
+                    Назад
                   </Button>
+
                   <div className="flex items-center gap-1">
-                    {Array.from(
-                      {
-                        length: Math.min(5, productData.pagination.totalPages),
-                      },
-                      (_, i) => {
-                        const startPage = Math.max(1, currentPage - 2);
-                        const pageNum = startPage + i;
-                        if (pageNum > productData.pagination.totalPages)
-                          return null;
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={
-                              pageNum === currentPage ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => handlePageChange(pageNum)}
-                            disabled={isLoading}
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      },
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const page = i + 1;
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="w-10"
+                        >
+                          {page}
+                        </Button>
+                      );
+                    })}
+
+                    {totalPages > 5 && (
+                      <>
+                        <span className="px-2">...</span>
+                        <Button
+                          variant={
+                            currentPage === totalPages ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => handlePageChange(totalPages)}
+                          className="w-10"
+                        >
+                          {totalPages}
+                        </Button>
+                      </>
                     )}
                   </div>
+
                   <Button
                     variant="outline"
-                    disabled={!productData.pagination.hasNext || isLoading}
                     onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
                   >
-                    Следующая
-                    {isLoading ? (
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                    ) : null}
+                    Далее
                   </Button>
                 </div>
               )}
             </>
-          ) : !isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                <Search className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Товары не найдены</h3>
-              <p className="text-muted-foreground mb-4 max-w-md">
-                {hasActiveFilters
-                  ? "Попробуйте изменить параметры поиска или сбросить фильтры"
-                  : "В данной категории пока нет товаров"}
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Товары не найдены
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Попробуйте изменить параметры поиска или фильтры
               </p>
               {hasActiveFilters && (
-                <Button onClick={clearAllFilters} disabled={isLoading}>
-                  {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                <Button variant="outline" onClick={clearAllFilters}>
+                  <X className="h-4 w-4 mr-2" />
                   Сбросить фильтры
                 </Button>
               )}
             </div>
-          ) : null}
+          )}
         </div>
       </div>
+
+      {/* Quick View Modal */}
+      {quickViewProduct && (
+        <QuickView
+          product={quickViewProduct}
+          isOpen={!!quickViewProduct}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={handleAddToCart}
+          onAddToWishlist={handleAddToWishlist}
+        />
+      )}
     </div>
   );
-
-  // Добавляем эффект для синхронизации поиска с URL
-  useEffect(() => {
-    setSearchInput(searchQuery);
-  }, [searchQuery]);
 }

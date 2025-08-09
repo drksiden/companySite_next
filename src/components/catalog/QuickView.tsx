@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -12,348 +13,352 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   X,
   Heart,
   ShoppingCart,
   Star,
-  Truck,
-  Shield,
+  Eye,
+  Share2,
+  ChevronLeft,
+  ChevronRight,
+  Package,
+  CheckCircle,
+  Clock,
   ExternalLink,
-  Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { Product, SearchProductsResult } from "@/types/catalog";
+import type { SearchProductsResult } from "@/types/catalog";
 
 interface QuickViewProps {
   product: SearchProductsResult | null;
   isOpen: boolean;
   onClose: () => void;
+  onAddToCart?: (product: SearchProductsResult) => void;
+  onAddToWishlist?: (product: SearchProductsResult) => void;
 }
 
-export function QuickView({ product, isOpen, onClose }: QuickViewProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [fullProduct, setFullProduct] = useState<Product | null>(null);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+export function QuickView({
+  product,
+  isOpen,
+  onClose,
+  onAddToCart,
+  onAddToWishlist,
+}: QuickViewProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
-
-  // Загружаем полные данные о товаре
-  useEffect(() => {
-    if (product && isOpen) {
-      setIsLoading(true);
-      fetch(`/api/products/${product.slug}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setFullProduct(data.data);
-          }
-        })
-        .catch((error) => {
-          console.error("Failed to load product details:", error);
-          toast.error("Не удалось загрузить детали товара");
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, [product, isOpen]);
-
-  // Сбрасываем состояние при закрытии
-  useEffect(() => {
-    if (!isOpen) {
-      setFullProduct(null);
-      setQuantity(1);
-      setSelectedImage(0);
-      setIsAddingToCart(false);
-    }
-  }, [isOpen]);
-
-  const handleAddToCart = async () => {
-    if (!product) return;
-
-    setIsAddingToCart(true);
-    try {
-      // Здесь будет интеграция с корзиной
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Товар "${product.name}" добавлен в корзину`);
-    } catch (error) {
-      toast.error("Не удалось добавить товар в корзину");
-    } finally {
-      setIsAddingToCart(false);
-    }
-  };
-
-  const toggleWishlist = () => {
-    setIsInWishlist(!isInWishlist);
-    toast.success(
-      isInWishlist ? "Удалено из избранного" : "Добавлено в избранное",
-    );
-  };
-
-  const formatPrice = (price: number, currencyCode?: string) => {
-    const currency = currencyCode || "KZT";
-    const symbol = currency === "KZT" ? "₸" : currency === "USD" ? "$" : "₽";
-    return `${price.toLocaleString("ru-RU")} ${symbol}`;
-  };
 
   if (!product) return null;
 
-  const productImages = fullProduct?.images || [product.thumbnail].filter(Boolean);
-  const isInStock = product.inventory_quantity > 0;
-  const discountPercentage = product.discount_percentage || 0;
+  const images =
+    product.images || (product.thumbnail ? [product.thumbnail] : []);
+  const isInStock = (product.inventory_quantity || 0) > 0;
+  const hasDiscount =
+    product.is_on_sale && (product.discount_percentage || 0) > 0;
+  const isNew =
+    product.created_at &&
+    new Date(product.created_at) >
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const handleAddToCart = () => {
+    onAddToCart?.(product);
+    onClose();
+  };
+
+  const handleAddToWishlist = () => {
+    setIsInWishlist(!isInWishlist);
+    onAddToWishlist?.(product);
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-          {/* Изображения */}
-          <div className="relative bg-muted p-6">
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] p-0 gap-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Быстрый просмотр товара</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 max-h-[90vh]">
+          {/* Image Section */}
+          <div className="relative bg-gray-50 aspect-square md:aspect-auto">
+            {images.length > 0 && !imageError ? (
+              <>
+                <Image
+                  src={images[currentImageIndex]}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  onError={handleImageError}
+                />
+
+                {/* Image Navigation */}
+                {images.length > 1 && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/80 hover:bg-white"
+                      onClick={prevImage}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/80 hover:bg-white"
+                      onClick={nextImage}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+
+                    {/* Image Indicators */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                      {images.map((_: string, index: number) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={cn(
+                            "w-2 h-2 rounded-full transition-colors",
+                            index === currentImageIndex
+                              ? "bg-white"
+                              : "bg-white/50",
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Нет изображения</p>
+                </div>
+              </div>
+            )}
+
+            {/* Badges */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2">
+              {hasDiscount && (
+                <Badge variant="destructive" className="font-bold">
+                  -{product.discount_percentage || 0}%
+                </Badge>
+              )}
+              {isNew && (
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 text-blue-800"
+                >
+                  Новинка
+                </Badge>
+              )}
+              {product.is_featured && (
+                <Badge
+                  variant="default"
+                  className="bg-yellow-100 text-yellow-800"
+                >
+                  Хит
+                </Badge>
+              )}
+            </div>
+
+            {/* Close Button */}
             <Button
-              variant="ghost"
-              size="icon"
+              variant="secondary"
+              size="sm"
+              className="absolute top-4 right-4 h-8 w-8 p-0 bg-white/80 hover:bg-white"
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white"
             >
               <X className="h-4 w-4" />
             </Button>
-
-            <div className="space-y-4">
-              {/* Основное изображение */}
-              <div className="relative aspect-square bg-white rounded-lg overflow-hidden">
-                {productImages.length > 0 ? (
-                  <Image
-                    src={productImages[selectedImage]}
-                    alt={product.name}
-                    fill
-                    className="object-contain"
-                    priority
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    Нет изображения
-                  </div>
-                )}
-
-                {/* Бейджи */}
-                <div className="absolute top-4 left-4 space-y-2">
-                  {product.is_featured && (
-                    <Badge className="bg-yellow-500 text-white">
-                      <Star className="w-3 h-3 mr-1" />
-                      ТОП
-                    </Badge>
-                  )}
-                  {discountPercentage > 0 && (
-                    <Badge className="bg-red-500 text-white">
-                      -{discountPercentage}%
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Миниатюры */}
-              {productImages.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto">
-                  {productImages.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={cn(
-                        "relative w-16 h-16 bg-white rounded border-2 overflow-hidden shrink-0 transition-colors",
-                        selectedImage === index
-                          ? "border-primary"
-                          : "border-transparent",
-                      )}
-                    >
-                      <Image
-                        src={image}
-                        alt={`${product.name} ${index + 1}`}
-                        fill
-                        className="object-contain"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Информация о товаре */}
-          <div className="p-6 space-y-6">
-            <DialogHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <DialogTitle className="text-xl font-bold text-left">
+          {/* Content Section */}
+          <div className="flex flex-col">
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-4">
+                {/* Header */}
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 line-clamp-2">
                     {product.name}
-                  </DialogTitle>
-                  {product.brand && (
-                    <Link
-                      href={`/catalog?brands=${product.brand.id}`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {product.brand.name}
-                    </Link>
+                  </h2>
+                  {product.brand_name && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {product.brand_name}
+                    </p>
+                  )}
+                  {product.sku && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Артикул: {product.sku}
+                    </p>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleWishlist}
-                  className={cn(
-                    "shrink-0",
-                    isInWishlist && "text-red-500",
-                  )}
-                >
-                  <Heart className={cn("h-5 w-5", isInWishlist && "fill-current")} />
-                </Button>
-              </div>
-            </DialogHeader>
 
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Загрузка...</span>
-              </div>
-            ) : (
-              <>
-                {/* Цена */}
+                {/* Price */}
                 <div className="space-y-2">
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold text-primary">
-                      {formatPrice(
-                        product.final_price || product.base_price,
-                        product.currency?.code,
-                      )}
-                    </span>
-                    {product.is_on_sale && product.base_price && (
-                      <span className="text-lg text-muted-foreground line-through">
-                        {formatPrice(product.base_price, product.currency?.code)}
+                  <div className="flex items-center gap-2">
+                    {hasDiscount && product.base_price && (
+                      <span className="text-lg text-gray-500 line-through">
+                        {product.base_price.toLocaleString("ru-RU")} ₸
                       </span>
                     )}
+                    <span className="text-2xl font-bold text-gray-900">
+                      {product.formatted_price ||
+                        `${(product.final_price || product.base_price || 0).toLocaleString("ru-RU")} ₸`}
+                    </span>
                   </div>
-                  <div
-                    className={cn(
-                      "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                      isInStock
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800",
+
+                  {/* Stock Status */}
+                  <div className="flex items-center gap-2">
+                    {isInStock ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800"
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />В наличии
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="bg-red-100 text-red-800"
+                      >
+                        <Clock className="h-3 w-3 mr-1" />
+                        Нет в наличии
+                      </Badge>
                     )}
-                  >
-                    {isInStock ? "В наличии" : "Нет в наличии"}
-                  </div>
-                </div>
 
-                {/* Краткое описание */}
-                {product.short_description && (
-                  <p className="text-muted-foreground">
-                    {product.short_description}
-                  </p>
-                )}
-
-                <Separator />
-
-                {/* Количество и кнопки */}
-                <div className="space-y-4">
-                  {isInStock && (
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm font-medium">Количество:</label>
-                      <div className="flex items-center border rounded-md">
-                        <button
-                          type="button"
-                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                          className="px-3 py-2 hover:bg-muted transition-colors"
-                          disabled={quantity <= 1}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          max={product.inventory_quantity}
-                          value={quantity}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value);
-                            if (!isNaN(value) && value >= 1) {
-                              setQuantity(
-                                Math.min(value, product.inventory_quantity),
-                              );
-                            }
-                          }}
-                          className="w-16 px-3 py-2 text-center border-x focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setQuantity(
-                              Math.min(product.inventory_quantity, quantity + 1),
-                            )
-                          }
-                          className="px-3 py-2 hover:bg-muted transition-colors"
-                          disabled={quantity >= product.inventory_quantity}
-                        >
-                          +
-                        </button>
-                      </div>
-                      {product.inventory_quantity <= 10 && (
-                        <span className="text-xs text-amber-600">
+                    {product.inventory_quantity &&
+                      product.inventory_quantity <= 5 &&
+                      isInStock && (
+                        <span className="text-sm text-orange-600">
                           Осталось: {product.inventory_quantity} шт.
                         </span>
                       )}
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <Button
-                      onClick={handleAddToCart}
-                      disabled={!isInStock || isAddingToCart}
-                      className="w-full"
-                    >
-                      {isAddingToCart ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Добавление...
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          Добавить в корзину
-                        </>
-                      )}
-                    </Button>
-
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link href={`/product/${product.slug}`}>
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Подробнее
-                      </Link>
-                    </Button>
                   </div>
                 </div>
 
                 <Separator />
 
-                {/* Дополнительная информация */}
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-muted-foreground" />
-                    <span>Бесплатная доставка от 50 000 ₸</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    <span>Гарантия качества</span>
-                  </div>
-                </div>
-
-                {/* Артикул */}
-                {product.sku && (
-                  <div className="text-xs text-muted-foreground">
-                    Артикул: {product.sku}
+                {/* Description */}
+                {product.short_description && (
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-2">Описание</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {product.short_description}
+                    </p>
                   </div>
                 )}
-              </>
-            )}
+
+                {/* Specifications */}
+                {product.specifications &&
+                  Object.keys(product.specifications).length > 0 && (
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">
+                        Характеристики
+                      </h3>
+                      <div className="space-y-1">
+                        {Object.entries(product.specifications)
+                          .slice(0, 5)
+                          .map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="flex justify-between text-sm"
+                            >
+                              <span className="text-gray-600">{key}:</span>
+                              <span className="text-gray-900 font-medium">
+                                {String(value)}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Category */}
+                {product.category_name && (
+                  <div>
+                    <h3 className="font-medium text-gray-900 mb-1">
+                      Категория
+                    </h3>
+                    <Badge variant="outline">{product.category_name}</Badge>
+                  </div>
+                )}
+
+                {/* View Full Details Link */}
+                <div className="pt-4">
+                  <Link href={`/product/${product.slug}`}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={onClose}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Посмотреть все детали
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </ScrollArea>
+
+            {/* Actions Footer */}
+            <div className="border-t p-6 space-y-3">
+              {/* Quick Actions */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddToWishlist}
+                  className="flex-1"
+                >
+                  <Heart
+                    className={cn(
+                      "h-4 w-4 mr-2",
+                      isInWishlist
+                        ? "fill-red-500 text-red-500"
+                        : "text-gray-600",
+                    )}
+                  />
+                  {isInWishlist ? "В избранном" : "В избранное"}
+                </Button>
+
+                <Button variant="outline" size="sm">
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Поделиться
+                </Button>
+              </div>
+
+              {/* Add to Cart */}
+              <Button
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+                className="w-full"
+                size="lg"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                {isInStock ? "Добавить в корзину" : "Товара нет в наличии"}
+              </Button>
+
+              {/* Additional Info */}
+              <div className="text-xs text-gray-500 text-center">
+                {isInStock
+                  ? "Быстрая доставка • Гарантия качества"
+                  : "Уведомим о поступлении товара"}
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>

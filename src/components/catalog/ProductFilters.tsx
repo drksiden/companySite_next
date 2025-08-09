@@ -1,133 +1,131 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, X, Filter } from "lucide-react";
+import {
+  ChevronDown,
+  Search,
+  X,
+  Filter,
+  Star,
+  Package,
+  Tag,
+  DollarSign,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import type {
   Category,
   Brand,
   Collection,
   ProductFilters as FilterType,
-  CategoryFilter,
 } from "@/types/catalog";
-import { cn } from "@/lib/utils";
 
 interface ProductFiltersProps {
+  filters: FilterType;
   categories: Category[];
   brands: Brand[];
   collections: Collection[];
-  categoryFilters: CategoryFilter[];
-  activeFilters: FilterType;
-  onFilterChange: (filters: FilterType) => void;
+  onFiltersChange: (filters: FilterType) => void;
   className?: string;
 }
 
 export function ProductFilters({
+  filters,
   categories,
   brands,
   collections,
-  activeFilters,
-  onFilterChange,
+  onFiltersChange,
   className,
 }: ProductFiltersProps) {
-  // Локальное состояние фильтров для кнопки "Применить"
-  const [localFilters, setLocalFilters] = useState<FilterType>(activeFilters);
-  const [priceRange, setPriceRange] = useState<[number, number]>([
-    activeFilters.priceRange?.min || 0,
-    activeFilters.priceRange?.max || 1000000,
+  const [localFilters, setLocalFilters] = useState<FilterType>(filters);
+  const [priceRange, setPriceRange] = useState([
+    filters.priceRange?.min || 0,
+    filters.priceRange?.max || 1000000,
   ]);
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const [searchTerms, setSearchTerms] = useState({
+    category: "",
+    brand: "",
+    collection: "",
+  });
+
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
+    price: true,
     categories: true,
     brands: true,
-    price: true,
+    collections: false,
     options: true,
   });
 
-  // Синхронизируем локальные фильтры с активными при их изменении
+  // Sync with external filters
   useEffect(() => {
-    setLocalFilters(activeFilters);
+    setLocalFilters(filters);
     setPriceRange([
-      activeFilters.priceRange?.min || 0,
-      activeFilters.priceRange?.max || 1000000,
+      filters.priceRange?.min || 0,
+      filters.priceRange?.max || 1000000,
     ]);
-  }, [activeFilters]);
+  }, [filters]);
 
-  const toggleSection = (section: string) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+  const updateFilters = (newFilters: Partial<FilterType>) => {
+    const updatedFilters = { ...localFilters, ...newFilters };
+    setLocalFilters(updatedFilters);
+    onFiltersChange(updatedFilters);
   };
 
   const handleCategoryChange = (categoryId: string, checked: boolean) => {
+    const currentCategories = localFilters.categories || [];
     const newCategories = checked
-      ? [...(localFilters.categories || []), categoryId]
-      : (localFilters.categories || []).filter((id) => id !== categoryId);
+      ? [...currentCategories, categoryId]
+      : currentCategories.filter((id) => id !== categoryId);
 
-    setLocalFilters({
-      ...localFilters,
-      categories: newCategories,
-    });
+    updateFilters({ categories: newCategories });
   };
 
   const handleBrandChange = (brandId: string, checked: boolean) => {
+    const currentBrands = localFilters.brands || [];
     const newBrands = checked
-      ? [...(localFilters.brands || []), brandId]
-      : (localFilters.brands || []).filter((id) => id !== brandId);
+      ? [...currentBrands, brandId]
+      : currentBrands.filter((id) => id !== brandId);
 
-    setLocalFilters({
-      ...localFilters,
-      brands: newBrands,
-    });
+    updateFilters({ brands: newBrands });
   };
 
   const handleCollectionChange = (collectionId: string, checked: boolean) => {
+    const currentCollections = localFilters.collections || [];
     const newCollections = checked
-      ? [...(localFilters.collections || []), collectionId]
-      : (localFilters.collections || []).filter((id) => id !== collectionId);
+      ? [...currentCollections, collectionId]
+      : currentCollections.filter((id) => id !== collectionId);
 
-    setLocalFilters({
-      ...localFilters,
-      collections: newCollections,
-    });
+    updateFilters({ collections: newCollections });
   };
 
-  const handlePriceChange = (values: number[]) => {
-    setPriceRange([values[0], values[1]]);
-  };
-
-  const handleToggleOption = (option: keyof FilterType) => {
-    setLocalFilters({
-      ...localFilters,
-      [option]: !localFilters[option],
-    });
-  };
-
-  const applyFilters = () => {
-    const filtersToApply = {
-      ...localFilters,
+  const handlePriceRangeChange = (value: number[]) => {
+    setPriceRange(value);
+    updateFilters({
       priceRange: {
-        min: priceRange[0],
-        max: priceRange[1],
+        min: value[0],
+        max: value[1],
       },
-    };
-    onFilterChange(filtersToApply);
+    });
   };
 
   const clearAllFilters = () => {
-    const emptyFilters: FilterType = {
+    const clearedFilters: FilterType = {
       categories: [],
       brands: [],
       collections: [],
@@ -135,362 +133,481 @@ export function ProductFilters({
       featured: false,
       priceRange: { min: 0, max: 0 },
     };
-    setLocalFilters(emptyFilters);
+    setLocalFilters(clearedFilters);
     setPriceRange([0, 1000000]);
-    onFilterChange(emptyFilters);
+    setSearchTerms({ category: "", brand: "", collection: "" });
+    onFiltersChange(clearedFilters);
   };
 
-  const clearFilter = (filterType: string, value?: string) => {
-    switch (filterType) {
-      case "categories":
-        const newCategories = value
-          ? (localFilters.categories || []).filter((id) => id !== value)
-          : [];
-        setLocalFilters({ ...localFilters, categories: newCategories });
-        break;
-      case "brands":
-        const newBrands = value
-          ? (localFilters.brands || []).filter((id) => id !== value)
-          : [];
-        setLocalFilters({ ...localFilters, brands: newBrands });
-        break;
-      case "collections":
-        const newCollections = value
-          ? (localFilters.collections || []).filter((id) => id !== value)
-          : [];
-        setLocalFilters({ ...localFilters, collections: newCollections });
-        break;
-      case "priceRange":
-        setPriceRange([0, 1000000]);
-        break;
-      case "inStockOnly":
-        setLocalFilters({ ...localFilters, inStockOnly: false });
-        break;
-      case "featured":
-        setLocalFilters({ ...localFilters, featured: false });
-        break;
-    }
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
   };
 
   const getActiveFiltersCount = () => {
-    let count = 0;
-    if (activeFilters.categories?.length)
-      count += activeFilters.categories.length;
-    if (activeFilters.brands?.length) count += activeFilters.brands.length;
-    if (activeFilters.collections?.length)
-      count += activeFilters.collections.length;
-    if (activeFilters.priceRange?.min || activeFilters.priceRange?.max)
-      count += 1;
-    if (activeFilters.inStockOnly) count += 1;
-    if (activeFilters.featured) count += 1;
-    return count;
-  };
-
-  const hasChanges = () => {
-    const currentPriceRange = {
-      min: priceRange[0] > 0 ? priceRange[0] : 0,
-      max: priceRange[1] < 1000000 ? priceRange[1] : 0,
-    };
-
     return (
-      JSON.stringify(localFilters.categories?.sort()) !==
-        JSON.stringify(activeFilters.categories?.sort()) ||
-      JSON.stringify(localFilters.brands?.sort()) !==
-        JSON.stringify(activeFilters.brands?.sort()) ||
-      JSON.stringify(localFilters.collections?.sort()) !==
-        JSON.stringify(activeFilters.collections?.sort()) ||
-      localFilters.inStockOnly !== activeFilters.inStockOnly ||
-      localFilters.featured !== activeFilters.featured ||
-      currentPriceRange.min !== (activeFilters.priceRange?.min || 0) ||
-      currentPriceRange.max !== (activeFilters.priceRange?.max || 0)
+      (localFilters.categories?.length || 0) +
+      (localFilters.brands?.length || 0) +
+      (localFilters.collections?.length || 0) +
+      (localFilters.inStockOnly ? 1 : 0) +
+      (localFilters.featured ? 1 : 0) +
+      ((localFilters.priceRange?.min || 0) > 0 ? 1 : 0) +
+      ((localFilters.priceRange?.max || 0) > 0 ? 1 : 0)
     );
   };
+
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(searchTerms.category.toLowerCase()),
+  );
+
+  const filteredBrands = brands.filter((brand) =>
+    brand.name.toLowerCase().includes(searchTerms.brand.toLowerCase()),
+  );
+
+  const filteredCollections = collections.filter((collection) =>
+    collection.name
+      .toLowerCase()
+      .includes(searchTerms.collection.toLowerCase()),
+  );
 
   const activeFiltersCount = getActiveFiltersCount();
 
   return (
     <Card className={cn("w-full", className)}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Filter className="h-5 w-5" />
             Фильтры
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {activeFiltersCount}
+              </Badge>
+            )}
           </CardTitle>
           {activeFiltersCount > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {activeFiltersCount}
-            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="text-xs"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Очистить
+            </Button>
           )}
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Active Filters Summary */}
-        {activeFiltersCount > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Активные фильтры:</h4>
-            <div className="flex flex-wrap gap-1">
-              {activeFilters.categories?.map((categoryId) => {
-                const category = categories.find((c) => c.id === categoryId);
-                return category ? (
-                  <Badge
-                    key={categoryId}
-                    variant="outline"
-                    className="text-xs pr-1"
-                  >
-                    {category.name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-0 ml-1 hover:bg-transparent"
-                      onClick={() => clearFilter("categories", categoryId)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ) : null;
-              })}
-
-              {activeFilters.brands?.map((brandId) => {
-                const brand = brands.find((b) => b.id === brandId);
-                return brand ? (
-                  <Badge
-                    key={brandId}
-                    variant="outline"
-                    className="text-xs pr-1"
-                  >
-                    {brand.name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-0 ml-1 hover:bg-transparent"
-                      onClick={() => clearFilter("brands", brandId)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ) : null;
-              })}
-
-              {activeFilters.inStockOnly && (
-                <Badge variant="outline" className="text-xs pr-1">
-                  В наличии
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 ml-1 hover:bg-transparent"
-                    onClick={() => clearFilter("inStockOnly")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              )}
-
-              {activeFilters.featured && (
-                <Badge variant="outline" className="text-xs pr-1">
-                  Рекомендуемые
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 ml-1 hover:bg-transparent"
-                    onClick={() => clearFilter("featured")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              )}
-            </div>
-            <Separator />
-          </div>
-        )}
-
-        {/* Categories Filter */}
-        {categories.length > 0 && (
-          <Collapsible
-            open={openSections.categories}
-            onOpenChange={() => toggleSection("categories")}
-          >
-            <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-muted/50 p-2 rounded">
-              <h3 className="text-sm font-medium">Категории</h3>
-              {openSections.categories ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-2">
-              {categories.slice(0, 10).map((category) => (
-                <div key={category.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`category-${category.id}`}
-                    checked={
-                      localFilters.categories?.includes(category.id) || false
-                    }
-                    onCheckedChange={(checked) =>
-                      handleCategoryChange(category.id, checked as boolean)
-                    }
-                  />
-                  <Label
-                    htmlFor={`category-${category.id}`}
-                    className="text-sm cursor-pointer flex-1 hover:text-foreground/80"
-                  >
-                    {category.name}
-                  </Label>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* Brands Filter */}
-        {brands.length > 0 && (
-          <Collapsible
-            open={openSections.brands}
-            onOpenChange={() => toggleSection("brands")}
-          >
-            <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-muted/50 p-2 rounded">
-              <h3 className="text-sm font-medium">Бренды</h3>
-              {openSections.brands ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 mt-2">
-              {brands.slice(0, 10).map((brand) => (
-                <div key={brand.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`brand-${brand.id}`}
-                    checked={localFilters.brands?.includes(brand.id) || false}
-                    onCheckedChange={(checked) =>
-                      handleBrandChange(brand.id, checked as boolean)
-                    }
-                  />
-                  <Label
-                    htmlFor={`brand-${brand.id}`}
-                    className="text-sm cursor-pointer flex-1 hover:text-foreground/80"
-                  >
-                    {brand.name}
-                  </Label>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* Price Range Filter */}
+      <CardContent className="space-y-6">
+        {/* Price Range */}
         <Collapsible
-          open={openSections.price}
+          open={expandedSections.price}
           onOpenChange={() => toggleSection("price")}
         >
-          <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-muted/50 p-2 rounded">
-            <h3 className="text-sm font-medium">Цена</h3>
-            {openSections.price ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-0 h-auto"
+            >
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                <span className="font-medium">Цена</span>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  expandedSections.price && "rotate-180",
+                )}
+              />
+            </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-4 mt-2">
-            <div className="px-2">
+          <CollapsibleContent className="space-y-4 pt-4">
+            <div className="px-3">
               <Slider
                 value={priceRange}
-                onValueChange={handlePriceChange}
+                onValueChange={handlePriceRangeChange}
                 max={1000000}
-                min={0}
                 step={1000}
                 className="w-full"
               />
-              <div className="flex items-center gap-2 mt-2">
-                <Input
-                  type="number"
-                  placeholder="От"
-                  value={priceRange[0]}
-                  onChange={(e) =>
-                    setPriceRange([Number(e.target.value), priceRange[1]])
-                  }
-                  className="w-20 h-8 text-xs"
-                />
-                <span className="text-xs text-muted-foreground">—</span>
-                <Input
-                  type="number"
-                  placeholder="До"
-                  value={priceRange[1]}
-                  onChange={(e) =>
-                    setPriceRange([priceRange[0], Number(e.target.value)])
-                  }
-                  className="w-20 h-8 text-xs"
-                />
-                <span className="text-xs text-muted-foreground">₸</span>
+              <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+                <span>{priceRange[0].toLocaleString("ru-RU")} ₸</span>
+                <span>{priceRange[1].toLocaleString("ru-RU")} ₸</span>
               </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Options */}
+        <Separator />
+
+        {/* Categories */}
         <Collapsible
-          open={openSections.options}
+          open={expandedSections.categories}
+          onOpenChange={() => toggleSection("categories")}
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-0 h-auto"
+            >
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                <span className="font-medium">Категории</span>
+                {(localFilters.categories?.length || 0) > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {localFilters.categories?.length}
+                  </Badge>
+                )}
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  expandedSections.categories && "rotate-180",
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 pt-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Поиск категорий..."
+                value={searchTerms.category}
+                onChange={(e) =>
+                  setSearchTerms((prev) => ({
+                    ...prev,
+                    category: e.target.value,
+                  }))
+                }
+                className="pl-10"
+              />
+            </div>
+            <ScrollArea className="h-48">
+              <div className="space-y-2">
+                {filteredCategories.map((category) => (
+                  <div
+                    key={category.id}
+                    className="flex items-center space-x-2"
+                  >
+                    <Checkbox
+                      id={`category-${category.id}`}
+                      checked={localFilters.categories?.includes(category.id)}
+                      onCheckedChange={(checked) =>
+                        handleCategoryChange(category.id, checked as boolean)
+                      }
+                    />
+                    <Label
+                      htmlFor={`category-${category.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {category.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Separator />
+
+        {/* Brands */}
+        <Collapsible
+          open={expandedSections.brands}
+          onOpenChange={() => toggleSection("brands")}
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-0 h-auto"
+            >
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                <span className="font-medium">Бренды</span>
+                {(localFilters.brands?.length || 0) > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {localFilters.brands?.length}
+                  </Badge>
+                )}
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  expandedSections.brands && "rotate-180",
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 pt-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Поиск брендов..."
+                value={searchTerms.brand}
+                onChange={(e) =>
+                  setSearchTerms((prev) => ({
+                    ...prev,
+                    brand: e.target.value,
+                  }))
+                }
+                className="pl-10"
+              />
+            </div>
+            <ScrollArea className="h-48">
+              <div className="space-y-2">
+                {filteredBrands.map((brand) => (
+                  <div key={brand.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`brand-${brand.id}`}
+                      checked={localFilters.brands?.includes(brand.id)}
+                      onCheckedChange={(checked) =>
+                        handleBrandChange(brand.id, checked as boolean)
+                      }
+                    />
+                    <Label
+                      htmlFor={`brand-${brand.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {brand.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Separator />
+
+        {/* Collections */}
+        {collections.length > 0 && (
+          <>
+            <Collapsible
+              open={expandedSections.collections}
+              onOpenChange={() => toggleSection("collections")}
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between p-0 h-auto"
+                >
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4" />
+                    <span className="font-medium">Коллекции</span>
+                    {(localFilters.collections?.length || 0) > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {localFilters.collections?.length}
+                      </Badge>
+                    )}
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      expandedSections.collections && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Поиск коллекций..."
+                    value={searchTerms.collection}
+                    onChange={(e) =>
+                      setSearchTerms((prev) => ({
+                        ...prev,
+                        collection: e.target.value,
+                      }))
+                    }
+                    className="pl-10"
+                  />
+                </div>
+                <ScrollArea className="h-48">
+                  <div className="space-y-2">
+                    {filteredCollections.map((collection) => (
+                      <div
+                        key={collection.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`collection-${collection.id}`}
+                          checked={localFilters.collections?.includes(
+                            collection.id,
+                          )}
+                          onCheckedChange={(checked) =>
+                            handleCollectionChange(
+                              collection.id,
+                              checked as boolean,
+                            )
+                          }
+                        />
+                        <Label
+                          htmlFor={`collection-${collection.id}`}
+                          className="text-sm font-normal cursor-pointer flex-1"
+                        >
+                          {collection.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CollapsibleContent>
+            </Collapsible>
+            <Separator />
+          </>
+        )}
+
+        {/* Additional Options */}
+        <Collapsible
+          open={expandedSections.options}
           onOpenChange={() => toggleSection("options")}
         >
-          <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-muted/50 p-2 rounded">
-            <h3 className="text-sm font-medium">Дополнительно</h3>
-            {openSections.options ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between p-0 h-auto"
+            >
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <span className="font-medium">Дополнительно</span>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  expandedSections.options && "rotate-180",
+                )}
+              />
+            </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="inStockOnly"
-                checked={localFilters.inStockOnly || false}
-                onCheckedChange={() => handleToggleOption("inStockOnly")}
-              />
-              <Label
-                htmlFor="inStockOnly"
-                className="text-sm cursor-pointer hover:text-foreground/80"
-              >
-                Только в наличии
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="featured"
-                checked={localFilters.featured || false}
-                onCheckedChange={() => handleToggleOption("featured")}
-              />
-              <Label
-                htmlFor="featured"
-                className="text-sm cursor-pointer hover:text-foreground/80"
-              >
-                Рекомендуемые
-              </Label>
+          <CollapsibleContent className="space-y-4 pt-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="in-stock-only" className="text-sm font-normal">
+                  Только в наличии
+                </Label>
+                <Switch
+                  id="in-stock-only"
+                  checked={localFilters.inStockOnly || false}
+                  onCheckedChange={(checked) =>
+                    updateFilters({ inStockOnly: checked })
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="featured-only" className="text-sm font-normal">
+                  Только рекомендуемые
+                </Label>
+                <Switch
+                  id="featured-only"
+                  checked={localFilters.featured || false}
+                  onCheckedChange={(checked) =>
+                    updateFilters({ featured: checked })
+                  }
+                />
+              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Action Buttons */}
-        <div className="space-y-2 pt-4 border-t">
-          <Button
-            onClick={applyFilters}
-            disabled={!hasChanges()}
-            className="w-full"
-            size="sm"
-          >
-            Применить фильтры
-          </Button>
-          {activeFiltersCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAllFilters}
-              className="w-full"
-            >
-              Сбросить все
-            </Button>
-          )}
-        </div>
+        {/* Active Filters Summary */}
+        {activeFiltersCount > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Активные фильтры ({activeFiltersCount})
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-6 px-2 text-xs"
+                >
+                  Очистить все
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {localFilters.categories?.map((categoryId) => {
+                  const category = categories.find((c) => c.id === categoryId);
+                  return category ? (
+                    <Badge
+                      key={categoryId}
+                      variant="secondary"
+                      className="text-xs cursor-pointer"
+                      onClick={() => handleCategoryChange(categoryId, false)}
+                    >
+                      {category.name}
+                      <X className="h-3 w-3 ml-1" />
+                    </Badge>
+                  ) : null;
+                })}
+
+                {localFilters.brands?.map((brandId) => {
+                  const brand = brands.find((b) => b.id === brandId);
+                  return brand ? (
+                    <Badge
+                      key={brandId}
+                      variant="secondary"
+                      className="text-xs cursor-pointer"
+                      onClick={() => handleBrandChange(brandId, false)}
+                    >
+                      {brand.name}
+                      <X className="h-3 w-3 ml-1" />
+                    </Badge>
+                  ) : null;
+                })}
+
+                {localFilters.collections?.map((collectionId) => {
+                  const collection = collections.find(
+                    (c) => c.id === collectionId,
+                  );
+                  return collection ? (
+                    <Badge
+                      key={collectionId}
+                      variant="secondary"
+                      className="text-xs cursor-pointer"
+                      onClick={() =>
+                        handleCollectionChange(collectionId, false)
+                      }
+                    >
+                      {collection.name}
+                      <X className="h-3 w-3 ml-1" />
+                    </Badge>
+                  ) : null;
+                })}
+
+                {localFilters.inStockOnly && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs cursor-pointer"
+                    onClick={() => updateFilters({ inStockOnly: false })}
+                  >
+                    В наличии
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                )}
+
+                {localFilters.featured && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs cursor-pointer"
+                    onClick={() => updateFilters({ featured: false })}
+                  >
+                    Рекомендуемые
+                    <X className="h-3 w-3 ml-1" />
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

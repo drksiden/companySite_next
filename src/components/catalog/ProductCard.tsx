@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -11,246 +12,452 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import {
+  Heart,
+  ShoppingCart,
+  Star,
+  Eye,
+  Share2,
+  Zap,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchProductsResult } from "@/types/catalog";
 
 interface ProductCardProps {
   product: SearchProductsResult;
-  variant?: "grid" | "list";
+  variant?: "grid" | "list" | "compact";
   showQuickView?: boolean;
   showWishlist?: boolean;
+  showShare?: boolean;
   className?: string;
+  priority?: boolean;
+  onQuickView?: (product: SearchProductsResult) => void;
+  onAddToWishlist?: (product: SearchProductsResult) => void;
+  onAddToCart?: (product: SearchProductsResult) => void;
 }
 
 export function ProductCard({
   product,
   variant = "grid",
-  showQuickView = false,
-  showWishlist = false,
+  showQuickView = true,
+  showWishlist = true,
+  showShare = false,
   className,
+  priority = false,
+  onQuickView,
+  onAddToWishlist,
+  onAddToCart,
 }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
 
-  const formatPrice = (price: number) => {
-    return `${price.toLocaleString("ru-RU")} ₸`;
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsInWishlist(!isInWishlist);
+    onAddToWishlist?.(product);
   };
 
-  const discountPercentage =
-    product.is_on_sale && product.base_price && product.sale_price
-      ? Math.round(
-          ((product.base_price - product.sale_price) / product.base_price) *
-            100,
-        )
-      : 0;
+  const handleCartClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onAddToCart?.(product);
+  };
 
-  const isInStock = product.inventory_quantity > 0;
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onQuickView?.(product);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const isInStock = (product.inventory_quantity || 0) > 0;
+  const hasDiscount =
+    product.is_on_sale && (product.discount_percentage || 0) > 0;
+  const isNew =
+    product.created_at &&
+    new Date(product.created_at) >
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   if (variant === "list") {
     return (
-      <Card
-        className={cn(
-          "flex flex-row overflow-hidden transition-shadow hover:shadow-lg",
-          className,
-        )}
-      >
-        <div className="relative w-48 h-32 shrink-0">
-          {product.thumbnail && !imageError ? (
-            <Image
-              src={product.thumbnail}
-              alt={product.name}
-              fill
-              className="object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <span className="text-muted-foreground text-sm">Нет фото</span>
-            </div>
+      <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
+        <Card
+          className={cn(
+            "group relative overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-300",
+            !isInStock && "opacity-75",
+            className,
           )}
-          {product.is_on_sale && discountPercentage > 0 && (
-            <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-              -{discountPercentage}%
-            </Badge>
-          )}
-          {product.is_featured && (
-            <Badge className="absolute top-2 right-2 bg-yellow-500 text-white">
-              <Star className="w-3 h-3 mr-1" />
-              ТОП
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex-1 p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between mb-2">
-              <Link
-                href={`/product/${product.slug}`}
-                className="hover:underline"
-              >
-                <h3 className="text-lg font-semibold line-clamp-2">
-                  {product.name}
-                </h3>
-              </Link>
-              {showWishlist && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsWishlisted(!isWishlisted)}
-                  className="shrink-0 ml-2"
-                >
-                  <Heart
-                    className={cn(
-                      "w-4 h-4",
-                      isWishlisted && "fill-red-500 text-red-500",
-                    )}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <div className="flex flex-col sm:flex-row">
+            {/* Image Section */}
+            <div className="relative w-full sm:w-48 h-48 sm:h-32 bg-gray-50 flex-shrink-0">
+              <Link href={`/product/${product.slug}`}>
+                {!imageError && product.thumbnail ? (
+                  <Image
+                    src={product.thumbnail}
+                    alt={product.name}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    onError={handleImageError}
+                    priority={priority}
                   />
-                </Button>
-              )}
-            </div>
-
-            {product.brand && (
-              <Badge variant="secondary" className="mb-2">
-                {product.brand.name}
-              </Badge>
-            )}
-
-            {product.short_description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                {product.short_description}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                {product.is_on_sale && product.base_price && (
-                  <span className="text-sm text-muted-foreground line-through">
-                    {formatPrice(product.base_price)}
-                  </span>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <div className="text-gray-400 text-xs">Нет изображения</div>
+                  </div>
                 )}
-                <span className="text-xl font-bold text-primary">
-                  {formatPrice(product.final_price || product.base_price)}
-                </span>
+              </Link>
+
+              {/* Badges */}
+              <div className="absolute top-2 left-2 flex flex-col gap-1">
+                {hasDiscount && (
+                  <Badge variant="destructive" className="text-xs">
+                    -{product.discount_percentage}%
+                  </Badge>
+                )}
+                {isNew && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-blue-100 text-blue-800"
+                  >
+                    Новинка
+                  </Badge>
+                )}
+                {product.is_featured && (
+                  <Badge
+                    variant="default"
+                    className="text-xs bg-yellow-100 text-yellow-800"
+                  >
+                    Хит
+                  </Badge>
+                )}
               </div>
-              {!isInStock && (
-                <Badge variant="destructive" className="w-fit mt-1">
-                  Нет в наличии
-                </Badge>
+
+              {/* Quick Actions */}
+              {isHovered && (
+                <div className="absolute top-2 right-2 flex flex-col gap-1">
+                  {showWishlist && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                      onClick={handleWishlistClick}
+                    >
+                      <Heart
+                        className={cn(
+                          "h-4 w-4",
+                          isInWishlist
+                            ? "fill-red-500 text-red-500"
+                            : "text-gray-600",
+                        )}
+                      />
+                    </Button>
+                  )}
+                  {showQuickView && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                      onClick={handleQuickView}
+                    >
+                      <Eye className="h-4 w-4 text-gray-600" />
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button size="sm" disabled={!isInStock} className="shrink-0">
-                <ShoppingCart className="w-4 h-4 mr-1" />
-                {isInStock ? "В корзину" : "Нет в наличии"}
-              </Button>
+            {/* Content Section */}
+            <div className="flex-1 p-4">
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex-1">
+                  <Link href={`/product/${product.slug}`}>
+                    <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
+                      {product.name}
+                    </h3>
+                  </Link>
+
+                  {product.brand_name && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {product.brand_name}
+                    </p>
+                  )}
+
+                  {product.short_description && (
+                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                      {product.short_description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      {hasDiscount && product.base_price && (
+                        <span className="text-sm text-gray-500 line-through">
+                          {product.base_price.toLocaleString("ru-RU")} ₸
+                        </span>
+                      )}
+                      <span className="text-lg font-bold text-gray-900">
+                        {product.formatted_price ||
+                          `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      {isInStock ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-green-100 text-green-800"
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />В наличии
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-red-100 text-red-800"
+                        >
+                          <Clock className="h-3 w-3 mr-1" />
+                          Нет в наличии
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleCartClick}
+                    disabled={!isInStock}
+                    size="sm"
+                    className="shrink-0"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />В корзину
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </motion.div>
     );
   }
 
+  // Grid variant (default)
   return (
-    <Card
-      className={cn(
-        "group relative overflow-hidden transition-shadow hover:shadow-lg",
-        className,
-      )}
-    >
-      <CardHeader className="p-0">
-        <div className="relative aspect-square w-full overflow-hidden">
-          {product.thumbnail && !imageError ? (
-            <Image
-              src={product.thumbnail}
-              alt={product.name}
-              fill
-              className="object-cover transition-transform group-hover:scale-105"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <span className="text-muted-foreground">Нет фото</span>
+    <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+      <Card
+        className={cn(
+          "group relative overflow-hidden bg-white shadow-sm hover:shadow-lg transition-all duration-300",
+          !isInStock && "opacity-75",
+          variant === "compact" && "max-w-xs",
+          className,
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Image Section */}
+        <div className="relative aspect-square bg-gray-50 overflow-hidden">
+          <Link href={`/product/${product.slug}`}>
+            {!imageError && product.thumbnail ? (
+              <Image
+                src={product.thumbnail}
+                alt={product.name}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={handleImageError}
+                priority={priority}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <div className="text-gray-400 text-sm">Нет изображения</div>
+              </div>
+            )}
+          </Link>
+
+          {/* Badges */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {hasDiscount && (
+              <Badge variant="destructive" className="text-xs font-bold">
+                -{product.discount_percentage}%
+              </Badge>
+            )}
+            {isNew && (
+              <Badge
+                variant="secondary"
+                className="text-xs bg-blue-100 text-blue-800"
+              >
+                Новинка
+              </Badge>
+            )}
+            {product.is_featured && (
+              <Badge
+                variant="default"
+                className="text-xs bg-yellow-100 text-yellow-800"
+              >
+                <Zap className="h-3 w-3 mr-1" />
+                Хит
+              </Badge>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute top-3 right-3 flex flex-col gap-2"
+              >
+                {showWishlist && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    onClick={handleWishlistClick}
+                  >
+                    <Heart
+                      className={cn(
+                        "h-4 w-4",
+                        isInWishlist
+                          ? "fill-red-500 text-red-500"
+                          : "text-gray-600",
+                      )}
+                    />
+                  </Button>
+                )}
+                {showQuickView && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    onClick={handleQuickView}
+                  >
+                    <Eye className="h-4 w-4 text-gray-600" />
+                  </Button>
+                )}
+                {showShare && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                  >
+                    <Share2 className="h-4 w-4 text-gray-600" />
+                  </Button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Stock Status Overlay */}
+          {!isInStock && (
+            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+              <Badge variant="secondary" className="bg-white/90 text-gray-800">
+                Нет в наличии
+              </Badge>
             </div>
           )}
-
-          {product.is_on_sale && discountPercentage > 0 && (
-            <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-              -{discountPercentage}%
-            </Badge>
-          )}
-
-          {product.is_featured && (
-            <Badge className="absolute top-2 right-2 bg-yellow-500 text-white">
-              <Star className="w-3 h-3 mr-1" />
-              ТОП
-            </Badge>
-          )}
-
-          {showWishlist && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsWishlisted(!isWishlisted)}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Heart
-                className={cn(
-                  "w-4 h-4",
-                  isWishlisted && "fill-red-500 text-red-500",
-                )}
-              />
-            </Button>
-          )}
         </div>
-      </CardHeader>
 
-      <CardContent className="p-4">
-        <Link href={`/product/${product.slug}`} className="hover:underline">
-          <h3 className="font-semibold line-clamp-2 mb-2">{product.name}</h3>
-        </Link>
+        {/* Content */}
+        <CardHeader className="pb-2">
+          <div className="space-y-1">
+            <Link href={`/product/${product.slug}`}>
+              <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2 text-sm leading-tight">
+                {product.name}
+              </h3>
+            </Link>
 
-        {product.brand && (
-          <Badge variant="secondary" className="mb-2">
-            {product.brand.name}
-          </Badge>
-        )}
+            {product.brand_name && (
+              <p className="text-xs text-gray-500">{product.brand_name}</p>
+            )}
+          </div>
+        </CardHeader>
 
-        {product.short_description && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-            {product.short_description}
-          </p>
-        )}
+        <CardContent className="pt-0 pb-2">
+          {product.short_description && variant !== "compact" && (
+            <p className="text-xs text-gray-600 line-clamp-2 mb-3">
+              {product.short_description}
+            </p>
+          )}
 
-        <div className="flex flex-col gap-2">
+          {/* Price */}
           <div className="flex items-center gap-2">
-            {product.is_on_sale && product.base_price && (
-              <span className="text-sm text-muted-foreground line-through">
-                {formatPrice(product.base_price)}
+            {hasDiscount && product.base_price && (
+              <span className="text-sm text-gray-500 line-through">
+                {product.base_price.toLocaleString("ru-RU")} ₸
               </span>
             )}
-            <span className="text-lg font-bold text-primary">
-              {formatPrice(product.final_price || product.base_price)}
+            <span className="text-lg font-bold text-gray-900">
+              {product.formatted_price ||
+                `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`}
             </span>
           </div>
 
-          {!isInStock && (
-            <Badge variant="destructive" className="w-fit">
-              Нет в наличии
-            </Badge>
-          )}
-        </div>
-      </CardContent>
+          {/* Stock Status */}
+          <div className="flex items-center gap-2 mt-2">
+            {isInStock ? (
+              <Badge
+                variant="secondary"
+                className="text-xs bg-green-100 text-green-800"
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />В наличии
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="text-xs bg-red-100 text-red-800"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Под заказ
+              </Badge>
+            )}
+          </div>
+        </CardContent>
 
-      <CardFooter className="p-4 pt-0">
-        <Button className="w-full" disabled={!isInStock} size="sm">
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          {isInStock ? "В корзину" : "Нет в наличии"}
-        </Button>
-      </CardFooter>
-    </Card>
+        <CardFooter className="pt-0">
+          <div className="flex items-center gap-2 w-full">
+            <Button
+              onClick={handleCartClick}
+              disabled={!isInStock}
+              size="sm"
+              className="flex-1"
+            >
+              <ShoppingCart className="h-4 w-4 mr-2" />В корзину
+            </Button>
+          </div>
+        </CardFooter>
+
+        {/* Quick View Button for Mobile */}
+        {showQuickView && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: isHovered ? 1 : 0, y: isHovered ? 0 : 10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-4 right-4 sm:hidden"
+          >
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+              onClick={handleQuickView}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          </motion.div>
+        )}
+      </Card>
+    </motion.div>
   );
 }

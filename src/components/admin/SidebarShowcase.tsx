@@ -257,12 +257,8 @@ export function SidebarShowcase() {
                     >
                       <div className="h-full flex">
                         <Sidebar
-                          isOpen={sidebarOpen}
-                          isCollapsed={sidebarCollapsed}
-                          onToggle={() => setSidebarOpen(!sidebarOpen)}
-                          onCollapse={() =>
-                            setSidebarCollapsed(!sidebarCollapsed)
-                          }
+                          sidebarOpen={sidebarOpen}
+                          setSidebarOpen={setSidebarOpen}
                         />
                         <div className="flex-1 p-6 bg-muted/10">
                           <div className="space-y-4">

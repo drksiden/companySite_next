@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { key: string } }
+  { params }: { params: Promise<{ key: string }> },
 ) {
   try {
-    const { key } = params;
+    const { key } = await params;
 
     if (!key) {
       return NextResponse.json(
         { error: "File key is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -19,10 +19,7 @@ export async function GET(
 
     // Проверяем, что это безопасный путь
     if (decodedKey.includes("..") || decodedKey.startsWith("/")) {
-      return NextResponse.json(
-        { error: "Invalid file path" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
 
     // Формируем URL для R2/CDN
@@ -30,12 +27,11 @@ export async function GET(
 
     // Перенаправляем на CDN URL
     return NextResponse.redirect(fileUrl, 302);
-
   } catch (error) {
     console.error("Error serving file:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

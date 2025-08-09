@@ -1,51 +1,61 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Flame, Zap, Cpu, Video, Wrench, ClipboardList } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Shield,
+  Flame,
+  Zap,
+  Cpu,
+  Video,
+  Wrench,
+  ClipboardList,
+} from "lucide-react";
 
 const services = [
   {
     id: "security-alarm",
     title: "Охранная сигнализация",
-    description: "Системы для защиты объектов с датчиками движения и интеграцией.",
-    icon: Shield,  // Add an icon here
+    description:
+      "Системы для защиты объектов с датчиками движения и интеграцией.",
+    icon: Shield, // Add an icon here
   },
   {
     id: "fire-alarm",
     title: "Пожарная сигнализация",
     description: "Датчики дыма и тепла для раннего обнаружения пожаров.",
-    icon: Flame,  // Add an icon here
+    icon: Flame, // Add an icon here
   },
   {
     id: "fire-equipment",
     title: "Оборудование для пожаротушения",
     description: "Спринклеры, газовые системы и огнетушители.",
-    icon: Zap,  // Add an icon here
+    icon: Zap, // Add an icon here
   },
   {
     id: "automation-electronics",
     title: "Электроника для автоматизации",
     description: "Контроллеры и реле для умных систем.",
-    icon: Cpu,  // Add an icon here
+    icon: Cpu, // Add an icon here
   },
   {
     id: "video-surveillance",
     title: "Видеонаблюдение",
     description: "Камеры высокого разрешения с удалённым доступом.",
-    icon: Video,  // Add an icon here
+    icon: Video, // Add an icon here
   },
   {
     id: "installation",
     title: "Монтажные работы",
     description: "Установка систем от проекта до запуска.",
-    icon: Wrench,  // Add an icon here
+    icon: Wrench, // Add an icon here
   },
   {
     id: "design",
     title: "Проектирование технических проектов",
-    description: "Разработка комплексных решений для безопасности и автоматизации.",
-    icon: ClipboardList,  // Add an icon here
+    description:
+      "Разработка комплексных решений для безопасности и автоматизации.",
+    icon: ClipboardList, // Add an icon here
     subcategories: [
       "Проектирование систем сигнализации",
       "Проектирование видеонаблюдения",
@@ -54,13 +64,13 @@ const services = [
   },
 ];
 
-const cardVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 20 },
+const cardVariants: any = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
   visible: (i: number) => ({
     opacity: 1,
     scale: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.4, ease: 'easeOut' },
+    transition: { delay: i * 0.08, duration: 0.4, ease: "easeOut" },
   }),
 };
 

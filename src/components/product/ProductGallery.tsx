@@ -1,192 +1,232 @@
-// src/components/product/ProductGallery.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
-import useEmblaCarousel from 'embla-carousel-react';
-import type { EmblaOptionsType, UseEmblaCarouselType } from 'embla-carousel-react';
-import { ChevronLeft, ChevronRight, Expand, X as CloseIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
-import { Button } from '../ui/button';
-
-// ProductImageType removed as images prop is now string[]
+import { useState } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ChevronLeft, ChevronRight, ZoomIn, X, Package } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ProductGalleryProps {
-  images: string[]; // Changed to string[]
-  title: string;
+  images: string[];
+  productName: string;
+  className?: string;
 }
 
-const ProductGallery: React.FC<ProductGalleryProps> = ({ images, title }) => {
-  const options: EmblaOptionsType = { 
-    loop: images.length > 1, 
-    align: 'start' 
-  };
-  
-  const [emblaRef, emblaApi] = useEmblaCarousel(options); 
-  const [emblaThumbsRef, emblaThumbsApi] = useEmblaCarousel({
-    containScroll: 'keepSnaps',
-    dragFree: true,
-    align: 'start',
-  });
+export function ProductGallery({
+  images,
+  productName,
+  className,
+}: ProductGalleryProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [imageError, setImageError] = useState<Record<number, boolean>>({});
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalImageIndex, setModalImageIndex] = useState(0);
+  const hasImages = images.length > 0;
 
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
-
-  const onThumbClick = useCallback(
-    (index: number) => {
-      if (!emblaApi || !emblaThumbsApi) return;
-      emblaApi.scrollTo(index);
-    },
-    [emblaApi, emblaThumbsApi]
-  );
-
-  const onSelect = useCallback(() => {
-    if (!emblaApi || !emblaThumbsApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-    if (emblaThumbsApi.scrollTo) { 
-        emblaThumbsApi.scrollTo(emblaApi.selectedScrollSnap());
-    }
-  }, [emblaApi, emblaThumbsApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect(); 
-    emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', onSelect); 
-    return () => {
-      if (emblaApi && emblaApi.off) { 
-        emblaApi.off('select', onSelect);
-        emblaApi.off('reInit', onSelect);
-      }
-    };
-  }, [emblaApi, onSelect]);
-
-  const openModal = (index: number) => {
-    setModalImageIndex(index);
-    setIsModalOpen(true);
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
-  if (!images || images.length === 0) {
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const handleImageError = (index: number) => {
+    setImageError((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const handleThumbnailClick = (index: number) => {
+    setCurrentImageIndex(index);
+  };
+
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  if (!hasImages) {
     return (
-      <div className="aspect-square w-full bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-        Нет изображений
+      <div
+        className={cn(
+          "relative aspect-square bg-gray-50 rounded-lg flex items-center justify-center",
+          className,
+        )}
+      >
+        <div className="text-center">
+          <Package className="h-16 w-16 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm">Нет изображения</p>
+        </div>
       </div>
     );
   }
 
+  const currentImage = images[currentImageIndex];
+  const hasError = imageError[currentImageIndex];
+
   return (
-    <div className="relative w-full">
-      {/* Main Carousel */}
-      <div className="overflow-hidden rounded-lg border bg-card" ref={emblaRef}>
-        <div className="flex">
-          {images.map((imageString, index) => ( // image is now imageString
-            <div
-              className="relative aspect-square min-w-0 flex-[0_0_100%] cursor-pointer group"
-              key={`gallery-main-${imageString}-${index}`} // Updated key
-              onClick={() => openModal(index)}
-            >
-              <Image
-                src={imageString} // Use imageString directly
-                alt={`${title} - изображение ${index + 1}`}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
-                className="object-contain"
-                priority={index === 0}
-              />
-              <div className="absolute bottom-3 right-3 p-2 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <Expand size={20} />
-              </div>
+    <div className={cn("space-y-4", className)}>
+      {/* Main Image */}
+      <div className="relative aspect-square bg-gray-50 rounded-lg overflow-hidden group">
+        {!hasError ? (
+          <Image
+            src={currentImage}
+            alt={`${productName} - изображение ${currentImageIndex + 1}`}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={() => handleImageError(currentImageIndex)}
+            priority={currentImageIndex === 0}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center">
+              <Package className="h-16 w-16 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">Ошибка загрузки</p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        {/* Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={prevImage}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={nextImage}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+
+        {/* Zoom Button */}
+        {!hasError && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={openFullscreen}
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Image Counter */}
+        {images.length > 1 && (
+          <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 text-white text-xs rounded">
+            {currentImageIndex + 1} / {images.length}
+          </div>
+        )}
       </div>
 
+      {/* Thumbnails */}
       {images.length > 1 && (
-        <>
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/70 hover:bg-background text-foreground shadow-md"
-            onClick={scrollPrev}
-            aria-label="Предыдущее изображение"
-            disabled={!emblaApi?.canScrollPrev()}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/70 hover:bg-background text-foreground shadow-md"
-            onClick={scrollNext}
-            aria-label="Следующее изображение"
-            disabled={!emblaApi?.canScrollNext()}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </>
-      )}
-
-      {/* Thumbnails Carousel */}
-      {images.length > 1 && (
-        <div className="mt-4 overflow-hidden" ref={emblaThumbsRef}>
-          <div className="flex gap-3"> 
-            {images.map((imageString, index) => ( // image is now imageString
-              <button
-                key={`gallery-thumb-${imageString}-${index}`} // Updated key
-                onClick={() => onThumbClick(index)}
-                className={cn(
-                  'relative aspect-square h-16 w-16 sm:h-20 sm:w-20 rounded-md overflow-hidden cursor-pointer flex-[0_0_auto] transition-opacity duration-200',
-                  index === selectedIndex ? ' opacity-100' : 'opacity-60 hover:opacity-100'
-                )}
-                aria-label={`Перейти к изображению ${index + 1}`}
-              >
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {images.map((image, index) => (
+            <button
+              key={index}
+              onClick={() => handleThumbnailClick(index)}
+              className={cn(
+                "relative w-20 h-20 bg-gray-50 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors",
+                index === currentImageIndex
+                  ? "border-blue-500"
+                  : "border-transparent hover:border-gray-300",
+              )}
+            >
+              {!imageError[index] ? (
                 <Image
-                  src={imageString} // Use imageString directly
-                  alt={`${title} - миниатюра ${index + 1}`}
+                  src={image}
+                  alt={`${productName} - превью ${index + 1}`}
                   fill
-                  sizes="80px" 
                   className="object-cover"
+                  onError={() => handleImageError(index)}
                 />
-              </button>
-            ))}
-          </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package className="h-6 w-6 text-gray-400" />
+                </div>
+              )}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Modal for Zoomed Image */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[95vh] p-2 sm:p-4 flex items-center justify-center bg-transparent border-0 shadow-none">
-          <div className="relative w-full h-auto max-h-[88vh] aspect-auto z-10">
-             {images[modalImageIndex] && ( // Check if imageString exists at index
-              <Image
-                src={images[modalImageIndex]} // Use imageString directly
-                alt={`${title} - увеличенное изображение ${modalImageIndex + 1}`}
-                width={1200} 
-                height={1200} 
-                sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1000px"
-                className="object-contain rounded-lg max-w-full max-h-[88vh]"
-                style={{ width: 'auto', height: 'auto' }} 
-              />
+      {/* Fullscreen Modal */}
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/90">
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 z-10 h-10 w-10 p-0 text-white hover:bg-white/20"
+              onClick={closeFullscreen}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+
+            {/* Main Image */}
+            <div className="relative max-w-full max-h-full">
+              {!hasError ? (
+                <Image
+                  src={currentImage}
+                  alt={`${productName} - изображение ${currentImageIndex + 1}`}
+                  width={1200}
+                  height={1200}
+                  className="max-w-full max-h-full object-contain"
+                  onError={() => handleImageError(currentImageIndex)}
+                />
+              ) : (
+                <div className="w-96 h-96 flex items-center justify-center text-white">
+                  <div className="text-center">
+                    <Package className="h-24 w-24 mx-auto mb-4 opacity-50" />
+                    <p>Ошибка загрузки изображения</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation */}
+            {images.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 h-12 w-12 p-0 text-white hover:bg-white/20"
+                  onClick={prevImage}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 h-12 w-12 p-0 text-white hover:bg-white/20"
+                  onClick={nextImage}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+
+                {/* Image Counter */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-black/50 text-white text-sm rounded">
+                  {currentImageIndex + 1} / {images.length}
+                </div>
+              </>
             )}
           </div>
-          <DialogClose className="absolute right-4 top-4 sm:right-6 sm:top-6 rounded-full p-1.5 bg-background/60 hover:bg-background/80 text-foreground opacity-80 hover:opacity-100 transition-all z-20">
-            <CloseIcon className="h-5 w-5" />
-            <span className="sr-only">Закрыть</span>
-          </DialogClose>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default ProductGallery;
+}

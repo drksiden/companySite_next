@@ -132,7 +132,7 @@ export const productsApi = {
       if (error) {
         console.error("Supabase error in getProducts:", error);
         return {
-          data: null,
+          data: undefined,
           success: false,
           error: error.message || "Failed to fetch products",
         };
@@ -173,13 +173,10 @@ export const productsApi = {
           hasPrev: page > 1,
         },
         filters: {
-          categories: categories || [],
-          brands: brands || [],
-          collections: collections || [],
-          priceRange,
-          inStockOnly: inStockOnly || false,
-          featured: featured || false,
-          search,
+          categories: [],
+          brands: [],
+          priceRange: priceRange || { min: 0, max: 0 },
+          attributes: [],
         },
       };
 
@@ -190,7 +187,7 @@ export const productsApi = {
     } catch (error) {
       console.error("API error in getProducts:", error);
       return {
-        data: null,
+        data: undefined,
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
