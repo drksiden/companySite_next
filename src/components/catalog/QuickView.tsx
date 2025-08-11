@@ -93,7 +93,7 @@ export function QuickView({
 
         <div className="grid grid-cols-1 md:grid-cols-2 max-h-[90vh]">
           {/* Image Section */}
-          <div className="relative bg-gray-50 aspect-square md:aspect-auto">
+          <div className="relative bg-muted aspect-square md:aspect-auto">
             {images.length > 0 && !imageError ? (
               <>
                 <Image
@@ -143,10 +143,10 @@ export function QuickView({
                 )}
               </>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+              <div className="w-full h-full flex items-center justify-center bg-muted">
                 <div className="text-center">
-                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Нет изображения</p>
+                  <Package className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">Нет изображения</p>
                 </div>
               </div>
             )}
@@ -193,16 +193,16 @@ export function QuickView({
               <div className="space-y-4">
                 {/* Header */}
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 line-clamp-2">
+                  <h2 className="text-xl font-bold text-foreground line-clamp-2">
                     {product.name}
                   </h2>
                   {product.brand_name && (
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {product.brand_name}
                     </p>
                   )}
                   {product.sku && (
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Артикул: {product.sku}
                     </p>
                   )}
@@ -212,11 +212,11 @@ export function QuickView({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     {hasDiscount && product.base_price && (
-                      <span className="text-lg text-gray-500 line-through">
+                      <span className="text-lg text-muted-foreground line-through">
                         {product.base_price.toLocaleString("ru-RU")} ₸
                       </span>
                     )}
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-2xl font-bold text-foreground">
                       {product.formatted_price ||
                         `${(product.final_price || product.base_price || 0).toLocaleString("ru-RU")} ₸`}
                     </span>
@@ -256,8 +256,10 @@ export function QuickView({
                 {/* Description */}
                 {product.short_description && (
                   <div>
-                    <h3 className="font-medium text-gray-900 mb-2">Описание</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                    <h3 className="font-medium text-foreground mb-2">
+                      Описание
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       {product.short_description}
                     </p>
                   </div>
@@ -267,7 +269,7 @@ export function QuickView({
                 {product.specifications &&
                   Object.keys(product.specifications).length > 0 && (
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-2">
+                      <h3 className="font-medium text-foreground mb-2">
                         Характеристики
                       </h3>
                       <div className="space-y-1">
@@ -278,8 +280,10 @@ export function QuickView({
                               key={key}
                               className="flex justify-between text-sm"
                             >
-                              <span className="text-gray-600">{key}:</span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-muted-foreground">
+                                {key}:
+                              </span>
+                              <span className="text-foreground font-medium">
                                 {String(value)}
                               </span>
                             </div>
@@ -291,7 +295,7 @@ export function QuickView({
                 {/* Category */}
                 {product.category_name && (
                   <div>
-                    <h3 className="font-medium text-gray-900 mb-1">
+                    <h3 className="font-medium text-foreground mb-1">
                       Категория
                     </h3>
                     <Badge variant="outline">{product.category_name}</Badge>
@@ -329,7 +333,7 @@ export function QuickView({
                       "h-4 w-4 mr-2",
                       isInWishlist
                         ? "fill-red-500 text-red-500"
-                        : "text-gray-600",
+                        : "text-muted-foreground",
                     )}
                   />
                   {isInWishlist ? "В избранном" : "В избранное"}
@@ -353,7 +357,7 @@ export function QuickView({
               </Button>
 
               {/* Additional Info */}
-              <div className="text-xs text-gray-500 text-center">
+              <div className="text-xs text-muted-foreground text-center">
                 {isInStock
                   ? "Быстрая доставка • Гарантия качества"
                   : "Уведомим о поступлении товара"}

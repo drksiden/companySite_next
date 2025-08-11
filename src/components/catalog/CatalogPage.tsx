@@ -126,7 +126,8 @@ export function CatalogPage() {
 
   const [filters, setFilters] = useState<Filters>({
     search: searchParams.get("search") || "",
-    categories: searchParams.get("categories")?.split(",").filter(Boolean) || [],
+    categories:
+      searchParams.get("categories")?.split(",").filter(Boolean) || [],
     brands: searchParams.get("brands")?.split(",").filter(Boolean) || [],
     minPrice: Number(searchParams.get("minPrice")) || 0,
     maxPrice: Number(searchParams.get("maxPrice")) || 0,
@@ -154,8 +155,10 @@ export function CatalogPage() {
       if (filters.brands.length > 0) {
         params.append("brands", filters.brands.join(","));
       }
-      if (filters.minPrice > 0) params.append("minPrice", filters.minPrice.toString());
-      if (filters.maxPrice > 0) params.append("maxPrice", filters.maxPrice.toString());
+      if (filters.minPrice > 0)
+        params.append("minPrice", filters.minPrice.toString());
+      if (filters.maxPrice > 0)
+        params.append("maxPrice", filters.maxPrice.toString());
       if (filters.inStockOnly) params.append("inStockOnly", "true");
       if (filters.featured) params.append("featured", "true");
 
@@ -218,10 +221,14 @@ export function CatalogPage() {
     const params = new URLSearchParams();
 
     if (filters.search) params.set("search", filters.search);
-    if (filters.categories.length > 0) params.set("categories", filters.categories.join(","));
-    if (filters.brands.length > 0) params.set("brands", filters.brands.join(","));
-    if (filters.minPrice > 0) params.set("minPrice", filters.minPrice.toString());
-    if (filters.maxPrice > 0) params.set("maxPrice", filters.maxPrice.toString());
+    if (filters.categories.length > 0)
+      params.set("categories", filters.categories.join(","));
+    if (filters.brands.length > 0)
+      params.set("brands", filters.brands.join(","));
+    if (filters.minPrice > 0)
+      params.set("minPrice", filters.minPrice.toString());
+    if (filters.maxPrice > 0)
+      params.set("maxPrice", filters.maxPrice.toString());
     if (filters.inStockOnly) params.set("inStockOnly", "true");
     if (filters.featured) params.set("featured", "true");
     if (filters.sortBy !== "name_asc") params.set("sortBy", filters.sortBy);
@@ -233,12 +240,12 @@ export function CatalogPage() {
 
   // Обработчики изменения фильтров
   const handleFilterChange = useCallback((newFilters: Partial<Filters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
-    setPagination(prev => ({ ...prev, page }));
+    setPagination((prev) => ({ ...prev, page }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -253,12 +260,15 @@ export function CatalogPage() {
       featured: false,
       sortBy: "name_asc",
     });
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   }, []);
 
-  const handleSearch = useCallback((searchTerm: string) => {
-    handleFilterChange({ search: searchTerm });
-  }, [handleFilterChange]);
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      handleFilterChange({ search: searchTerm });
+    },
+    [handleFilterChange],
+  );
 
   // Получаем активные фильтры для отображения
   const activeFiltersCount =
@@ -288,7 +298,9 @@ export function CatalogPage() {
           <Input
             placeholder="Поиск товаров..."
             value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
             onKeyPress={(e) => {
               if (e.key === "Enter") {
                 handleSearch(filters.search);
@@ -313,7 +325,10 @@ export function CatalogPage() {
             )}
           </Button>
 
-          <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange({ sortBy: value })}>
+          <Select
+            value={filters.sortBy}
+            onValueChange={(value) => handleFilterChange({ sortBy: value })}
+          >
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -369,29 +384,43 @@ export function CatalogPage() {
               </Badge>
             )}
             {filters.categories.map((categoryId) => {
-              const category = categories.find(c => c.id === categoryId);
+              const category = categories.find((c) => c.id === categoryId);
               return category ? (
-                <Badge key={categoryId} variant="secondary" className="flex items-center gap-1">
+                <Badge
+                  key={categoryId}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
                   {category.name}
                   <X
                     className="h-3 w-3 cursor-pointer"
-                    onClick={() => handleFilterChange({
-                      categories: filters.categories.filter(id => id !== categoryId)
-                    })}
+                    onClick={() =>
+                      handleFilterChange({
+                        categories: filters.categories.filter(
+                          (id) => id !== categoryId,
+                        ),
+                      })
+                    }
                   />
                 </Badge>
               ) : null;
             })}
             {filters.brands.map((brandId) => {
-              const brand = brands.find(b => b.id === brandId);
+              const brand = brands.find((b) => b.id === brandId);
               return brand ? (
-                <Badge key={brandId} variant="secondary" className="flex items-center gap-1">
+                <Badge
+                  key={brandId}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
                   {brand.name}
                   <X
                     className="h-3 w-3 cursor-pointer"
-                    onClick={() => handleFilterChange({
-                      brands: filters.brands.filter(id => id !== brandId)
-                    })}
+                    onClick={() =>
+                      handleFilterChange({
+                        brands: filters.brands.filter((id) => id !== brandId),
+                      })
+                    }
                   />
                 </Badge>
               ) : null;
@@ -441,14 +470,19 @@ export function CatalogPage() {
                   <h3 className="font-medium mb-3">Категории</h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {categories.map((category) => (
-                      <label key={category.id} className="flex items-center gap-2 cursor-pointer">
+                      <label
+                        key={category.id}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <input
                           type="checkbox"
                           checked={filters.categories.includes(category.id)}
                           onChange={(e) => {
                             const newCategories = e.target.checked
                               ? [...filters.categories, category.id]
-                              : filters.categories.filter(id => id !== category.id);
+                              : filters.categories.filter(
+                                  (id) => id !== category.id,
+                                );
                             handleFilterChange({ categories: newCategories });
                           }}
                           className="rounded"
@@ -466,14 +500,17 @@ export function CatalogPage() {
                   <h3 className="font-medium mb-3">Бренды</h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {brands.map((brand) => (
-                      <label key={brand.id} className="flex items-center gap-2 cursor-pointer">
+                      <label
+                        key={brand.id}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <input
                           type="checkbox"
                           checked={filters.brands.includes(brand.id)}
                           onChange={(e) => {
                             const newBrands = e.target.checked
                               ? [...filters.brands, brand.id]
-                              : filters.brands.filter(id => id !== brand.id);
+                              : filters.brands.filter((id) => id !== brand.id);
                             handleFilterChange({ brands: newBrands });
                           }}
                           className="rounded"
@@ -492,13 +529,21 @@ export function CatalogPage() {
                       type="number"
                       placeholder="От"
                       value={filters.minPrice || ""}
-                      onChange={(e) => handleFilterChange({ minPrice: Number(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        handleFilterChange({
+                          minPrice: Number(e.target.value) || 0,
+                        })
+                      }
                     />
                     <Input
                       type="number"
                       placeholder="До"
                       value={filters.maxPrice || ""}
-                      onChange={(e) => handleFilterChange({ maxPrice: Number(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        handleFilterChange({
+                          maxPrice: Number(e.target.value) || 0,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -509,7 +554,9 @@ export function CatalogPage() {
                     <input
                       type="checkbox"
                       checked={filters.inStockOnly}
-                      onChange={(e) => handleFilterChange({ inStockOnly: e.target.checked })}
+                      onChange={(e) =>
+                        handleFilterChange({ inStockOnly: e.target.checked })
+                      }
                       className="rounded"
                     />
                     <span className="text-sm">Только в наличии</span>
@@ -519,7 +566,9 @@ export function CatalogPage() {
                     <input
                       type="checkbox"
                       checked={filters.featured}
-                      onChange={(e) => handleFilterChange({ featured: e.target.checked })}
+                      onChange={(e) =>
+                        handleFilterChange({ featured: e.target.checked })
+                      }
                       className="rounded"
                     />
                     <span className="text-sm">Рекомендуемые товары</span>
@@ -528,7 +577,11 @@ export function CatalogPage() {
 
                 {/* Кнопка очистки фильтров */}
                 {hasActiveFilters && (
-                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                    className="w-full"
+                  >
                     Очистить фильтры
                   </Button>
                 )}
@@ -542,11 +595,7 @@ export function CatalogPage() {
           {/* Результаты поиска */}
           <div className="flex items-center justify-between mb-6">
             <div className="text-sm text-muted-foreground">
-              {loading ? (
-                "Загрузка..."
-              ) : (
-                `Найдено ${pagination.total} товаров`
-              )}
+              {loading ? "Загрузка..." : `Найдено ${pagination.total} товаров`}
             </div>
           </div>
 
@@ -558,7 +607,9 @@ export function CatalogPage() {
             <Card className="py-12">
               <CardContent className="text-center">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Товары не найдены</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  Товары не найдены
+                </h3>
                 <p className="text-muted-foreground mb-4">
                   Попробуйте изменить параметры поиска или фильтры
                 </p>
@@ -572,16 +623,18 @@ export function CatalogPage() {
           ) : (
             <>
               {/* Список товаров */}
-              <div className={cn(
-                "gap-6 mb-8",
-                viewMode === "grid"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                  : "space-y-4"
-              )}>
+              <div
+                className={cn(
+                  "gap-6 mb-8",
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    : "space-y-4",
+                )}
+              >
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
-                    product={product}
+                    product={product as any}
                     variant={viewMode}
                     showWishlist={true}
                   />
@@ -600,29 +653,39 @@ export function CatalogPage() {
                   </Button>
 
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                      let pageNum;
-                      if (pagination.totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (pagination.page <= 3) {
-                        pageNum = i + 1;
-                      } else if (pagination.page >= pagination.totalPages - 2) {
-                        pageNum = pagination.totalPages - 4 + i;
-                      } else {
-                        pageNum = pagination.page - 2 + i;
-                      }
+                    {Array.from(
+                      { length: Math.min(pagination.totalPages, 5) },
+                      (_, i) => {
+                        let pageNum;
+                        if (pagination.totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (pagination.page <= 3) {
+                          pageNum = i + 1;
+                        } else if (
+                          pagination.page >=
+                          pagination.totalPages - 2
+                        ) {
+                          pageNum = pagination.totalPages - 4 + i;
+                        } else {
+                          pageNum = pagination.page - 2 + i;
+                        }
 
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={pageNum === pagination.page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={
+                              pageNum === pagination.page
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            onClick={() => handlePageChange(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      },
+                    )}
                   </div>
 
                   <Button
@@ -645,7 +708,7 @@ export function CatalogPage() {
           <h2 className="text-2xl font-bold mb-6">Популярные категории</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {categories
-              .filter(cat => cat.level === 0)
+              .filter((cat) => cat.level === 0)
               .slice(0, 6)
               .map((category) => (
                 <Link

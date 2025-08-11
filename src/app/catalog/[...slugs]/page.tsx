@@ -48,18 +48,24 @@ async function getCategoryData(handle: string): Promise<CategoryPageData> {
   let products: Product[] = [];
 
   try {
-    // Fetch current category by handle
+    // Fetch current category by slug
     const { data: categoryData, error: categoryError } = await supabase
       .from("categories")
       .select("*")
-      .eq("handle", handle)
+      .eq("slug", handle)
       .maybeSingle(); // Use maybeSingle to handle null without error
 
     if (categoryError) {
-      console.error(
-        `Error fetching category with handle "${handle}":`,
-        categoryError.message,
-      );
+      // Only log non-404 errors
+      if (
+        !categoryError.message.includes("no rows") &&
+        !categoryError.message.includes("does not exist")
+      ) {
+        console.error(
+          `Error fetching category with slug "${handle}":`,
+          categoryError.message,
+        );
+      }
       // Still return a structure that won't break the page, but currentCategory will be null
     }
     currentCategory = categoryData || null;
@@ -170,12 +176,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     lastResolvedBreadcrumb.handle !== currentCategoryHandle ||
     breadcrumbItems.slice(0, -1).some((b) => b.name === b.handle)
   ) {
-    console.warn(
-      "Invalid category path. Slugs:",
-      slugs.join("/"),
-      "Resolved breadcrumbs:",
-      breadcrumbItems.map((b) => b.handle).join("/"),
-    );
     notFound();
   }
 
@@ -184,9 +184,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   );
 
   if (!currentCategory) {
-    console.warn(
-      `Category data for handle "${currentCategoryHandle}" is null. Triggering 404.`,
-    );
     notFound();
   }
 

@@ -55,8 +55,8 @@ const productSchema = z.object({
   description: z.string().optional(),
   technical_description: z.string().optional(),
   category_id: z.string().min(1, "Выберите категорию"),
-  brand_id: z.string().optional(),
-  collection_id: z.string().optional(),
+  brand_id: z.string().optional().or(z.literal("no-brand")),
+  collection_id: z.string().optional().or(z.literal("no-collection")),
   base_price: z.coerce.number().min(0.01, "Цена должна быть больше 0"),
   sale_price: z.coerce.number().optional(),
   cost_price: z.coerce.number().optional(),
@@ -74,7 +74,7 @@ const productSchema = z.object({
     })
     .optional(),
   status: z
-    .enum(["draft", "published", "archived"])
+    .enum(["draft", "active", "archived", "out_of_stock"])
     .optional()
     .default("draft"),
   is_featured: z.boolean().optional().default(false),
@@ -153,21 +153,21 @@ export function ProductFormNew({
       description: "",
       technical_description: "",
       category_id: "",
-      brand_id: "",
-      collection_id: "",
+      brand_id: "no-brand",
+      collection_id: "no-collection",
       base_price: 0,
-      sale_price: undefined,
-      cost_price: undefined,
+      sale_price: 0,
+      cost_price: 0,
       currency_id: currencies.find((c) => c.code === "KZT")?.id || "",
       track_inventory: true,
       inventory_quantity: 0,
       min_stock_level: 0,
       allow_backorder: false,
-      weight: undefined,
+      weight: 0,
       dimensions: {
-        length: undefined,
-        width: undefined,
-        height: undefined,
+        length: 0,
+        width: 0,
+        height: 0,
       },
       status: "draft",
       is_featured: false,
@@ -184,7 +184,27 @@ export function ProductFormNew({
     if (initialData) {
       form.reset({
         ...initialData,
-        dimensions: initialData.dimensions || {},
+        dimensions: {
+          length: initialData.dimensions?.length || 0,
+          width: initialData.dimensions?.width || 0,
+          height: initialData.dimensions?.height || 0,
+        },
+        brand_id: initialData.brand_id || "no-brand",
+        collection_id: initialData.collection_id || "no-collection",
+        // Обрабатываем null значения для строковых полей
+        sku: initialData.sku || "",
+        barcode: initialData.barcode || "",
+        short_description: initialData.short_description || "",
+        description: initialData.description || "",
+        technical_description: initialData.technical_description || "",
+        meta_title: initialData.meta_title || "",
+        meta_description: initialData.meta_description || "",
+        meta_keywords: initialData.meta_keywords || "",
+        thumbnail: initialData.thumbnail || "",
+        // Обрабатываем null значения для числовых полей
+        weight: initialData.weight || 0,
+        sale_price: initialData.sale_price || 0,
+        cost_price: initialData.cost_price || 0,
       });
 
       setExistingImages(initialData.images || []);
@@ -263,10 +283,33 @@ export function ProductFormNew({
   };
 
   const handleSubmit: SubmitHandler<ProductFormData> = (data) => {
+    // Простая валидация
+    if (!data.name || data.name.trim().length === 0) {
+      form.setError("name", { message: "Название товара обязательно" });
+      return;
+    }
+    if (!data.category_id || data.category_id.trim().length === 0) {
+      form.setError("category_id", { message: "Выберите категорию" });
+      return;
+    }
+    if (!data.base_price || data.base_price <= 0) {
+      form.setError("base_price", { message: "Цена должна быть больше 0" });
+      return;
+    }
+
     const formData = new FormData();
 
+    // Обрабатываем специальные значения
+    const processedData = { ...data };
+    if (processedData.brand_id === "no-brand") {
+      processedData.brand_id = undefined;
+    }
+    if (processedData.collection_id === "no-collection") {
+      processedData.collection_id = undefined;
+    }
+
     // Добавляем все поля формы
-    Object.entries(data).forEach(([key, value]) => {
+    Object.entries(processedData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         if (key === "dimensions") {
           formData.append(key, JSON.stringify(value));
@@ -300,9 +343,11 @@ export function ProductFormNew({
       formData.append("documentFiles", file);
     });
 
-    // Добавляем существующие изображения и документы
-    formData.append("existingImages", JSON.stringify(existingImages));
-    formData.append("existingDocuments", JSON.stringify(existingDocuments));
+    // Добавляем существующие изображения и документы только при редактировании
+    if (initialData?.id) {
+      formData.append("existingImages", JSON.stringify(existingImages));
+      formData.append("existingDocuments", JSON.stringify(existingDocuments));
+    }
 
     onSubmit(formData);
   };
@@ -421,7 +466,7 @@ export function ProductFormNew({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Без бренда</SelectItem>
+                            <SelectItem value="no-brand">Без бренда</SelectItem>
                             {brands.map((brand) => (
                               <SelectItem key={brand.id} value={brand.id}>
                                 {brand.name}
@@ -450,7 +495,9 @@ export function ProductFormNew({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Без коллекции</SelectItem>
+                            <SelectItem value="no-collection">
+                              Без коллекции
+                            </SelectItem>
                             {collections.map((collection) => (
                               <SelectItem
                                 key={collection.id}
@@ -527,11 +574,12 @@ export function ProductFormNew({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="draft">Черновик</SelectItem>
-                            <SelectItem value="published">
-                              Опубликован
-                            </SelectItem>
+                            <SelectItem value="active">Активный</SelectItem>
                             <SelectItem value="archived">
                               Архивирован
+                            </SelectItem>
+                            <SelectItem value="out_of_stock">
+                              Нет в наличии
                             </SelectItem>
                           </SelectContent>
                         </Select>

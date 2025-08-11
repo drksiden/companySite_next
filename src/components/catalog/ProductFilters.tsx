@@ -233,7 +233,7 @@ export function ProductFilters({
                 step={1000}
                 className="w-full"
               />
-              <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+              <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
                 <span>{priceRange[0].toLocaleString("ru-RU")} ₸</span>
                 <span>{priceRange[1].toLocaleString("ru-RU")} ₸</span>
               </div>
@@ -272,7 +272,7 @@ export function ProductFilters({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Поиск категорий..."
                 value={searchTerms.category}
@@ -343,7 +343,7 @@ export function ProductFilters({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 pt-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Поиск брендов..."
                 value={searchTerms.brand}
@@ -413,7 +413,7 @@ export function ProductFilters({
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 pt-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Поиск коллекций..."
                     value={searchTerms.collection}

@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 interface OrderItem {
   product_id: string;
   quantity: number;
-  price: number;
+  unit_price: number;
   products: {
     id: string;
     name: string;
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           `
           product_id,
           quantity,
-          price,
+          unit_price,
           products!inner (
             id,
             name,
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
       orderItems?.forEach((item: OrderItem) => {
         const productId = item.product_id;
-        const revenue = item.quantity * item.price;
+        const revenue = item.quantity * item.unit_price;
         const product = item.products[0]; // Get first product from array
 
         if (productStats.has(productId)) {
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
           `
           product_id,
           quantity,
-          price,
+          unit_price,
           products!inner (
             id,
             name,
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 
       orderItems?.forEach((item: OrderItem) => {
         const productId = item.product_id;
-        const revenue = item.quantity * item.price;
+        const revenue = item.quantity * item.unit_price;
         const product = item.products[0]; // Get first product from array
 
         if (productStats.has(productId)) {

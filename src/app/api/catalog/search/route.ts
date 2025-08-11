@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         )
       `,
       )
-      .eq("status", "published")
+      .eq("status", "active")
       .or(
         `name.ilike.%${searchTerm}%,short_description.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`,
       )
@@ -143,5 +143,5 @@ export async function GET(req: NextRequest) {
 }
 
 function formatPrice(price: number, symbol: string = "₸"): string {
-  return `${price.toLocaleString("ru-RU")} ${symbol}`;
+  return `${price.toLocaleString("kk-KZ")} ${symbol}`;
 }

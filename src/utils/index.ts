@@ -1,10 +1,19 @@
-export const formatPrice = (amount?: number | null, currencyCode: string = 'KZT'): string => {
+export const formatPrice = (
+  amount?: number | null,
+  currencyCode: string = "KZT",
+): string => {
   if (amount == null) {
-    return 'Цена по запросу';
+    return "Цена по запросу";
   }
-  // Assuming 'amount' is already in the correct denomination
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
+
+  // Простое форматирование для тенге
+  if (currencyCode.toUpperCase() === "KZT") {
+    return `${amount.toLocaleString("kk-KZ")} ₸`;
+  }
+
+  // Для других валют используем стандартное форматирование
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
     currency: currencyCode.toUpperCase(),
   }).format(amount);
 };

@@ -68,7 +68,7 @@ export async function GET(
       `,
       )
       .eq("slug", slug)
-      .eq("status", "published")
+      .eq("status", "active")
       .single();
 
     if (error || !product) {
@@ -105,7 +105,9 @@ export async function GET(
         base_price,
         sale_price,
         thumbnail,
+        images,
         inventory_quantity,
+        track_inventory,
         is_featured,
         brands:brand_id(
           id,
@@ -120,7 +122,7 @@ export async function GET(
       `,
       )
       .eq("category_id", product.category_id)
-      .eq("status", "published")
+      .eq("status", "active")
       .neq("id", product.id)
       .limit(8)
       .order("is_featured", { ascending: false })
@@ -143,8 +145,27 @@ export async function GET(
             )
           : 0;
 
+        // Обработка изображений для связанных товаров
+        const relatedImages = (relatedProduct as any).images
+          ? (Array.isArray((relatedProduct as any).images)
+              ? (relatedProduct as any).images
+              : []
+            ).filter(
+              (img: any) => img && typeof img === "string" && img.trim() !== "",
+            )
+          : [];
+
+        const relatedThumbnail =
+          relatedProduct.thumbnail && relatedProduct.thumbnail.trim() !== ""
+            ? relatedProduct.thumbnail
+            : relatedImages.length > 0
+              ? relatedImages[0]
+              : null;
+
         return {
           ...relatedProduct,
+          thumbnail: relatedThumbnail,
+          images: relatedImages,
           final_price: relatedFinalPrice,
           is_on_sale: relatedIsOnSale,
           discount_percentage: relatedDiscountPercentage,
@@ -153,13 +174,30 @@ export async function GET(
             relatedProduct.currencies?.[0]?.symbol,
           ),
           brand_name: relatedProduct.brands?.[0]?.name,
+          track_inventory: relatedProduct.track_inventory || false,
         };
       },
     );
 
+    // Обработка изображений для основного товара
+    const productImages = product.images
+      ? (Array.isArray(product.images) ? product.images : []).filter(
+          (img: any) => img && typeof img === "string" && img.trim() !== "",
+        )
+      : [];
+
+    const productThumbnail =
+      product.thumbnail && product.thumbnail.trim() !== ""
+        ? product.thumbnail
+        : productImages.length > 0
+          ? productImages[0]
+          : null;
+
     // Обогащаем основной товар
     const enrichedProduct = {
       ...product,
+      thumbnail: productThumbnail,
+      images: productImages,
       final_price: finalPrice,
       is_on_sale: isOnSale,
       discount_percentage: discountPercentage,
@@ -167,6 +205,7 @@ export async function GET(
       brand_name: product.brands?.[0]?.name,
       category_name: product.categories?.[0]?.name,
       view_count: (product.view_count || 0) + 1,
+      track_inventory: product.track_inventory || false,
     };
 
     return NextResponse.json({
@@ -186,5 +225,5 @@ export async function GET(
 }
 
 function formatPrice(price: number, symbol: string = "₸"): string {
-  return `${price.toLocaleString("ru-RU")} ${symbol}`;
+  return `${price.toLocaleString("kk-KZ")} ${symbol}`;
 }

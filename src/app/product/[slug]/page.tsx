@@ -13,12 +13,10 @@ export async function generateMetadata({
 }: ProductPageProps): Promise<Metadata> {
   try {
     const { slug } = await params;
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/products/${slug}`,
-      {
-        cache: "no-store",
-      },
-    );
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const response = await fetch(`${baseUrl}/api/products/${slug}`, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
       return {
@@ -66,7 +64,6 @@ export async function generateMetadata({
       },
     };
   } catch (error) {
-    console.error("Error generating metadata:", error);
     return {
       title: "Товар не найден",
       description: "Запрашиваемый товар не найден",
@@ -75,14 +72,13 @@ export async function generateMetadata({
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug } = await params;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
   try {
-    const { slug } = await params;
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/products/${slug}`,
-      {
-        cache: "no-store",
-      },
-    );
+    const response = await fetch(`${baseUrl}/api/products/${slug}`, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
       notFound();
@@ -101,7 +97,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
       />
     );
   } catch (error) {
-    console.error("Error loading product:", error);
     notFound();
   }
 }

@@ -44,6 +44,7 @@ export const productsApi = {
           sale_price,
           thumbnail,
           inventory_quantity,
+          track_inventory,
           is_featured,
           status,
           created_at,
@@ -157,6 +158,7 @@ export const productsApi = {
           is_on_sale: isOnSale,
           discount_percentage: discountPercentage,
           formatted_price: `${finalPrice.toLocaleString("ru-RU")} ₸`,
+          track_inventory: product.track_inventory || false,
         };
       });
 

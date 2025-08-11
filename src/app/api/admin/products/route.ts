@@ -21,25 +21,25 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        categories (
+        categories:category_id (
           id,
           name,
           slug,
           path,
           level
         ),
-        brands (
+        brands:brand_id (
           id,
           name,
           slug,
           logo_url
         ),
-        collections (
+        collections:collection_id (
           id,
           name,
           slug
         ),
-        currencies (
+        currencies:currency_id (
           id,
           code,
           symbol,
@@ -149,16 +149,24 @@ export async function POST(req: NextRequest) {
     // --- Сборка данных для создания ---
     const insertData: { [key: string]: unknown } = {};
 
-    // Получаем валюту KZT по умолчанию
+    // Получаем базовую валюту по умолчанию
     const { data: defaultCurrency } = await supabase
       .from("currencies")
       .select("id")
-      .eq("code", "KZT")
+      .eq("is_base", true)
       .single();
 
     for (const [key, value] of formData.entries()) {
       // Исключаем поля, которые мы обрабатываем вручную
-      if (["imageFiles", "documentFiles"].includes(key)) continue;
+      if (
+        [
+          "imageFiles",
+          "documentFiles",
+          "existingImages",
+          "existingDocuments",
+        ].includes(key)
+      )
+        continue;
 
       if (typeof value === "string") {
         switch (key) {
@@ -183,7 +191,13 @@ export async function POST(req: NextRequest) {
             break;
           case "brand_id":
           case "collection_id":
-            insertData[key] = value === "null" || value === "" ? null : value;
+            insertData[key] =
+              value === "null" ||
+              value === "" ||
+              value === "no-brand" ||
+              value === "no-collection"
+                ? null
+                : value;
             break;
           case "currency_id":
             insertData[key] = value || defaultCurrency?.id;
@@ -223,8 +237,37 @@ export async function POST(req: NextRequest) {
         .replace(/^-+|-+$/g, "");
     }
 
-    // Устанавливаем published_at для опубликованных товаров
-    if (insertData.status === "published" && !insertData.published_at) {
+    // Валидация обязательных полей
+    if (!insertData.name) {
+      return NextResponse.json(
+        { error: "Product name is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!insertData.category_id) {
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!insertData.currency_id) {
+      return NextResponse.json(
+        { error: "Currency is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!insertData.base_price || Number(insertData.base_price) <= 0) {
+      return NextResponse.json(
+        { error: "Base price is required and must be greater than 0" },
+        { status: 400 },
+      );
+    }
+
+    // Устанавливаем published_at для активных товаров
+    if (insertData.status === "active" && !insertData.published_at) {
       insertData.published_at = new Date().toISOString();
     }
 
@@ -322,11 +365,11 @@ export async function PUT(req: NextRequest) {
     // --- Сборка данных для обновления ---
     const updateData: { [key: string]: unknown } = {};
 
-    // Получаем валюту KZT по умолчанию
+    // Получаем базовую валюту по умолчанию
     const { data: defaultCurrency } = await supabase
       .from("currencies")
       .select("id")
-      .eq("code", "KZT")
+      .eq("is_base", true)
       .single();
 
     for (const [key, value] of formData.entries()) {
@@ -365,7 +408,13 @@ export async function PUT(req: NextRequest) {
             break;
           case "brand_id":
           case "collection_id":
-            updateData[key] = value === "null" || value === "" ? null : value;
+            updateData[key] =
+              value === "null" ||
+              value === "" ||
+              value === "no-brand" ||
+              value === "no-collection"
+                ? null
+                : value;
             break;
           case "currency_id":
             updateData[key] = value || defaultCurrency?.id;
@@ -394,8 +443,19 @@ export async function PUT(req: NextRequest) {
     // Объединяем существующие и новые документы
     updateData.documents = [...existingDocuments, ...newDocuments];
 
-    // Устанавливаем published_at для опубликованных товаров
-    if (updateData.status === "published") {
+    // Валидация обязательных полей при обновлении
+    if (
+      updateData.hasOwnProperty("base_price") &&
+      (!updateData.base_price || Number(updateData.base_price) <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "Base price must be greater than 0" },
+        { status: 400 },
+      );
+    }
+
+    // Устанавливаем published_at для активных товаров
+    if (updateData.status === "active") {
       const { data: currentProduct } = await supabase
         .from("products")
         .select("published_at")
@@ -415,25 +475,25 @@ export async function PUT(req: NextRequest) {
       .select(
         `
         *,
-        categories (
+        categories:category_id (
           id,
           name,
           slug,
           path,
           level
         ),
-        brands (
+        brands:brand_id (
           id,
           name,
           slug,
           logo_url
         ),
-        collections (
+        collections:collection_id (
           id,
           name,
           slug
         ),
-        currencies (
+        currencies:currency_id (
           id,
           code,
           symbol,

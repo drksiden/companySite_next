@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Product as CatalogProduct,
+  Category,
+  Brand,
+  Collection,
+  Currency,
+} from "@/types/catalog";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -61,48 +69,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  sku?: string;
-  base_price: number;
-  sale_price?: number;
-  inventory_quantity: number;
-  status: "draft" | "published" | "archived";
-  is_featured: boolean;
-  thumbnail?: string;
-  view_count: number;
-  sales_count: number;
-  created_at: string;
-  updated_at: string;
-  categories?: {
-    id: string;
-    name: string;
-    slug: string;
-    path: string;
-    level: number;
-  };
-  brands?: {
-    id: string;
-    name: string;
-    slug: string;
-    logo_url?: string;
-  };
-  collections?: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  currencies?: {
-    id: string;
-    code: string;
-    symbol: string;
-    name: string;
-  };
-}
-
-interface FormData {
+interface AdminFormData {
   categories: any[];
   brands: any[];
   collections: any[];
@@ -125,8 +92,8 @@ interface Pagination {
 }
 
 export function ProductManagerNew() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [formData, setFormData] = useState<FormData>({
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [formData, setFormData] = useState<AdminFormData>({
     categories: [],
     brands: [],
     collections: [],
@@ -134,7 +101,9 @@ export function ProductManagerNew() {
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(
+    null,
+  );
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -150,68 +119,80 @@ export function ProductManagerNew() {
     hasMore: false,
   });
 
-  // Загрузка данных для форм
-  useEffect(() => {
-    loadFormData();
-  }, []);
+  // Оптимизированная загрузка данных для форм
+  const {
+    data: formDataResponse,
+    loading: formDataLoading,
+    error: formDataError,
+  } = useOptimizedFetch<AdminFormData>("/api/admin/form-data?type=all", {
+    cache: true,
+    cacheTime: 10 * 60 * 1000, // 10 минут
+  });
 
-  // Загрузка продуктов при изменении фильтров
+  // Устанавливаем данные форм
   useEffect(() => {
-    loadProducts();
+    if (formDataResponse) {
+      setFormData(formDataResponse);
+    }
+  }, [formDataResponse]);
+
+  // Построение URL для запроса продуктов
+  const productsUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      limit: pagination.limit.toString(),
+      offset: pagination.offset.toString(),
+    });
+
+    if (filters.search) params.append("search", filters.search);
+    if (filters.status !== "all") params.append("status", filters.status);
+    if (filters.category !== "all") params.append("category", filters.category);
+    if (filters.brand !== "all") params.append("brand", filters.brand);
+    if (filters.featured !== "all") params.append("featured", filters.featured);
+
+    return `/api/admin/products?${params}`;
   }, [filters, pagination.limit, pagination.offset]);
 
-  const loadFormData = async () => {
-    try {
-      const response = await fetch("/api/admin/form-data?type=all");
-      if (response.ok) {
-        const data = await response.json();
-        setFormData(data);
-      } else {
-        toast.error("Не удалось загрузить данные для форм");
-      }
-    } catch (error) {
-      console.error("Error loading form data:", error);
+  // Оптимизированная загрузка продуктов
+  const {
+    data: productsResponse,
+    loading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useOptimizedFetch<{
+    products: CatalogProduct[];
+    total: number;
+    hasMore: boolean;
+  }>(productsUrl, {
+    cache: true,
+    cacheTime: 2 * 60 * 1000, // 2 минуты для продуктов
+  });
+
+  // Устанавливаем продукты и пагинацию
+  useEffect(() => {
+    if (productsResponse) {
+      setProducts(productsResponse.products || []);
+      setPagination((prev) => ({
+        ...prev,
+        total: productsResponse.total || 0,
+        hasMore: productsResponse.hasMore || false,
+      }));
+    }
+  }, [productsResponse]);
+
+  // Устанавливаем общее состояние загрузки
+  useEffect(() => {
+    setLoading(productsLoading);
+  }, [productsLoading]);
+
+  // Показываем ошибки
+  useEffect(() => {
+    if (formDataError) {
       toast.error("Ошибка при загрузке данных для форм");
     }
-  };
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-
-      const params = new URLSearchParams({
-        limit: pagination.limit.toString(),
-        offset: pagination.offset.toString(),
-      });
-
-      if (filters.search) params.append("search", filters.search);
-      if (filters.status !== "all") params.append("status", filters.status);
-      if (filters.category !== "all")
-        params.append("category", filters.category);
-      if (filters.brand !== "all") params.append("brand", filters.brand);
-      if (filters.featured !== "all")
-        params.append("featured", filters.featured);
-
-      const response = await fetch(`/api/admin/products?${params}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.products || []);
-        setPagination((prev) => ({
-          ...prev,
-          total: data.pagination?.total || 0,
-          hasMore: data.pagination?.hasMore || false,
-        }));
-      } else {
-        toast.error("Не удалось загрузить продукты");
-      }
-    } catch (error) {
-      console.error("Error loading products:", error);
-      toast.error("Ошибка при загрузке продуктов");
-    } finally {
-      setLoading(false);
+    if (productsError) {
+      toast.error("Ошибка при загрузке товаров");
     }
-  };
+  }, [formDataError, productsError]);
 
   const handleCreateProduct = async (data: globalThis.FormData) => {
     try {
@@ -225,7 +206,7 @@ export function ProductManagerNew() {
       if (response.ok) {
         toast.success("Продукт успешно создан");
         setIsFormOpen(false);
-        loadProducts();
+        refetchProducts();
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось создать продукт");
@@ -251,7 +232,7 @@ export function ProductManagerNew() {
         toast.success("Продукт успешно обновлен");
         setIsFormOpen(false);
         setEditingProduct(null);
-        loadProducts();
+        refetchProducts();
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось обновить продукт");
@@ -276,7 +257,7 @@ export function ProductManagerNew() {
 
       if (response.ok) {
         toast.success("Продукт успешно удален");
-        loadProducts();
+        refetchProducts();
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось удалить продукт");
@@ -297,21 +278,23 @@ export function ProductManagerNew() {
   };
 
   const formatPrice = (price: number, currency?: { symbol: string }) => {
-    return `${price.toLocaleString("ru-RU")} ${currency?.symbol || "₸"}`;
+    return `${price.toLocaleString("kk-KZ")} ${currency?.symbol || "₸"}`;
   };
 
   const getStatusBadge = (status: string) => {
     const variants = {
       draft: "secondary",
-      published: "default",
+      active: "default",
       archived: "outline",
+      out_of_stock: "destructive",
     } as const;
 
     const labels = {
       draft: "Черновик",
-      published: "Опубликован",
+      active: "Активный",
       archived: "Архивирован",
-    };
+      out_of_stock: "Нет в наличии",
+    } as const;
 
     return (
       <Badge variant={variants[status as keyof typeof variants] || "secondary"}>
@@ -403,7 +386,7 @@ export function ProductManagerNew() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {products.filter((p) => p.status === "published").length}
+              {products.filter((p) => p.status === "active").length}
             </div>
           </CardContent>
         </Card>
@@ -466,8 +449,9 @@ export function ProductManagerNew() {
                 <SelectContent>
                   <SelectItem value="all">Все статусы</SelectItem>
                   <SelectItem value="draft">Черновик</SelectItem>
-                  <SelectItem value="published">Опубликован</SelectItem>
+                  <SelectItem value="active">Активный</SelectItem>
                   <SelectItem value="archived">Архивирован</SelectItem>
+                  <SelectItem value="out_of_stock">Нет в наличии</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -590,22 +574,25 @@ export function ProductManagerNew() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{product.categories?.name || "—"}</TableCell>
-                      <TableCell>{product.brands?.name || "—"}</TableCell>
+                      <TableCell>
+                        {(product as any).category?.name || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {(product as any).brand?.name || "—"}
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">
                             {formatPrice(
-                              product.base_price,
-                              product.currencies,
+                              product.base_price || 0,
+                              (product as any).currencies,
                             )}
                           </div>
                           {product.sale_price && (
-                            <div className="text-sm text-green-600">
-                              Скидка:{" "}
+                            <div className="text-sm text-muted-foreground line-through">
                               {formatPrice(
                                 product.sale_price,
-                                product.currencies,
+                                (product as any).currencies,
                               )}
                             </div>
                           )}

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import CatalogClient from "@/features/catalog/components/CatalogClient";
+import { SimpleCatalog } from "@/features/catalog/components/SimpleCatalog";
 
 export const metadata: Metadata = {
   title: "Каталог товаров",
@@ -37,8 +37,8 @@ async function fetchCatalogData(params: Record<string, string>) {
       fetch(`${baseUrl}/api/catalog/products?${productParams.toString()}`, {
         cache: "no-store",
       }),
-      fetch(`${baseUrl}/api/admin/categories`, { cache: "no-store" }),
-      fetch(`${baseUrl}/api/admin/brands`, { cache: "no-store" }),
+      fetch(`${baseUrl}/api/catalog/categories`, { cache: "no-store" }),
+      fetch(`${baseUrl}/api/catalog/brands`, { cache: "no-store" }),
     ]);
 
     const products =
@@ -103,12 +103,11 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     await fetchCatalogData(apiParams);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CatalogClient
+    <div className="min-h-screen bg-background">
+      <SimpleCatalog
         initialProducts={products}
         initialCategories={categories}
         initialBrands={brands}
-        initialCollections={collections}
       />
     </div>
   );

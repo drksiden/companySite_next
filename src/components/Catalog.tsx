@@ -84,9 +84,13 @@ export function Catalog({
     });
 
   const formatPrice = (amount: number, currencyCode?: string): string => {
+    const currency = currencyCode || "KZT";
+    if (currency === "KZT") {
+      return `${(amount / 100).toLocaleString("kk-KZ")} ₸`;
+    }
     return new Intl.NumberFormat("ru-RU", {
       style: "currency",
-      currency: currencyCode || "KZT", // Используем KZT как валюту по умолчанию
+      currency: currency,
     }).format(amount / 100);
   };
 

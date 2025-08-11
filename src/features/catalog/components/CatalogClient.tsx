@@ -279,17 +279,15 @@ export default function CatalogClient({
                 </div>
                 <div className="flex items-center gap-2">
                   {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <span
                       onClick={(e) => {
                         e.stopPropagation();
                         clearAllFilters();
                       }}
-                      className="h-6 px-2 text-xs"
+                      className="h-6 px-2 text-xs cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Очистить
-                    </Button>
+                    </span>
                   )}
                 </div>
               </Button>
@@ -313,10 +311,10 @@ export default function CatalogClient({
           {/* Header */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-foreground">
                 Каталог товаров
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-muted-foreground mt-1">
                 {totalProducts > 0
                   ? `Найдено ${totalProducts} товаров`
                   : "Товары не найдены"}
@@ -327,7 +325,7 @@ export default function CatalogClient({
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Поиск товаров..."
                   value={searchInput}
@@ -443,8 +441,10 @@ export default function CatalogClient({
           {/* Products Grid/List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-600">Загрузка товаров...</span>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">
+                Загрузка товаров...
+              </span>
             </div>
           ) : hasProducts ? (
             <>
@@ -525,11 +525,11 @@ export default function CatalogClient({
             </>
           ) : (
             <div className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 Товары не найдены
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Попробуйте изменить параметры поиска или фильтры
               </p>
               {hasActiveFilters && (

@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
@@ -23,6 +22,8 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { toast } from "sonner";
 import type { SearchProductsResult } from "@/types/catalog";
 
 interface ProductCardProps {
@@ -51,70 +52,118 @@ export function ProductCard({
   onAddToCart,
 }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
 
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsInWishlist(!isInWishlist);
-    onAddToWishlist?.(product);
-  };
+  // Простая обработка изображений
+  const imageSrc =
+    product.thumbnail ||
+    (product.images && product.images[0]) ||
+    "/placeholder.jpg";
 
-  const handleCartClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onAddToCart?.(product);
-  };
+  // Мемоизированные обработчики событий
+  const handleWishlistClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsInWishlist(!isInWishlist);
+      onAddToWishlist?.(product);
 
-  const handleQuickView = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onQuickView?.(product);
-  };
+      // Показываем уведомление
+      toast.success(
+        isInWishlist ? "Удалено из избранного" : "Добавлено в избранное",
+        {
+          duration: 2000,
+        },
+      );
+    },
+    [isInWishlist, onAddToWishlist, product],
+  );
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
+  const handleCartClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onAddToCart?.(product);
 
-  const isInStock = (product.inventory_quantity || 0) > 0;
-  const hasDiscount =
-    product.is_on_sale && (product.discount_percentage || 0) > 0;
-  const isNew =
-    product.created_at &&
-    new Date(product.created_at) >
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      // Показываем уведомление
+      toast.success("Товар добавлен в корзину", {
+        duration: 2000,
+      });
+    },
+    [onAddToCart, product],
+  );
+
+  const handleQuickView = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onQuickView?.(product);
+    },
+    [onQuickView, product],
+  );
+
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+
+  // Мемоизированные вычисления для производительности
+  const productState = useMemo(() => {
+    const isInStock = product.track_inventory
+      ? (product.inventory_quantity || 0) > 0
+      : true;
+
+    const hasDiscount =
+      product.is_on_sale && (product.discount_percentage || 0) > 0;
+
+    const isNew =
+      product.created_at &&
+      new Date(product.created_at) >
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const formattedPrice =
+      product.formatted_price ||
+      `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`;
+
+    return { isInStock, hasDiscount, isNew, formattedPrice };
+  }, [
+    product.track_inventory,
+    product.inventory_quantity,
+    product.is_on_sale,
+    product.discount_percentage,
+    product.created_at,
+    product.formatted_price,
+    product.final_price,
+  ]);
+
+  const { isInStock, hasDiscount, isNew, formattedPrice } = productState;
 
   if (variant === "list") {
     return (
       <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
         <Card
           className={cn(
-            "group relative overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-300",
+            "group relative overflow-hidden bg-card shadow-sm hover:shadow-md transition-all duration-300",
             !isInStock && "opacity-75",
             className,
           )}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <div className="flex flex-col sm:flex-row">
             {/* Image Section */}
-            <div className="relative w-full sm:w-48 h-48 sm:h-32 bg-gray-50 flex-shrink-0">
-              <Link href={`/product/${product.slug}`}>
-                {!imageError && product.thumbnail ? (
-                  <Image
-                    src={product.thumbnail}
-                    alt={product.name}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={handleImageError}
-                    priority={priority}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    <div className="text-gray-400 text-xs">Нет изображения</div>
-                  </div>
-                )}
+            <div className="relative w-full sm:w-48 h-48 sm:h-32 bg-gray-50 flex-shrink-0 overflow-hidden rounded-l-lg">
+              <Link
+                href={`/product/${product.slug}`}
+                className="block w-full h-full"
+              >
+                <Image
+                  src={imageSrc}
+                  alt={product.name}
+                  fill
+                  className="transition-transform duration-300 group-hover:scale-105 object-cover"
+                  priority={priority}
+                  quality={85}
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 192px"
+                />
               </Link>
 
               {/* Badges */}
@@ -125,18 +174,12 @@ export function ProductCard({
                   </Badge>
                 )}
                 {isNew && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs bg-blue-100 text-blue-800"
-                  >
+                  <Badge variant="secondary" className="text-xs">
                     Новинка
                   </Badge>
                 )}
                 {product.is_featured && (
-                  <Badge
-                    variant="default"
-                    className="text-xs bg-yellow-100 text-yellow-800"
-                  >
+                  <Badge variant="default" className="text-xs">
                     Хит
                   </Badge>
                 )}
@@ -149,7 +192,7 @@ export function ProductCard({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                      className="h-8 w-8 p-0 bg-background/90 hover:bg-background"
                       onClick={handleWishlistClick}
                     >
                       <Heart
@@ -157,7 +200,7 @@ export function ProductCard({
                           "h-4 w-4",
                           isInWishlist
                             ? "fill-red-500 text-red-500"
-                            : "text-gray-600",
+                            : "text-muted-foreground",
                         )}
                       />
                     </Button>
@@ -166,10 +209,10 @@ export function ProductCard({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="h-8 w-8 p-0 bg-white/90 hover:bg-white"
+                      className="h-8 w-8 p-0 bg-background/90 hover:bg-background"
                       onClick={handleQuickView}
                     >
-                      <Eye className="h-4 w-4 text-gray-600" />
+                      <Eye className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   )}
                 </div>
@@ -182,19 +225,19 @@ export function ProductCard({
                 {/* Header */}
                 <div className="flex-1">
                   <Link href={`/product/${product.slug}`}>
-                    <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
+                    <h3 className="font-medium text-foreground hover:text-primary transition-colors line-clamp-2">
                       {product.name}
                     </h3>
                   </Link>
 
                   {product.brand_name && (
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {product.brand_name}
                     </p>
                   )}
 
                   {product.short_description && (
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                       {product.short_description}
                     </p>
                   )}
@@ -204,30 +247,25 @@ export function ProductCard({
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
-                      {hasDiscount && product.base_price && (
-                        <span className="text-sm text-gray-500 line-through">
-                          {product.base_price.toLocaleString("ru-RU")} ₸
+                      <div className="flex items-center gap-2">
+                        {hasDiscount && product.base_price && (
+                          <span className="text-sm text-muted-foreground line-through">
+                            {product.base_price.toLocaleString("ru-RU")} ₸
+                          </span>
+                        )}
+                        <span className="text-lg font-bold text-foreground">
+                          {formattedPrice}
                         </span>
-                      )}
-                      <span className="text-lg font-bold text-gray-900">
-                        {product.formatted_price ||
-                          `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`}
-                      </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 mt-1">
                       {isInStock ? (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-green-100 text-green-800"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           <CheckCircle className="h-3 w-3 mr-1" />В наличии
                         </Badge>
                       ) : (
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-red-100 text-red-800"
-                        >
+                        <Badge variant="destructive" className="text-xs">
                           <Clock className="h-3 w-3 mr-1" />
                           Нет в наличии
                         </Badge>
@@ -235,6 +273,8 @@ export function ProductCard({
                     </div>
                   </div>
 
+                  {/* Временно скрыта кнопка "В корзину" */}
+                  {/*
                   <Button
                     onClick={handleCartClick}
                     disabled={!isInStock}
@@ -243,6 +283,7 @@ export function ProductCard({
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />В корзину
                   </Button>
+                  */}
                 </div>
               </div>
             </div>
@@ -257,31 +298,33 @@ export function ProductCard({
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card
         className={cn(
-          "group relative overflow-hidden bg-white shadow-sm hover:shadow-lg transition-all duration-300",
+          "group relative overflow-hidden bg-card shadow-sm hover:shadow-lg transition-all duration-300",
           !isInStock && "opacity-75",
           variant === "compact" && "max-w-xs",
           className,
         )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Image Section */}
         <div className="relative aspect-square bg-gray-50 overflow-hidden">
-          <Link href={`/product/${product.slug}`}>
-            {!imageError && product.thumbnail ? (
-              <Image
-                src={product.thumbnail}
-                alt={product.name}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                onError={handleImageError}
-                priority={priority}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <div className="text-gray-400 text-sm">Нет изображения</div>
-              </div>
-            )}
+          <Link
+            href={`/product/${product.slug}`}
+            className="block w-full h-full"
+          >
+            <Image
+              src={imageSrc}
+              alt={product.name}
+              fill
+              className="transition-all duration-300 group-hover:scale-105 object-cover"
+              priority={priority}
+              quality={variant === "compact" ? 75 : 85}
+              sizes={
+                variant === "compact"
+                  ? "(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                  : "(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+              }
+            />
           </Link>
 
           {/* Badges */}
@@ -292,18 +335,12 @@ export function ProductCard({
               </Badge>
             )}
             {isNew && (
-              <Badge
-                variant="secondary"
-                className="text-xs bg-blue-100 text-blue-800"
-              >
+              <Badge variant="secondary" className="text-xs">
                 Новинка
               </Badge>
             )}
             {product.is_featured && (
-              <Badge
-                variant="default"
-                className="text-xs bg-yellow-100 text-yellow-800"
-              >
+              <Badge variant="default" className="text-xs">
                 <Zap className="h-3 w-3 mr-1" />
                 Хит
               </Badge>
@@ -324,7 +361,7 @@ export function ProductCard({
                   <Button
                     size="sm"
                     variant="secondary"
-                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    className="h-9 w-9 p-0 bg-background/90 hover:bg-background shadow-sm"
                     onClick={handleWishlistClick}
                   >
                     <Heart
@@ -332,7 +369,7 @@ export function ProductCard({
                         "h-4 w-4",
                         isInWishlist
                           ? "fill-red-500 text-red-500"
-                          : "text-gray-600",
+                          : "text-muted-foreground",
                       )}
                     />
                   </Button>
@@ -341,19 +378,19 @@ export function ProductCard({
                   <Button
                     size="sm"
                     variant="secondary"
-                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    className="h-9 w-9 p-0 bg-background/90 hover:bg-background shadow-sm"
                     onClick={handleQuickView}
                   >
-                    <Eye className="h-4 w-4 text-gray-600" />
+                    <Eye className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 )}
                 {showShare && (
                   <Button
                     size="sm"
                     variant="secondary"
-                    className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+                    className="h-9 w-9 p-0 bg-background/90 hover:bg-background shadow-sm"
                   >
-                    <Share2 className="h-4 w-4 text-gray-600" />
+                    <Share2 className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 )}
               </motion.div>
@@ -363,7 +400,7 @@ export function ProductCard({
           {/* Stock Status Overlay */}
           {!isInStock && (
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-              <Badge variant="secondary" className="bg-white/90 text-gray-800">
+              <Badge variant="secondary" className="bg-background/90">
                 Нет в наличии
               </Badge>
             </div>
@@ -374,20 +411,22 @@ export function ProductCard({
         <CardHeader className="pb-2">
           <div className="space-y-1">
             <Link href={`/product/${product.slug}`}>
-              <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2 text-sm leading-tight">
+              <h3 className="font-medium text-foreground hover:text-primary transition-colors line-clamp-2 text-sm leading-tight">
                 {product.name}
               </h3>
             </Link>
 
             {product.brand_name && (
-              <p className="text-xs text-gray-500">{product.brand_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {product.brand_name}
+              </p>
             )}
           </div>
         </CardHeader>
 
         <CardContent className="pt-0 pb-2">
           {product.short_description && variant !== "compact" && (
-            <p className="text-xs text-gray-600 line-clamp-2 mb-3">
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
               {product.short_description}
             </p>
           )}
@@ -395,30 +434,23 @@ export function ProductCard({
           {/* Price */}
           <div className="flex items-center gap-2">
             {hasDiscount && product.base_price && (
-              <span className="text-sm text-gray-500 line-through">
+              <span className="text-sm text-muted-foreground line-through">
                 {product.base_price.toLocaleString("ru-RU")} ₸
               </span>
             )}
-            <span className="text-lg font-bold text-gray-900">
-              {product.formatted_price ||
-                `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`}
+            <span className="text-lg font-bold text-foreground">
+              {formattedPrice}
             </span>
           </div>
 
           {/* Stock Status */}
           <div className="flex items-center gap-2 mt-2">
             {isInStock ? (
-              <Badge
-                variant="secondary"
-                className="text-xs bg-green-100 text-green-800"
-              >
+              <Badge variant="secondary" className="text-xs">
                 <CheckCircle className="h-3 w-3 mr-1" />В наличии
               </Badge>
             ) : (
-              <Badge
-                variant="secondary"
-                className="text-xs bg-red-100 text-red-800"
-              >
+              <Badge variant="destructive" className="text-xs">
                 <Clock className="h-3 w-3 mr-1" />
                 Под заказ
               </Badge>
@@ -427,6 +459,8 @@ export function ProductCard({
         </CardContent>
 
         <CardFooter className="pt-0">
+          {/* Временно скрыта кнопка "В корзину" */}
+          {/*
           <div className="flex items-center gap-2 w-full">
             <Button
               onClick={handleCartClick}
@@ -437,6 +471,7 @@ export function ProductCard({
               <ShoppingCart className="h-4 w-4 mr-2" />В корзину
             </Button>
           </div>
+          */}
         </CardFooter>
 
         {/* Quick View Button for Mobile */}
@@ -450,10 +485,10 @@ export function ProductCard({
             <Button
               size="sm"
               variant="secondary"
-              className="h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-sm"
+              className="h-9 w-9 p-0 bg-background/90 hover:bg-background shadow-sm"
               onClick={handleQuickView}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 text-muted-foreground" />
             </Button>
           </motion.div>
         )}
@@ -461,3 +496,23 @@ export function ProductCard({
     </motion.div>
   );
 }
+
+// Мемоизированный экспорт для оптимизации производительности
+export const MemoizedProductCard = memo(ProductCard, (prevProps, nextProps) => {
+  // Сравниваем только ключевые поля для предотвращения лишних ререндеров
+  return (
+    prevProps.product.id === nextProps.product.id &&
+    prevProps.product.inventory_quantity ===
+      nextProps.product.inventory_quantity &&
+    prevProps.product.thumbnail === nextProps.product.thumbnail &&
+    prevProps.variant === nextProps.variant &&
+    prevProps.priority === nextProps.priority
+  );
+});
+
+MemoizedProductCard.displayName = "MemoizedProductCard";
+
+// Экспортируем как мемоизированную версию по умолчанию для production
+export default process.env.NODE_ENV === "production"
+  ? MemoizedProductCard
+  : ProductCard;

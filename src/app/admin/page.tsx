@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -231,9 +231,27 @@ const useDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Cache ref to prevent repeated API calls
+  const cacheRef = useRef<{
+    stats: DashboardStats | null;
+    recentActivity: RecentActivity[];
+    topProducts: TopProduct[];
+    timestamp: number;
+  } | null>(null);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // Check cache first (cache for 60 seconds)
+        const now = Date.now();
+        if (cacheRef.current && now - cacheRef.current.timestamp < 60000) {
+          setStats(cacheRef.current.stats);
+          setRecentActivity(cacheRef.current.recentActivity);
+          setTopProducts(cacheRef.current.topProducts);
+          setIsLoading(false);
+          return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -355,10 +373,19 @@ const useDashboard = () => {
         const topProductsResponse = await fetch(
           "/api/admin/dashboard/top-products",
         );
+        let topProductsData: TopProduct[] = [];
         if (topProductsResponse.ok) {
-          const topProductsData = await topProductsResponse.json();
+          topProductsData = await topProductsResponse.json();
           setTopProducts(topProductsData);
         }
+
+        // Update cache
+        cacheRef.current = {
+          stats,
+          recentActivity,
+          topProducts: topProductsData,
+          timestamp: now,
+        };
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setError(

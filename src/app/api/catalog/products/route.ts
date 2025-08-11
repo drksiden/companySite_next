@@ -28,10 +28,8 @@ export async function GET(req: NextRequest) {
     const supabase = await createClient();
 
     // Базовый запрос
-    let query = supabase
-      .from("products")
-      .select(
-        `
+    let query = supabase.from("products").select(
+      `
         id,
         name,
         slug,
@@ -40,40 +38,44 @@ export async function GET(req: NextRequest) {
         base_price,
         sale_price,
         thumbnail,
+        images,
         inventory_quantity,
+        track_inventory,
         is_featured,
         status,
         created_at,
         view_count,
         sales_count,
-        brands:brand_id(
+        brands(
           id,
           name,
           slug,
           logo_url
         ),
-        categories:category_id(
+        categories(
           id,
           name,
           slug,
           path,
           level
         ),
-        currencies:currency_id(
+        currencies(
           id,
           code,
           symbol,
           name
         ),
-        collections:collection_id(
+        collections(
           id,
           name,
           slug
         )
       `,
-        { count: "exact" },
-      )
-      .eq("status", "published");
+      { count: "exact" },
+    );
+
+    // Фильтруем только активные продукты
+    query = query.eq("status", "active");
 
     // Применяем фильтры
     if (categories.length > 0) {
@@ -164,17 +166,36 @@ export async function GET(req: NextRequest) {
           )
         : 0;
 
+      // Безопасное извлечение связанных данных
+      const currency = product.currencies as any;
+      const brand = product.brands as any;
+      const category = product.categories as any;
+
+      // Обработка изображений - фильтруем пустые и некорректные URL
+      const images = product.images
+        ? (Array.isArray(product.images) ? product.images : []).filter(
+            (img) => img && typeof img === "string" && img.trim() !== "",
+          )
+        : [];
+
+      // Если thumbnail пустой, используем первое изображение из массива
+      const thumbnail =
+        product.thumbnail && product.thumbnail.trim() !== ""
+          ? product.thumbnail
+          : images.length > 0
+            ? images[0]
+            : null;
+
       return {
         ...product,
+        thumbnail,
+        images,
         final_price: finalPrice,
         is_on_sale: isOnSale,
         discount_percentage: discountPercentage,
-        formatted_price: formatPrice(
-          finalPrice,
-          product.currencies?.[0]?.symbol,
-        ),
-        brand_name: product.brands?.[0]?.name,
-        category_name: product.categories?.[0]?.name,
+        formatted_price: formatPrice(finalPrice, currency?.symbol || "₸"),
+        brand_name: brand?.name || null,
+        category_name: category?.name || null,
       };
     });
 
@@ -215,5 +236,5 @@ export async function GET(req: NextRequest) {
 }
 
 function formatPrice(price: number, symbol: string = "₸"): string {
-  return `${price.toLocaleString("ru-RU")} ${symbol}`;
+  return `${price.toLocaleString("kk-KZ")} ${symbol}`;
 }

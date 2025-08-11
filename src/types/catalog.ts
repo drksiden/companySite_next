@@ -305,6 +305,7 @@ export interface SearchProductsResult {
   brand_name?: string;
   category_name?: string;
   inventory_quantity: number;
+  track_inventory: boolean;
   created_at?: string;
   is_featured?: boolean;
   is_on_sale?: boolean;
@@ -816,7 +817,6 @@ export interface ProductCardProps {
   product: Product | SearchProductsResult;
   variant?: "grid" | "list" | "compact";
   showQuickView?: boolean;
-  showCompare?: boolean;
   showWishlist?: boolean;
   className?: string;
 }
@@ -891,7 +891,6 @@ export interface CatalogConfig {
   // Функции
   features: {
     wishlist: boolean;
-    compare: boolean;
     reviews: boolean;
     variants: boolean;
     bundles: boolean;

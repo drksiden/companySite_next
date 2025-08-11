@@ -1,92 +1,343 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ImageOff } from 'lucide-react';
-// Импортируем Category и CategoryWithChildren из @/types/catalog
-import { Category, CategoryWithChildren } from '@/types/catalog';
-import { CategoryCardProps } from '@/types/catalog';
+import Link from "next/link";
+import { memo, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  ImageOff,
+  ArrowRight,
+  Package,
+  TrendingUp,
+  Eye,
+  Star,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import type {
+  Category,
+  CategoryWithChildren,
+  CategoryCardProps,
+} from "@/types/catalog";
 
-export function CategoryCard({ category, showProductCount = false, variant = 'card', className }: CategoryCardProps) {
-  const defaultDescription = `Ознакомьтесь с товарами в категории "${category.name}".`;
+interface EnhancedCategoryCardProps extends CategoryCardProps {
+  priority?: boolean;
+  showStats?: boolean;
+  showHoverEffects?: boolean;
+  onCategoryView?: (category: Category) => void;
+}
 
-  // Убеждаемся, что category имеет тип CategoryWithChildren для доступа к products_count
-  const categoryWithProductCount = category as CategoryWithChildren;
+export const CategoryCard = memo(function CategoryCard({
+  category,
+  showProductCount = false,
+  variant = "card",
+  className,
+  priority = false,
+  showStats = false,
+  showHoverEffects = true,
+  onCategoryView,
+}: EnhancedCategoryCardProps) {
+  // Приводим к типу с подсчетом товаров
+  const categoryWithChildren = category as CategoryWithChildren;
 
-  if (variant === 'banner') {
-    return (
-      <Link href={`/catalog/${categoryWithProductCount.slug}`} className="block w-full">
-        <Card className={`relative w-full h-48 sm:h-64 md:h-80 lg:h-96 overflow-hidden rounded-lg shadow-md group ${className}`}>
-          {categoryWithProductCount.image_url ? (
-            <Image
-              src={categoryWithProductCount.image_url}
-              alt={categoryWithProductCount.name}
-              fill
-              sizes="100vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-              <ImageOff className="w-24 h-24 text-gray-400 dark:text-gray-600" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6 text-white">
-            <CardTitle className="text-2xl sm:text-3xl font-bold mb-2">{categoryWithProductCount.name}</CardTitle>
-            <p className="text-sm sm:text-base line-clamp-2">{categoryWithProductCount.description || defaultDescription}</p>
-            {showProductCount && categoryWithProductCount.products_count !== undefined && (
-              <p className="text-xs sm:text-sm mt-1">{categoryWithProductCount.products_count} товаров</p>
-            )}
-            <Button className="mt-4 self-start bg-primary hover:bg-primary/90 text-primary-foreground">
-              Смотреть товары
-            </Button>
+  // Загружаем изображение категории
+  const imageSrc = category.image_url || "/placeholder.jpg";
+
+  // Обработчик клика
+  const handleClick = useCallback(() => {
+    onCategoryView?.(category);
+  }, [category, onCategoryView]);
+
+  // Формирование ссылки
+  const categoryUrl = `/catalog?category=${category.slug}`;
+
+  // Вычисляемые значения
+  const computedValues = useMemo(() => {
+    const productCount = categoryWithChildren.products_count || 0;
+    const subcategoryCount = categoryWithChildren.children?.length || 0;
+
+    return {
+      productCount,
+      subcategoryCount,
+      hasSubcategories: subcategoryCount > 0,
+      isPopular: productCount > 50,
+      responsiveSizes:
+        "(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw",
+    };
+  }, [
+    categoryWithChildren.products_count,
+    categoryWithChildren.children?.length,
+  ]);
+
+  // Компонент содержимого изображения
+  const ImageContent = useCallback(
+    () => (
+      <div className="relative w-full h-full overflow-hidden">
+        {category.image_url ? (
+          <Image
+            src={imageSrc}
+            alt={category.name}
+            fill
+            className="transition-transform duration-300 group-hover:scale-105 object-cover"
+            priority={priority}
+            quality={85}
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-muted flex items-center justify-center">
+            <ImageOff className="h-8 w-8 text-muted-foreground" />
           </div>
+        )}
+
+        {/* Оверлей для лучшей читаемости */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      </div>
+    ),
+    [category.image_url, category.name, imageSrc, priority],
+  );
+
+  // Компонент статистики
+  const StatsContent = useCallback(() => {
+    if (!showStats) return null;
+
+    return (
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        {showProductCount && (
+          <div className="flex items-center gap-1">
+            <Package className="h-3 w-3" />
+            <span>{computedValues.productCount} товаров</span>
+          </div>
+        )}
+        {computedValues.hasSubcategories && (
+          <div className="flex items-center gap-1">
+            <TrendingUp className="h-3 w-3" />
+            <span>{computedValues.subcategoryCount} подкатегорий</span>
+          </div>
+        )}
+        {computedValues.isPopular && (
+          <div className="flex items-center gap-1">
+            <Star className="h-3 w-3 text-yellow-500" />
+            <span>Популярная</span>
+          </div>
+        )}
+      </div>
+    );
+  }, [showStats, showProductCount, computedValues]);
+
+  // Рендер карточки в виде карты
+  if (variant === "card") {
+    return (
+      <motion.div
+        whileHover={showHoverEffects ? { y: -4 } : undefined}
+        transition={{ duration: 0.2 }}
+        onClick={handleClick}
+      >
+        <Card
+          className={cn(
+            "group relative overflow-hidden cursor-pointer",
+            className,
+          )}
+        >
+          {/* Изображение */}
+          <div className="relative aspect-[4/3] bg-muted">
+            <Link href={categoryUrl}>
+              <ImageContent />
+            </Link>
+
+            {/* Badges */}
+            <div className="absolute top-3 right-3 flex flex-col gap-1">
+              {computedValues.isPopular && (
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-yellow-500/90 text-white"
+                >
+                  <Star className="h-3 w-3 mr-1" />
+                  Популярная
+                </Badge>
+              )}
+              {(category as any).is_featured && (
+                <Badge variant="default" className="text-xs">
+                  Рекомендуем
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Контент */}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg line-clamp-2">
+              {category.name}
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="pt-0 pb-2">
+            {category.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                {category.description}
+              </p>
+            )}
+
+            <StatsContent />
+          </CardContent>
+
+          <CardFooter className="pt-0">
+            <Button
+              asChild
+              variant="ghost"
+              className="w-full justify-between group"
+            >
+              <Link href={categoryUrl}>
+                Смотреть товары
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
-      </Link>
+      </motion.div>
     );
   }
 
-  // Default 'card' variant
-  return (
-    <Card className={`h-full flex flex-col overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${className}`}>
-      <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-xl font-semibold text-foreground text-center truncate">
-          {categoryWithProductCount.name}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-2 flex-grow flex flex-col items-center">
-        <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-md overflow-hidden group">
-          {categoryWithProductCount.image_url ? (
-            <Image
-              src={categoryWithProductCount.image_url}
-              alt={categoryWithProductCount.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-              <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
-            </div>
+  // Рендер плиточного варианта
+  if (variant === "tile") {
+    return (
+      <motion.div
+        whileHover={showHoverEffects ? { scale: 1.02 } : undefined}
+        transition={{ duration: 0.2 }}
+        onClick={handleClick}
+      >
+        <Card
+          className={cn(
+            "group relative overflow-hidden cursor-pointer h-full",
+            className,
           )}
-        </div>
-        <p className="text-sm text-muted-foreground text-center line-clamp-3 flex-grow">
-          {categoryWithProductCount.description || defaultDescription}
-        </p>
-        {showProductCount && categoryWithProductCount.products_count !== undefined && (
-          <p className="text-xs text-muted-foreground mt-2">{categoryWithProductCount.products_count} товаров</p>
-        )}
-      </CardContent>
-      <CardFooter className="p-4 pt-0 mt-auto">
-        <Button asChild className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-          <Link href={`/catalog/${categoryWithProductCount.slug}`}>
-            Смотреть товары
+        >
+          <Link href={categoryUrl} className="block h-full">
+            <div className="relative aspect-square bg-muted">
+              <ImageContent />
+
+              {/* Оверлей с информацией */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent">
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <h3 className="font-semibold text-lg mb-1 line-clamp-2">
+                    {category.name}
+                  </h3>
+                  {showProductCount && (
+                    <p className="text-sm opacity-90">
+                      {computedValues.productCount} товаров
+                    </p>
+                  )}
+                  {computedValues.hasSubcategories && (
+                    <p className="text-xs opacity-75">
+                      {computedValues.subcategoryCount} подкатегорий
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Badges */}
+              <div className="absolute top-3 right-3 flex flex-col gap-1">
+                {computedValues.isPopular && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-yellow-500/90 text-white"
+                  >
+                    <Star className="h-3 w-3 mr-1" />
+                    ТОП
+                  </Badge>
+                )}
+              </div>
+            </div>
           </Link>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
+        </Card>
+      </motion.div>
+    );
+  }
+
+  // Рендер баннерного варианта
+  if (variant === "banner") {
+    return (
+      <motion.div
+        whileHover={showHoverEffects ? { scale: 1.01 } : undefined}
+        transition={{ duration: 0.3 }}
+        onClick={handleClick}
+      >
+        <Card
+          className={cn(
+            "group relative overflow-hidden cursor-pointer",
+            className,
+          )}
+        >
+          <Link href={categoryUrl} className="block">
+            <div className="relative aspect-[3/1] bg-muted">
+              <ImageContent />
+
+              {/* Контент поверх изображения */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="p-8 text-white max-w-lg">
+                    <h2 className="text-3xl font-bold mb-2 line-clamp-2">
+                      {category.name}
+                    </h2>
+                    {category.description && (
+                      <p className="text-lg opacity-90 mb-4 line-clamp-2">
+                        {category.description}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-4 text-sm opacity-75 mb-4">
+                      {showProductCount && (
+                        <span>{computedValues.productCount} товаров</span>
+                      )}
+                      {computedValues.hasSubcategories && (
+                        <span>{computedValues.subcategoryCount} категорий</span>
+                      )}
+                    </div>
+
+                    <Button variant="secondary" className="group">
+                      Перейти в каталог
+                      <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Badges */}
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
+                {computedValues.isPopular && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-yellow-500/90 text-white"
+                  >
+                    <Star className="h-4 w-4 mr-1" />
+                    Популярная категория
+                  </Badge>
+                )}
+                {(category as any).is_featured && (
+                  <Badge variant="default">
+                    <Eye className="h-4 w-4 mr-1" />
+                    Рекомендуем
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </Link>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  return null;
+});
+
+CategoryCard.displayName = "CategoryCard";
+
+// Экспорт компонента по умолчанию
+export default CategoryCard;

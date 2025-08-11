@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -23,10 +23,10 @@ import {
   SheetClose, // Убедитесь, что SheetClose импортирован, если используется
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Menu,
   ShoppingBag,
@@ -40,52 +40,69 @@ import {
   Package,
   ChevronDown,
   X,
-  Loader2
-} from 'lucide-react';
-import { COMPANY_NAME_SHORT } from '@/data/constants';
-import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
-import { supabase } from '@/lib/supabaseClient';
+  Loader2,
+} from "lucide-react";
+import { COMPANY_NAME_SHORT } from "@/data/constants";
+import { Input } from "./ui/input";
+import { ScrollArea } from "./ui/scroll-area";
+import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
-  { 
-    href: '/catalog', 
-    label: 'Каталог',
+  {
+    href: "/catalog",
+    label: "Каталог",
   },
-  { href: '/services', label: 'Услуги' },
-  { href: '/about', label: 'О нас' },
-  { href: '/contact', label: 'Контакты' },
+  { href: "/services", label: "Услуги" },
+  { href: "/about", label: "О нас" },
+  { href: "/contact", label: "Контакты" },
 ];
 
 const easeTransition = {
-  type: 'spring',
+  type: "spring",
   stiffness: 260,
   damping: 20,
 } as const;
 
 const underlineVariants = {
-  hidden: { width: 0, opacity: 0 },
-  visible: { width: '100%', opacity: 1, transition: { duration: 0.3 } }
+  initial: { scaleX: 0, opacity: 0 },
+  animate: {
+    scaleX: 1,
+    opacity: 1,
+  },
+  exit: {
+    scaleX: 0,
+    opacity: 0,
+  },
 };
 
 const dropdownVariants = {
   hidden: { opacity: 0, y: -5 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
 };
 
 const badgeVariants = {
   initial: { scale: 0, opacity: 0 },
-  animate: { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 400, damping: 17 } },
-  exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } }
+  animate: {
+    scale: 1,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 400, damping: 17 },
+  },
+  exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } },
 };
 
-const formatPrice = (amount?: number, currencyCode: string = 'KZT'): string => {
-  if (typeof amount !== 'number' || amount === null) {
-    return 'N/A';
+const formatPrice = (amount?: number, currencyCode: string = "KZT"): string => {
+  if (typeof amount !== "number" || amount === null) {
+    return "N/A";
   }
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: currencyCode.toUpperCase(),
+
+  const currency = currencyCode.toUpperCase();
+  if (currency === "KZT") {
+    return `${(amount / 100).toLocaleString("kk-KZ")} ₸`;
+  }
+
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: currency,
   }).format(amount / 100);
 };
 
@@ -104,7 +121,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const [openMobileMenu, setOpenMobileMenu] = useState(false);
   const pathname = usePathname();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter();
 
@@ -142,7 +159,8 @@ export function Header() {
   };
 
   const isAuthenticated = !!user;
-  const userFullName = user?.user_metadata?.name || user?.user_metadata?.full_name;
+  const userFullName =
+    user?.user_metadata?.name || user?.user_metadata?.full_name;
   const userEmail = user?.email;
   const avatarUrl = user?.user_metadata?.avatar_url;
 
@@ -161,21 +179,22 @@ export function Header() {
   };
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+      setSearchQuery("");
       setIsSearchOpen(false);
-      if(openMobileMenu) setOpenMobileMenu(false);
+      if (openMobileMenu) setOpenMobileMenu(false);
     }
   };
 
   const NavItem = ({ item, mobile = false, onClose }: NavItemProps) => {
-    const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+    const isActive =
+      pathname === item.href || pathname?.startsWith(`${item.href}/`);
     const [isHovered, setIsHovered] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -189,19 +208,19 @@ export function Header() {
           <button
             className={cn(
               "flex items-center px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              isActive 
-                ? "text-primary" 
-                : "text-foreground hover:text-primary"
+              isActive ? "text-primary" : "text-foreground hover:text-primary",
             )}
             aria-expanded={isDropdownOpen}
           >
             {item.label}
-            <ChevronDown className={cn(
-              "ml-1 h-4 w-4 transition-transform duration-200",
-              isDropdownOpen ? "rotate-180" : ""
-            )} />
+            <ChevronDown
+              className={cn(
+                "ml-1 h-4 w-4 transition-transform duration-200",
+                isDropdownOpen ? "rotate-180" : "",
+              )}
+            />
           </button>
-          
+
           <AnimatePresence>
             {isDropdownOpen && (
               <motion.div
@@ -216,7 +235,10 @@ export function Header() {
                     key={child.href}
                     href={child.href}
                     className="block px-4 py-2 text-foreground hover:bg-accent hover:text-primary transition-colors duration-200"
-                    onClick={() => { setIsDropdownOpen(false); if(onClose) onClose(); }}
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      if (onClose) onClose();
+                    }}
                   >
                     {child.label}
                   </Link>
@@ -233,11 +255,13 @@ export function Header() {
         <div className="mb-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className={cn(
                   "justify-between text-base w-full mb-1 px-3 py-2 h-auto",
-                  isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
+                  isActive
+                    ? "text-primary bg-accent"
+                    : "text-foreground hover:bg-accent",
                 )}
               >
                 {item.label}
@@ -256,13 +280,15 @@ export function Header() {
           </DropdownMenu>
         </div>
       ) : (
-        <Button 
-          key={item.href} 
-          variant="ghost" 
-          asChild 
+        <Button
+          key={item.href}
+          variant="ghost"
+          asChild
           className={cn(
             "justify-start text-base w-full mb-1 px-3 py-2 h-auto",
-            isActive ? "text-primary bg-accent" : "text-foreground hover:bg-accent"
+            isActive
+              ? "text-primary bg-accent"
+              : "text-foreground hover:bg-accent",
           )}
           onClick={onClose}
         >
@@ -281,27 +307,31 @@ export function Header() {
           href={item.href}
           className={cn(
             "px-4 py-2 rounded-lg text-base font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            isActive
-              ? "text-primary"
-              : "text-foreground hover:text-primary"
+            isActive ? "text-primary" : "text-foreground hover:text-primary",
           )}
         >
           {item.label}
         </Link>
-        {(isActive || isHovered) && (
-          <motion.div
-            layoutId="underline"
-            className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
-            initial="hidden"
-            animate="visible"
-            variants={underlineVariants}
-          />
-        )}
+        <AnimatePresence>
+          {(isActive || isHovered) && (
+            <motion.div
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={underlineVariants}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
       </div>
     );
   };
 
-  if (!mounted) return <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>;
+  if (!mounted)
+    return (
+      <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>
+    );
 
   return (
     <motion.header
@@ -331,7 +361,7 @@ export function Header() {
             />
           </Link>
 
-          <nav className="hidden lg:flex space-x-1 ml-auto"> 
+          <nav className="hidden lg:flex space-x-1 ml-auto">
             {navItems.map((item) => (
               <NavItem key={item.href} item={item} />
             ))}
@@ -348,13 +378,17 @@ export function Header() {
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={theme}
-                  initial={{ y: theme === 'dark' ? 20 : -20, opacity: 0 }}
+                  initial={{ y: theme === "dark" ? 20 : -20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: theme === 'dark' ? -20 : 20, opacity: 0 }}
+                  exit={{ y: theme === "dark" ? -20 : 20, opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   className="flex items-center justify-center"
                 >
-                  {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  {theme === "dark" ? (
+                    <Sun className="h-5 w-5" />
+                  ) : (
+                    <Moon className="h-5 w-5" />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </Button>
@@ -370,15 +404,18 @@ export function Header() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="lg:hidden w-full max-w-xs sm:max-w-sm p-0 border-l border-border bg-card">
+              <SheetContent
+                side="right"
+                className="lg:hidden w-full max-w-xs sm:max-w-sm p-0 border-l border-border bg-card"
+              >
                 <SheetHeader className="p-4 border-b border-border bg-muted/30">
                   <div className="flex justify-between items-center">
-                     <SheetTitle className="text-left text-lg font-semibold text-foreground">
+                    <SheetTitle className="text-left text-lg font-semibold text-foreground">
                       Меню
                     </SheetTitle>
                   </div>
                 </SheetHeader>
-                
+
                 <div className="p-4 border-b border-border">
                   <form onSubmit={handleSearchSubmit} className="relative">
                     <Input
@@ -391,15 +428,20 @@ export function Header() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   </form>
                 </div>
-                
+
                 <ScrollArea className="h-[calc(100vh-140px)]">
                   <div className="py-4 px-3">
                     <nav className="flex flex-col gap-1">
                       {navItems.map((item) => (
-                        <NavItem key={item.href} item={item} mobile onClose={() => setOpenMobileMenu(false)} />
+                        <NavItem
+                          key={item.href}
+                          item={item}
+                          mobile
+                          onClose={() => setOpenMobileMenu(false)}
+                        />
                       ))}
                     </nav>
-                    
+
                     <div className="mt-4 pt-4 border-t border-border">
                       <Button
                         variant="ghost"
@@ -427,48 +469,68 @@ export function Header() {
                   <Button variant="ghost" size="icon" className="relative">
                     <Avatar>
                       {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt={userFullName || userEmail || 'User'} />
+                        <AvatarImage
+                          src={avatarUrl}
+                          alt={userFullName || userEmail || "User"}
+                        />
                       ) : (
-                        <AvatarFallback>{getInitials(userFullName, userEmail)}</AvatarFallback>
+                        <AvatarFallback>
+                          {getInitials(userFullName, userEmail)}
+                        </AvatarFallback>
                       )}
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>
-                    <div className="font-semibold">{userFullName || userEmail}</div>
-                    <div className="text-xs text-muted-foreground">{userEmail}</div>
+                    <div className="font-semibold">
+                      {userFullName || userEmail}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {userEmail}
+                    </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/account">
-                      <User className="mr-2 h-4 w-4" />Профиль
+                      <User className="mr-2 h-4 w-4" />
+                      Профиль
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/account/orders">
-                      <Package className="mr-2 h-4 w-4" />Мои заказы
+                      <Package className="mr-2 h-4 w-4" />
+                      Мои заказы
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/account/wishlist">
-                      <Heart className="mr-2 h-4 w-4" />Избранное
+                      <Heart className="mr-2 h-4 w-4" />
+                      Избранное
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/admin">
-                      <Settings className="mr-2 h-4 w-4" />Админка
+                      <Settings className="mr-2 h-4 w-4" />
+                      Админка
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />Выйти
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Выйти
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="outline" onClick={() => router.push('/auth/signin')}>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/auth/signin")}
+              >
                 Войти
               </Button>
             )}

@@ -26,9 +26,15 @@ const formatPrice = (
   if (typeof amount !== "number" || amount === null) {
     return "Цена по запросу";
   }
+
+  const currency = currencyCode.toUpperCase();
+  if (currency === "KZT") {
+    return `${amount.toLocaleString("kk-KZ")} ₸`;
+  }
+
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
-    currency: currencyCode.toUpperCase(),
+    currency: currency,
   }).format(amount);
 };
 

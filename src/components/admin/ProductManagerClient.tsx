@@ -35,6 +35,7 @@ import {
   ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react";
+import { formatPrice } from "@/utils";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -108,14 +109,21 @@ export function ProductManagerClient({
 
   // Функция конвертации Product в ProductFormData
   const convertProductToFormData = (product: Product): ProductFormData => {
+    // Извлекаем ID из связанных объектов, если они есть
+    const categoryId =
+      product.category_id || (product.category as any)?.id || "";
+    const brandId = product.brand_id || (product.brand as any)?.id || null;
+    const collectionId =
+      product.collection_id || (product.collection as any)?.id || null;
+
     return {
       id: product.id,
       name: product.name,
       slug: product.slug,
       images: product.images || [],
-      category_id: product.category_id,
-      brand_id: product.brand_id,
-      collection_id: product.collection_id,
+      category_id: categoryId,
+      brand_id: brandId,
+      collection_id: collectionId,
       short_description: product.short_description,
       description: product.description,
       technical_description: product.technical_description,
@@ -343,13 +351,11 @@ export function ProductManagerClient({
       },
       {
         accessorKey: "base_price",
+        id: "base_price",
         header: () => <div className="text-right">Цена</div>,
         cell: ({ row }) => {
           const amount = parseFloat(row.getValue("base_price"));
-          const formatted = new Intl.NumberFormat("ru-RU", {
-            style: "currency",
-            currency: "KZT",
-          }).format(amount);
+          const formatted = formatPrice(amount);
 
           return <div className="text-right font-medium">{formatted}</div>;
         },
@@ -416,7 +422,10 @@ export function ProductManagerClient({
   const selectedRowsIds = Object.keys(
     table.getFilteredSelectedRowModel().rowsById,
   );
-  const statuses = useMemo(() => ["draft", "published", "archived"], []);
+  const statuses = useMemo(
+    () => ["draft", "active", "archived", "out_of_stock"],
+    [],
+  );
 
   return (
     <div>
