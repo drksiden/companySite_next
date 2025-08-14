@@ -1,240 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { listProducts } from "@/lib/services/catalog";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // Параметры пагинации
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const offset = (page - 1) * limit;
-
-    // Параметры фильтрации
-    const categories =
-      searchParams.get("categories")?.split(",").filter(Boolean) || [];
-    const brands = searchParams.get("brands")?.split(",").filter(Boolean) || [];
-    const collections =
-      searchParams.get("collections")?.split(",").filter(Boolean) || [];
-    const minPrice = parseFloat(searchParams.get("minPrice") || "0");
-    const maxPrice = parseFloat(searchParams.get("maxPrice") || "0");
-    const inStockOnly = searchParams.get("inStockOnly") === "true";
-    const featured = searchParams.get("featured") === "true";
-    const search = searchParams.get("search");
-
-    // Параметры сортировки
-    const sortBy = searchParams.get("sortBy") || "name_asc";
-
-    const supabase = await createClient();
-
-    // Базовый запрос
-    let query = supabase.from("products").select(
-      `
-        id,
-        name,
-        slug,
-        sku,
-        short_description,
-        base_price,
-        sale_price,
-        thumbnail,
-        images,
-        inventory_quantity,
-        track_inventory,
-        is_featured,
-        status,
-        created_at,
-        view_count,
-        sales_count,
-        brands(
-          id,
-          name,
-          slug,
-          logo_url
-        ),
-        categories(
-          id,
-          name,
-          slug,
-          path,
-          level
-        ),
-        currencies(
-          id,
-          code,
-          symbol,
-          name
-        ),
-        collections(
-          id,
-          name,
-          slug
-        )
-      `,
-      { count: "exact" },
-    );
-
-    // Фильтруем только активные продукты
-    query = query.eq("status", "active");
-
-    // Применяем фильтры
-    if (categories.length > 0) {
-      query = query.in("category_id", categories);
-    }
-
-    if (brands.length > 0) {
-      query = query.in("brand_id", brands);
-    }
-
-    if (collections.length > 0) {
-      query = query.in("collection_id", collections);
-    }
-
-    if (minPrice > 0) {
-      query = query.gte("base_price", minPrice);
-    }
-
-    if (maxPrice > 0) {
-      query = query.lte("base_price", maxPrice);
-    }
-
-    if (inStockOnly) {
-      query = query.gt("inventory_quantity", 0);
-    }
-
-    if (featured) {
-      query = query.eq("is_featured", true);
-    }
-
-    if (search) {
-      query = query.ilike("name", `%${search}%`);
-    }
-
-    // Применяем сортировку
-    switch (sortBy) {
-      case "name_asc":
-        query = query.order("name", { ascending: true });
-        break;
-      case "name_desc":
-        query = query.order("name", { ascending: false });
-        break;
-      case "price_asc":
-        query = query.order("base_price", {
-          ascending: true,
-          nullsFirst: true,
-        });
-        break;
-      case "price_desc":
-        query = query.order("base_price", {
-          ascending: false,
-          nullsFirst: true,
-        });
-        break;
-      case "created_asc":
-        query = query.order("created_at", { ascending: true });
-        break;
-      case "created_desc":
-        query = query.order("created_at", { ascending: false });
-        break;
-      case "featured":
-        query = query.order("is_featured", { ascending: false }).order("name");
-        break;
-      default:
-        query = query.order("name", { ascending: true });
-    }
-
-    // Применяем пагинацию
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return NextResponse.json({ error: "Database error" }, { status: 500 });
-    }
-
-    // Обогащаем продукты вычисляемыми полями
-    const products = (data || []).map((product) => {
-      const finalPrice = product.sale_price || product.base_price;
-      const isOnSale = !!(
-        product.sale_price && product.sale_price < product.base_price
-      );
-      const discountPercentage = isOnSale
-        ? Math.round(
-            ((product.base_price - product.sale_price) / product.base_price) *
-              100,
-          )
-        : 0;
-
-      // Безопасное извлечение связанных данных
-      const currency = product.currencies as any;
-      const brand = product.brands as any;
-      const category = product.categories as any;
-
-      // Обработка изображений - фильтруем пустые и некорректные URL
-      const images = product.images
-        ? (Array.isArray(product.images) ? product.images : []).filter(
-            (img) => img && typeof img === "string" && img.trim() !== "",
-          )
-        : [];
-
-      // Если thumbnail пустой, используем первое изображение из массива
-      const thumbnail =
-        product.thumbnail && product.thumbnail.trim() !== ""
-          ? product.thumbnail
-          : images.length > 0
-            ? images[0]
-            : null;
-
-      return {
-        ...product,
-        thumbnail,
-        images,
-        final_price: finalPrice,
-        is_on_sale: isOnSale,
-        discount_percentage: discountPercentage,
-        formatted_price: formatPrice(finalPrice, currency?.symbol || "₸"),
-        brand_name: brand?.name || null,
-        category_name: category?.name || null,
-      };
+    // Convert URLSearchParams to plain object for zod parsing
+    const queryParams: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      queryParams[key] = value;
     });
 
-    const totalPages = Math.ceil((count || 0) / limit);
+    const result = await listProducts(queryParams);
 
-    const response = {
-      products,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-      filters: {
-        categories: categories,
-        brands: brands,
-        collections: collections,
-        priceRange: { min: minPrice, max: maxPrice },
-        inStockOnly,
-        featured,
-        search,
-      },
-    };
-
-    return NextResponse.json({
-      success: true,
-      data: response,
-    });
-  } catch (error) {
-    console.error("API error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store", // Dynamic catalog data
+          "X-Total-Count": result.meta.total.toString(),
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Catalog products API error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch products",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }
-}
-
-function formatPrice(price: number, symbol: string = "₸"): string {
-  return `${price.toLocaleString("kk-KZ")} ${symbol}`;
 }

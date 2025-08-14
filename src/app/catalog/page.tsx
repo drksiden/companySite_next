@@ -1,114 +1,76 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { SimpleCatalog } from "@/features/catalog/components/SimpleCatalog";
+import CatalogShell from "@/features/catalog/components/CatalogShell";
+import LoadingSkeletons from "@/features/catalog/components/LoadingSkeletons";
+import {
+  listProducts,
+  listCategories,
+  listBrands,
+} from "@/lib/services/catalog";
 
 export const metadata: Metadata = {
   title: "Каталог товаров",
-  description: "Каталог товаров - широкий ассортимент по выгодным ценам",
+  description:
+    "Широкий ассортимент качественных товаров с удобными фильтрами и быстрой доставкой",
+  keywords: ["каталог", "товары", "интернет-магазин", "покупки", "доставка"],
 };
 
 interface CatalogPageProps {
-  searchParams: Promise<{
-    page?: string;
-    limit?: string;
-    sortBy?: string;
-    categories?: string;
-    brands?: string;
-    collections?: string;
-    minPrice?: string;
-    maxPrice?: string;
-    inStockOnly?: string;
-    featured?: string;
-    search?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-async function fetchCatalogData(params: Record<string, string>) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
+async function fetchCatalogData(
+  searchParams: Record<string, string | string[] | undefined>,
+) {
   try {
-    // Fetch products
-    const productParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value) productParams.set(key, value);
+    // Convert searchParams to plain object for service functions
+    const params: Record<string, string> = {};
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (value !== undefined) {
+        params[key] = Array.isArray(value) ? value[0] : value;
+      }
     });
 
-    const [productsRes, categoriesRes, brandsRes] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/catalog/products?${productParams.toString()}`, {
-        cache: "no-store",
-      }),
-      fetch(`${baseUrl}/api/catalog/categories`, { cache: "no-store" }),
-      fetch(`${baseUrl}/api/catalog/brands`, { cache: "no-store" }),
+    // Fetch products and metadata in parallel
+    const [productsResult, categories, brands] = await Promise.all([
+      listProducts(params),
+      listCategories(),
+      listBrands(),
     ]);
 
-    const products =
-      productsRes.status === "fulfilled" && productsRes.value.ok
-        ? await productsRes.value.json()
-        : { success: false, data: null };
-
-    const categories =
-      categoriesRes.status === "fulfilled" && categoriesRes.value.ok
-        ? await categoriesRes.value.json()
-        : { success: false, data: [] };
-
-    const brands =
-      brandsRes.status === "fulfilled" && brandsRes.value.ok
-        ? await brandsRes.value.json()
-        : { success: false, data: [] };
-
     return {
-      products: products.success ? products.data : null,
-      categories: categories.success ? categories.data : [],
-      brands: brands.success ? brands.data : [],
-      collections: [], // TODO: Add collections API
+      products: productsResult.data,
+      meta: productsResult.meta,
+      categories,
+      brands,
     };
   } catch (error) {
     console.error("Error fetching catalog data:", error);
-    return {
-      products: null,
-      categories: [],
-      brands: [],
-      collections: [],
-    };
+    throw error;
   }
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const resolvedSearchParams = await searchParams;
+  try {
+    const { products, meta, categories, brands } = await fetchCatalogData(
+      await searchParams,
+    );
 
-  // Convert search params to the format expected by the API
-  const apiParams: Record<string, string> = {};
-  if (resolvedSearchParams.page) apiParams.page = resolvedSearchParams.page;
-  if (resolvedSearchParams.limit) apiParams.limit = resolvedSearchParams.limit;
-  if (resolvedSearchParams.sortBy)
-    apiParams.sortBy = resolvedSearchParams.sortBy;
-  if (resolvedSearchParams.categories)
-    apiParams.categories = resolvedSearchParams.categories;
-  if (resolvedSearchParams.brands)
-    apiParams.brands = resolvedSearchParams.brands;
-  if (resolvedSearchParams.collections)
-    apiParams.collections = resolvedSearchParams.collections;
-  if (resolvedSearchParams.minPrice)
-    apiParams.minPrice = resolvedSearchParams.minPrice;
-  if (resolvedSearchParams.maxPrice)
-    apiParams.maxPrice = resolvedSearchParams.maxPrice;
-  if (resolvedSearchParams.inStockOnly)
-    apiParams.inStockOnly = resolvedSearchParams.inStockOnly;
-  if (resolvedSearchParams.featured)
-    apiParams.featured = resolvedSearchParams.featured;
-  if (resolvedSearchParams.search)
-    apiParams.search = resolvedSearchParams.search;
-
-  const { products, categories, brands, collections } =
-    await fetchCatalogData(apiParams);
-
-  return (
-    <div className="min-h-screen bg-background">
-      <SimpleCatalog
-        initialProducts={products}
-        initialCategories={categories}
-        initialBrands={brands}
-      />
-    </div>
-  );
+    return (
+      <div className="min-h-screen bg-background">
+        <Suspense fallback={<LoadingSkeletons count={12} />}>
+          <CatalogShell
+            initialProducts={products}
+            initialCategories={categories}
+            initialBrands={brands}
+            initialMeta={meta}
+          />
+        </Suspense>
+      </div>
+    );
+  } catch (error) {
+    console.error("Catalog page error:", error);
+    notFound();
+  }
 }

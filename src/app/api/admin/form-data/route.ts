@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createServerClient } from "@/lib/supabaseServer";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
 
@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
       default:
         return NextResponse.json(
           { error: "Invalid type parameter" },
-          { status: 400 }
+          { status: 400 },
         );
     }
   } catch (error) {
     console.error("Error in form-data API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -45,7 +45,7 @@ async function getCategoriesData(supabase: any) {
   if (error) {
     return NextResponse.json(
       { error: "Failed to fetch categories" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -63,7 +63,7 @@ async function getBrandsData(supabase: any) {
   if (error) {
     return NextResponse.json(
       { error: "Failed to fetch brands" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -73,7 +73,8 @@ async function getBrandsData(supabase: any) {
 async function getCollectionsData(supabase: any) {
   const { data: collections, error } = await supabase
     .from("collections")
-    .select(`
+    .select(
+      `
       id,
       name,
       slug,
@@ -88,7 +89,8 @@ async function getCollectionsData(supabase: any) {
         id,
         name
       )
-    `)
+    `,
+    )
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
@@ -96,7 +98,7 @@ async function getCollectionsData(supabase: any) {
   if (error) {
     return NextResponse.json(
       { error: "Failed to fetch collections" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -114,7 +116,7 @@ async function getCurrenciesData(supabase: any) {
   if (error) {
     return NextResponse.json(
       { error: "Failed to fetch currencies" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -123,7 +125,12 @@ async function getCurrenciesData(supabase: any) {
 
 async function getAllFormData(supabase: any) {
   try {
-    const [categoriesResult, brandsResult, collectionsResult, currenciesResult] = await Promise.all([
+    const [
+      categoriesResult,
+      brandsResult,
+      collectionsResult,
+      currenciesResult,
+    ] = await Promise.all([
       supabase
         .from("categories")
         .select("id, name, slug, path, level, parent_id, is_active")
@@ -141,7 +148,8 @@ async function getAllFormData(supabase: any) {
 
       supabase
         .from("collections")
-        .select(`
+        .select(
+          `
           id,
           name,
           slug,
@@ -156,7 +164,8 @@ async function getAllFormData(supabase: any) {
             id,
             name
           )
-        `)
+        `,
+        )
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
@@ -166,7 +175,7 @@ async function getAllFormData(supabase: any) {
         .select("id, code, name, symbol, is_base, is_active")
         .eq("is_active", true)
         .order("is_base", { ascending: false })
-        .order("code", { ascending: true })
+        .order("code", { ascending: true }),
     ]);
 
     // Check for errors
@@ -185,7 +194,7 @@ async function getAllFormData(supabase: any) {
     console.error("Error fetching all form data:", error);
     return NextResponse.json(
       { error: "Failed to fetch form data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

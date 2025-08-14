@@ -1,12 +1,11 @@
 // src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
 import { UserProfile, UserUpdatePayload, UserRole } from "@/lib/services/user"; // Убедитесь, что UserUpdatePayload и UserRole импортированы
-import { createClient } from "@/utils/supabase/server";
 
 // Вспомогательная функция для проверки авторизации
 async function authorizeAdmin(req: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authUserError,
@@ -57,7 +56,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await createAdminClient()
       .from("user_profiles")
       .select("*")
       .eq("id", id)
@@ -117,12 +116,13 @@ export async function PATCH(
 
   try {
     // 1. Обновляем профиль пользователя в таблице 'user_profiles'
-    const { data: updatedProfile, error: profileError } = await supabaseAdmin
-      .from("user_profiles")
-      .update(profileUpdates) // profileUpdates теперь не содержит email и role
-      .eq("id", id)
-      .select()
-      .single();
+    const { data: updatedProfile, error: profileError } =
+      await createAdminClient()
+        .from("user_profiles")
+        .update(profileUpdates) // profileUpdates теперь не содержит email и role
+        .eq("id", id)
+        .select()
+        .single();
 
     if (profileError) {
       console.error(`Error updating user profile with ID ${id}:`, profileError);
@@ -145,7 +145,7 @@ export async function PATCH(
     // 2. Если обновляется роль, обновляем app_metadata в auth.users
     if (newRole) {
       const { error: authUpdateError } =
-        await supabaseAdmin.auth.admin.updateUserById(id, {
+        await createAdminClient().auth.admin.updateUserById(id, {
           app_metadata: { role: newRole },
         });
       if (authUpdateError) {
@@ -161,7 +161,7 @@ export async function PATCH(
     // 3. Если обновляется email, обновляем в auth.users
     if (newEmail) {
       const { error: authEmailUpdateError } =
-        await supabaseAdmin.auth.admin.updateUserById(id, {
+        await createAdminClient().auth.admin.updateUserById(id, {
           email: newEmail,
           email_confirm: true, // Возможно, захотите подтверждать email администратором
         });
@@ -205,7 +205,8 @@ export async function DELETE(
     // Удаляем пользователя из Supabase Auth.
     // Если у вас настроен внешний ключ с ON DELETE CASCADE между auth.users.id и profiles.id,
     // это автоматически удалит запись из таблицы profiles.
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    const { error: authError } =
+      await createAdminClient().auth.admin.deleteUser(id);
 
     if (authError) {
       console.error(`Error deleting auth user with ID ${id}:`, authError);

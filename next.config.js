@@ -9,15 +9,17 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "pub-1506276de6ac4a07aa6fe582457507c1.r2.dev",
+        hostname: "**.r2.dev",
+        pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "*.r2.dev",
+        hostname: "**.r2.cloudflarestorage.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "*.supabase.co",
+        hostname: "**.supabase.co",
       },
       {
         protocol: "https",
@@ -25,7 +27,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "*.amazonaws.com",
+        hostname: "**.amazonaws.com",
       },
       {
         protocol: "https",
@@ -33,7 +35,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "*.storage.googleapis.com",
+        hostname: "**.storage.googleapis.com",
       },
       {
         protocol: "https",

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { uploadFileToR2 } from "@/utils/r2/client";
+import { createServerClient } from "@/lib/supabaseServer";
+import { uploadFileToR2 } from "@/lib/r2";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const formData = await req.formData();
 
     // --- Обработка изображения ---
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const formData = await req.formData();
 
     const categoryId = formData.get("id") as string;
@@ -331,7 +331,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const { searchParams } = new URL(req.url);
     const categoryId = searchParams.get("id");
 

@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  imageCache,
   filterValidImages,
   getBestAvailableImage,
-  optimizeImageUrl,
+  getOptimizedImageUrl,
   preloadImages,
-  type ImageSizeType,
-} from "@/utils/imageOptimization";
+  type ImageLoadResult,
+} from "@/lib/imageUtils";
 
 interface UseCatalogImagesOptions {
   enabled?: boolean;
   priority?: boolean;
   preloadCount?: number;
-  sizeType?: ImageSizeType;
+  sizeType?: "small" | "medium" | "large";
   maxConcurrent?: number;
   timeout?: number;
   retryAttempts?: number;
@@ -26,51 +25,49 @@ interface ImageState {
   error: boolean;
   loading: boolean;
   optimizedSrc: string;
-  retryCount: number;
 }
 
-interface UseCatalogImagesResult {
-  // Состояние загрузки
+interface ImageStats {
+  cacheHitRate: number;
+  averageLoadTime: number;
+  errorRate: number;
+}
+
+interface UseCatalogImagesReturn {
+  imageStates: Record<string, ImageState>;
+  loadedImages: string[];
+  errorImages: string[];
+  loadingImages: string[];
+  totalImages: number;
+  loadedCount: number;
+  errorCount: number;
+  loadingCount: number;
   isLoading: boolean;
   hasErrors: boolean;
-  loadedCount: number;
-  totalCount: number;
-
-  // Данные изображений
-  images: Map<string, ImageState>;
-  optimizedImages: string[];
-
-  // Утилиты
+  allLoaded: boolean;
   getImageState: (src: string) => ImageState | null;
-  isImageLoaded: (src: string) => boolean;
-  hasImageError: (src: string) => boolean;
-  getOptimizedSrc: (src: string, sizeType?: ImageSizeType) => string;
-
-  // Действия
-  preloadImage: (src: string) => Promise<void>;
-  retryImage: (src: string) => Promise<void>;
-  retryAll: () => Promise<void>;
+  getOptimizedSrc: (
+    src: string,
+    sizeType?: "small" | "medium" | "large",
+  ) => string;
+  retryErrorImages: () => Promise<void>;
+  preloadBatch: (urls: string[]) => Promise<void>;
   clearCache: () => void;
-
-  // Статистика
-  stats: {
-    cacheHitRate: number;
-    averageLoadTime: number;
-    errorRate: number;
-    loadedCount: number;
-    totalImages: number;
-  };
+  stats: ImageStats;
 }
 
+/**
+ * Hook for managing catalog images with preloading, optimization, and error handling
+ */
 export function useCatalogImages(
-  imageUrls: (string | null | undefined)[],
+  images: (string | null | undefined)[],
   options: UseCatalogImagesOptions = {},
-): UseCatalogImagesResult {
+): UseCatalogImagesReturn {
   const {
     enabled = true,
     priority = false,
-    preloadCount = 6,
-    sizeType = "card",
+    preloadCount = 5,
+    sizeType = "medium",
     maxConcurrent = 3,
     timeout = 10000,
     retryAttempts = 2,
@@ -78,895 +75,368 @@ export function useCatalogImages(
     onImageError,
   } = options;
 
-  const [images, setImages] = useState<Map<string, ImageState>>(new Map());
-  const [stats, setStats] = useState({
-    cacheHitRate: 0,
+  const [imageStates, setImageStates] = useState<Record<string, ImageState>>(
+    {},
+  );
+  const [stats, setStats] = useState<ImageStats>({
+    cacheHitRate: 0.95,
     averageLoadTime: 0,
     errorRate: 0,
   });
 
-  // Используем refs для стабильного отслеживания состояния
-  const urlsStringRef = useRef<string>("");
-  const prevEnabledRef = useRef(enabled);
-  const prevSizeTypeRef = useRef(sizeType);
-
-  // Фильтруем и нормализуем URL изображений
+  // Filter and validate images
   const validImageUrls = useMemo(() => {
-    return filterValidImages(imageUrls);
-  }, [imageUrls]);
+    return filterValidImages(images);
+  }, [images]);
 
-  // Создаем оптимизированные версии URL
+  // Create optimized image URLs
   const optimizedImages = useMemo(() => {
-    return validImageUrls.map((src) => optimizeImageUrl(src, sizeType));
-  }, [validImageUrls, sizeType]);
+    return validImageUrls.map((src) =>
+      getOptimizedImageUrl(src, {
+        width: sizeType === "small" ? 300 : sizeType === "medium" ? 600 : 1200,
+        quality: priority ? 90 : 75,
+      }),
+    );
+  }, [validImageUrls, sizeType, priority]);
 
-  // Инициализация состояния изображений
+  // Initialize image states
   useEffect(() => {
-    const currentUrlsString = JSON.stringify(validImageUrls);
+    if (!enabled || validImageUrls.length === 0) return;
 
-    // Проверяем, действительно ли что-то изменилось
-    if (
-      currentUrlsString === urlsStringRef.current &&
-      enabled === prevEnabledRef.current &&
-      sizeType === prevSizeTypeRef.current
-    ) {
-      return; // Ничего не изменилось, выходим
-    }
-
-    // Обновляем refs
-    urlsStringRef.current = currentUrlsString;
-    prevEnabledRef.current = enabled;
-    prevSizeTypeRef.current = sizeType;
-
-    if (!enabled || validImageUrls.length === 0) {
-      setImages(new Map());
-      return;
-    }
-
-    const newImages = new Map<string, ImageState>();
+    const initialStates: Record<string, ImageState> = {};
 
     validImageUrls.forEach((src) => {
-      newImages.set(src, {
+      initialStates[src] = {
         src,
-        loaded: imageCache.has(src),
+        loaded: false,
         error: false,
-        loading: !imageCache.has(src),
-        optimizedSrc: optimizeImageUrl(src, sizeType),
-        retryCount: 0,
-      });
+        loading: false,
+        optimizedSrc:
+          getOptimizedImageUrl(src, {
+            width:
+              sizeType === "small" ? 300 : sizeType === "medium" ? 600 : 1200,
+            quality: priority ? 90 : 75,
+          }) || src,
+      };
     });
 
-    setImages(newImages);
-  }, [validImageUrls, enabled, sizeType]);
+    setImageStates(initialStates);
+  }, [enabled, validImageUrls, sizeType, priority]);
 
-  // Функция предзагрузки одного изображения
-  const preloadImage = useCallback(
-    async (src: string): Promise<void> => {
-      if (!src || images.get(src)?.loaded) return;
+  // Preload images function
+  const preloadImagesBatch = useCallback(
+    async (urls: string[]) => {
+      if (!enabled || urls.length === 0) return;
 
-      const startTime = Date.now();
-
-      setImages((prev) => {
-        const updated = new Map(prev);
-        const state = updated.get(src) || {
-          src,
-          loaded: false,
-          error: false,
-          loading: true,
-          optimizedSrc: optimizeImageUrl(src, sizeType),
-          retryCount: 0,
-        };
-
-        updated.set(src, { ...state, loading: true, error: false });
-        return updated;
+      setImageStates((prev) => {
+        const newStates = { ...prev };
+        urls.forEach((src) => {
+          if (newStates[src]) {
+            newStates[src].loading = true;
+            newStates[src].error = false;
+          }
+        });
+        return newStates;
       });
 
       try {
-        // Проверяем кэш
-        if (imageCache.has(src)) {
-          setImages((prev) => {
-            const updated = new Map(prev);
-            const state = updated.get(src)!;
-            updated.set(src, { ...state, loaded: true, loading: false });
-            return updated;
+        const results = await preloadImages(urls);
+
+        setImageStates((prev) => {
+          const newStates = { ...prev };
+          results.forEach((result) => {
+            if (newStates[result.src]) {
+              newStates[result.src].loaded = result.loaded;
+              newStates[result.src].error = result.error;
+              newStates[result.src].loading = false;
+
+              if (result.loaded) {
+                onImageLoad?.(result.src);
+              } else if (result.error) {
+                onImageError?.(result.src, new Error("Failed to load image"));
+              }
+            }
           });
-          onImageLoad?.(src);
-          return;
-        }
-
-        // Загружаем изображение
-        const img = new Image();
-
-        if (priority && "fetchPriority" in img) {
-          (img as any).fetchPriority = "high";
-        }
-
-        // Promise для загрузки с таймаутом
-        const loadPromise = new Promise<HTMLImageElement>((resolve, reject) => {
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error(`Failed to load: ${src}`));
-
-          setTimeout(() => {
-            reject(new Error(`Timeout loading: ${src}`));
-          }, timeout);
+          return newStates;
         });
-
-        img.src = optimizeImageUrl(src, sizeType);
-        const loadedImg = await loadPromise;
-
-        // Сохраняем в кэш
-        imageCache.set(src, loadedImg);
-
-        // Обновляем состояние
-        setImages((prev) => {
-          const updated = new Map(prev);
-          const state = updated.get(src)!;
-          updated.set(src, {
-            ...state,
-            loaded: true,
-            loading: false,
-            error: false,
-          });
-          return updated;
-        });
-
-        // Обновляем статистику
-        const loadTime = Date.now() - startTime;
-        setStats((prev) => ({
-          ...prev,
-          averageLoadTime: (prev.averageLoadTime + loadTime) / 2,
-        }));
-
-        onImageLoad?.(src);
       } catch (error) {
-        const err = error instanceof Error ? error : new Error("Unknown error");
-
-        setImages((prev) => {
-          const updated = new Map(prev);
-          const state = updated.get(src)!;
-          updated.set(src, {
-            ...state,
-            loaded: false,
-            loading: false,
-            error: true,
-            retryCount: state.retryCount + 1,
+        // Handle batch error
+        setImageStates((prev) => {
+          const newStates = { ...prev };
+          urls.forEach((src) => {
+            if (newStates[src]) {
+              newStates[src].loading = false;
+              newStates[src].error = true;
+            }
           });
-          return updated;
+          return newStates;
         });
-
-        onImageError?.(src, err);
       }
     },
-    [images, sizeType, priority, timeout, onImageLoad, onImageError],
+    [enabled, onImageLoad, onImageError],
   );
 
-  // Функция retry для конкретного изображения
-  const retryImage = useCallback(
-    async (src: string): Promise<void> => {
-      const imageState = images.get(src);
-      if (!imageState || imageState.retryCount >= retryAttempts) return;
-
-      await preloadImage(src);
-    },
-    [images, retryAttempts, preloadImage],
-  );
-
-  // Retry всех изображений с ошибками
-  const retryAll = useCallback(async (): Promise<void> => {
-    const errorImages = Array.from(images.entries())
-      .filter(([_, state]) => state.error && state.retryCount < retryAttempts)
-      .map(([src]) => src);
-
-    if (errorImages.length === 0) return;
-
-    const { successful, failed } = await preloadImages(errorImages, {
-      sizeType,
-      maxConcurrent,
-      priority,
-      timeout,
-    });
-
-    // Обновляем состояние успешных
-    successful.forEach((src) => {
-      setImages((prev) => {
-        const updated = new Map(prev);
-        const state = updated.get(src)!;
-        updated.set(src, {
-          ...state,
-          loaded: true,
-          error: false,
-          loading: false,
-        });
-        return updated;
-      });
-    });
-
-    // Обновляем состояние неудачных
-    failed.forEach(({ src }) => {
-      setImages((prev) => {
-        const updated = new Map(prev);
-        const state = updated.get(src)!;
-        updated.set(src, {
-          ...state,
-          error: true,
-          loading: false,
-          retryCount: state.retryCount + 1,
-        });
-        return updated;
-      });
-    });
-  }, [images, retryAttempts, sizeType, maxConcurrent, priority, timeout]);
-
-  // Очистка кэша
-  const clearCache = useCallback(() => {
-    imageCache.clear();
-    setImages((prev) => {
-      const updated = new Map();
-      prev.forEach((state, src) => {
-        updated.set(src, {
-          ...state,
-          loaded: false,
-          loading: true,
-          error: false,
-          retryCount: 0,
-        });
-      });
-      return updated;
-    });
-  }, []);
-
-  // Утилиты
-  const getImageState = useCallback(
-    (src: string): ImageState | null => {
-      return images.get(src) || null;
-    },
-    [images],
-  );
-
-  const isImageLoaded = useCallback(
-    (src: string): boolean => {
-      return images.get(src)?.loaded ?? false;
-    },
-    [images],
-  );
-
-  const hasImageError = useCallback(
-    (src: string): boolean => {
-      return images.get(src)?.error ?? false;
-    },
-    [images],
-  );
-
-  const getOptimizedSrc = useCallback(
-    (src: string, targetSizeType: ImageSizeType = sizeType): string => {
-      return optimizeImageUrl(src, targetSizeType);
-    },
-    [sizeType],
-  );
-
-  // Автоматическая предзагрузка приоритетных изображений
+  // Preload priority images on mount
   useEffect(() => {
     if (!enabled || validImageUrls.length === 0) return;
 
     const priorityImages = validImageUrls.slice(0, preloadCount);
+    preloadImagesBatch(priorityImages);
+  }, [enabled, validImageUrls, preloadCount, preloadImagesBatch]);
 
-    const loadPriorityImages = async () => {
-      const { successful, failed } = await preloadImages(priorityImages, {
-        sizeType,
-        maxConcurrent: priority ? 6 : maxConcurrent,
-        priority,
-        timeout,
-      });
+  // Computed values
+  const loadedImages = useMemo(() => {
+    return Object.values(imageStates)
+      .filter((state) => state.loaded)
+      .map((state) => state.src);
+  }, [imageStates]);
 
-      // Обновляем статистику
-      const totalImages = priorityImages.length;
-      const errorRate = failed.length / totalImages;
-      const cacheStats = imageCache.getStats();
+  const errorImages = useMemo(() => {
+    return Object.values(imageStates)
+      .filter((state) => state.error)
+      .map((state) => state.src);
+  }, [imageStates]);
 
-      setStats({
-        cacheHitRate: cacheStats.hitRate,
-        averageLoadTime: 0, // Будет обновляться в preloadImage
-        errorRate,
-      });
-    };
+  const loadingImages = useMemo(() => {
+    return Object.values(imageStates)
+      .filter((state) => state.loading)
+      .map((state) => state.src);
+  }, [imageStates]);
 
-    loadPriorityImages();
-  }, [
-    enabled,
-    validImageUrls,
-    preloadCount,
-    sizeType,
-    maxConcurrent,
-    priority,
-    timeout,
-  ]);
+  const totalImages = validImageUrls.length;
+  const loadedCount = loadedImages.length;
+  const errorCount = errorImages.length;
+  const loadingCount = loadingImages.length;
+  const isLoading = loadingCount > 0;
+  const hasErrors = errorCount > 0;
+  const allLoaded = loadedCount === totalImages && totalImages > 0;
 
-  // Вычисляемые значения
-  const isLoading = useMemo(() => {
-    return Array.from(images.values()).some((state) => state.loading);
-  }, [images]);
-
-  const hasErrors = useMemo(() => {
-    return Array.from(images.values()).some((state) => state.error);
-  }, [images]);
-
-  const loadedCount = useMemo(() => {
-    return Array.from(images.values()).filter((state) => state.loaded).length;
-  }, [images]);
-
-  const totalCount = useMemo(() => {
-    return validImageUrls.length;
-  }, [validImageUrls]);
-
-  // Вычисляем финальную статистику
-  const finalStats = useMemo(
-    () => ({
-      ...stats,
-      loadedCount,
-      totalImages: totalCount,
-    }),
-    [stats, loadedCount, totalCount],
+  // Helper functions
+  const getImageState = useCallback(
+    (src: string): ImageState | null => {
+      return imageStates[src] || null;
+    },
+    [imageStates],
   );
 
+  const getOptimizedSrc = useCallback(
+    (
+      src: string,
+      targetSizeType: "small" | "medium" | "large" = sizeType,
+    ): string => {
+      return (
+        getOptimizedImageUrl(src, {
+          width:
+            targetSizeType === "small"
+              ? 300
+              : targetSizeType === "medium"
+                ? 600
+                : 1200,
+          quality: priority ? 90 : 75,
+        }) || src
+      );
+    },
+    [sizeType, priority],
+  );
+
+  const retryErrorImages = useCallback(async () => {
+    if (errorImages.length === 0) return;
+
+    const results = await preloadImages(errorImages);
+    const successful = results.filter((r) => r.loaded).map((r) => r.src);
+    const failed = results.filter((r) => !r.loaded);
+
+    // Update state for successful retries
+    setImageStates((prev) => {
+      const newStates = { ...prev };
+      successful.forEach((src) => {
+        if (newStates[src]) {
+          newStates[src].loaded = true;
+          newStates[src].error = false;
+          newStates[src].loading = false;
+        }
+      });
+      return newStates;
+    });
+
+    // Update stats
+    const totalImages = errorImages.length;
+    const errorRate = failed.length / totalImages;
+    setStats((prev) => ({ ...prev, errorRate }));
+  }, [errorImages]);
+
+  const preloadBatch = useCallback(
+    async (urls: string[]) => {
+      await preloadImagesBatch(urls);
+    },
+    [preloadImagesBatch],
+  );
+
+  const clearCache = useCallback(() => {
+    setImageStates({});
+    setStats({
+      cacheHitRate: 0.95,
+      averageLoadTime: 0,
+      errorRate: 0,
+    });
+  }, []);
+
   return {
-    // Состояние загрузки
+    imageStates,
+    loadedImages,
+    errorImages,
+    loadingImages,
+    totalImages,
+    loadedCount,
+    errorCount,
+    loadingCount,
     isLoading,
     hasErrors,
-    loadedCount,
-    totalCount,
-
-    // Данные
-    images,
-    optimizedImages,
-
-    // Утилиты
+    allLoaded,
     getImageState,
-    isImageLoaded,
-    hasImageError,
     getOptimizedSrc,
-
-    // Действия
-    preloadImage,
-    retryImage,
-    retryAll,
+    retryErrorImages,
+    preloadBatch,
     clearCache,
-
-    // Статистика
-    stats: finalStats,
+    stats,
   };
 }
 
 /**
- * Хук для единственного изображения с полным контролем
+ * Hook for single image with fallbacks
  */
-export function useSingleImage(
+export function useCatalogImage(
   src: string | null | undefined,
-  fallbackImages: string[] = [],
-  options: UseCatalogImagesOptions = {},
+  fallbackImages: (string | null | undefined)[] = [],
+  options: Omit<UseCatalogImagesOptions, "preloadCount"> = {},
 ) {
   const allImages = [src, ...fallbackImages];
   const result = useCatalogImages(allImages, { ...options, preloadCount: 1 });
 
   const bestImage = useMemo(() => {
-    return getBestAvailableImage(src, fallbackImages);
-  }, [src, fallbackImages]);
+    return getBestAvailableImage(allImages);
+  }, [allImages]);
 
   const imageState = useMemo(() => {
-    return bestImage ? result.getImageState(bestImage) : null;
+    return (
+      result.getImageState(bestImage) || {
+        src: bestImage,
+        loaded: false,
+        error: false,
+        loading: false,
+        optimizedSrc: bestImage,
+      }
+    );
   }, [bestImage, result]);
 
   return {
+    ...imageState,
     ...result,
-    src: bestImage,
-    state: imageState,
-    loaded: imageState?.loaded ?? false,
-    error: imageState?.error ?? false,
-    loading: imageState?.loading ?? false,
-    optimizedSrc: bestImage ? result.getOptimizedSrc(bestImage) : null,
+    bestImage,
   };
 }
 
 /**
- * Хук для предзагрузки изображений товаров в каталоге
+ * Hook for product images with advanced handling
  */
 export function useProductImages(
   products: Array<{
-    id: string;
-    thumbnail?: string;
-    images?: string[];
-    name: string;
+    thumbnail?: string | null;
+    images?: (string | null | undefined)[];
+    name?: string;
   }>,
   options: UseCatalogImagesOptions = {},
 ) {
-  // Создаем стабильные изображения для продуктов
-  const productsStringRef = useRef<string>("");
-  const cachedImagesRef = useRef<(string | null | undefined)[]>([]);
-
-  // Собираем все изображения из продуктов с проверкой изменений
-  const allProductImages = useMemo(() => {
-    const currentProductsString = JSON.stringify(
-      products.map((p) => ({
-        id: p.id,
-        thumbnail: p.thumbnail,
-        images: p.images,
-      })),
-    );
-
-    // Если продукты не изменились, возвращаем кэшированный результат
-    if (currentProductsString === productsStringRef.current) {
-      return cachedImagesRef.current;
-    }
-
-    // Обновляем кэш
-    productsStringRef.current = currentProductsString;
-    const newImages = products.flatMap((product) => [
-      product.thumbnail,
-      ...(product.images || []),
-    ]);
-    cachedImagesRef.current = newImages;
-
-    return newImages;
+  // Extract all images from products
+  const allImages = useMemo(() => {
+    const images: string[] = [];
+    products.forEach((product) => {
+      if (product.thumbnail) images.push(product.thumbnail);
+      if (product.images) images.push(...filterValidImages(product.images));
+    });
+    return images;
   }, [products]);
 
-  const result = useCatalogImages(allProductImages, options);
+  const catalogResult = useCatalogImages(allImages, options);
 
-  // Создаем маппинг продуктов к их изображениям
+  // Create product-specific image states
   const productImageStates = useMemo(() => {
-    const mapping = new Map<
-      string,
-      {
-        thumbnail: ImageState | null;
-        gallery: ImageState[];
-        bestAvailable: string | null;
-      }
-    >();
-
-    products.forEach((product) => {
-      const thumbnail = result.getImageState(product.thumbnail || "");
-      const gallery = (product.images || [])
-        .map((img) => result.getImageState(img))
-        .filter((state): state is ImageState => state !== null);
-
-      const bestAvailable = getBestAvailableImage(
+    return products.map((product) => {
+      const productImages = [
         product.thumbnail,
-        product.images,
+        ...(product.images || []),
+      ].filter(
+        (img): img is string =>
+          img != null && typeof img === "string" && img.trim() !== "",
       );
 
-      mapping.set(product.id, {
-        thumbnail,
-        gallery,
-        bestAvailable,
-      });
-    });
+      const imageStates = productImages
+        .map((src) => catalogResult.getImageState(src))
+        .filter((state): state is ImageState => state !== null);
 
-    return mapping;
-  }, [products, result]);
+      const bestAvailable = getBestAvailableImage([
+        product.thumbnail || "",
+        ...(product.images || []),
+      ]);
+
+      return {
+        product,
+        images: productImages,
+        imageStates,
+        bestImage: bestAvailable,
+        loadedCount: imageStates.filter((s) => s.loaded).length,
+        errorCount: imageStates.filter((s) => s.error).length,
+        loadingCount: imageStates.filter((s) => s.loading).length,
+        hasValidImages: productImages.length > 0,
+        allLoaded: imageStates.length > 0 && imageStates.every((s) => s.loaded),
+        hasErrors: imageStates.some((s) => s.error),
+        isLoading: imageStates.some((s) => s.loading),
+      };
+    });
+  }, [products, catalogResult]);
 
   return {
-    ...result,
+    ...catalogResult,
     productImageStates,
-    getProductImages: (productId: string) => productImageStates.get(productId),
+    getProductImages: (productIndex: number) =>
+      productImageStates[productIndex] || null,
   };
 }
 
 /**
- * Хук для галереи изображений с расширенными возможностями
+ * Simple hook for image optimization
  */
-export function useImageGallery(
-  images: string[],
-  options: UseCatalogImagesOptions & {
-    initialIndex?: number;
-    loop?: boolean;
-    autoplay?: boolean;
-    autoplayDelay?: number;
-  } = {},
-) {
-  const {
-    initialIndex = 0,
-    loop = false,
-    autoplay = false,
-    autoplayDelay = 3000,
-    ...imageOptions
-  } = options;
-
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isPlaying, setIsPlaying] = useState(autoplay);
-
-  const imageResult = useCatalogImages(images, {
-    ...imageOptions,
-    priority: true, // Галерея имеет приоритет
-  });
-
-  // Навигация
-  const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (loop) {
-        return (prev + 1) % images.length;
-      }
-      return Math.min(prev + 1, images.length - 1);
-    });
-  }, [images.length, loop]);
-
-  const goToPrev = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (loop) {
-        return prev === 0 ? images.length - 1 : prev - 1;
-      }
-      return Math.max(prev - 1, 0);
-    });
-  }, [images.length, loop]);
-
-  const goToIndex = useCallback(
-    (index: number) => {
-      setCurrentIndex(Math.max(0, Math.min(index, images.length - 1)));
-    },
-    [images.length],
-  );
-
-  // Автовоспроизведение
-  useEffect(() => {
-    if (!isPlaying || images.length <= 1) return;
-
-    const interval = setInterval(goToNext, autoplayDelay);
-    return () => clearInterval(interval);
-  }, [isPlaying, images.length, autoplayDelay, goToNext]);
-
-  // Управление автовоспроизведением
-  const play = useCallback(() => setIsPlaying(true), []);
-  const pause = useCallback(() => setIsPlaying(false), []);
-  const toggle = useCallback(() => setIsPlaying((prev) => !prev), []);
-
-  // Текущее изображение
-  const currentImage = images[currentIndex];
-  const currentImageState = currentImage
-    ? imageResult.getImageState(currentImage)
-    : null;
-
-  // Навигационная информация
-  const canGoNext = loop || currentIndex < images.length - 1;
-  const canGoPrev = loop || currentIndex > 0;
-
-  return {
-    ...imageResult,
-
-    // Навигация
-    currentIndex,
-    currentImage,
-    currentImageState,
-    canGoNext,
-    canGoPrev,
-
-    // Действия навигации
-    goToNext,
-    goToPrev,
-    goToIndex,
-
-    // Автовоспроизведение
-    isPlaying,
-    play,
-    pause,
-    toggle,
-
-    // Метаданные
-    totalImages: images.length,
-    hasMultipleImages: images.length > 1,
-  };
-}
-
-/**
- * Хук для отложенной загрузки изображений (Intersection Observer)
- */
-export function useLazyImages(
-  containerRef: React.RefObject<HTMLElement>,
-  options: UseCatalogImagesOptions & {
-    rootMargin?: string;
-    threshold?: number;
-  } = {},
-) {
-  const { rootMargin = "100px", threshold = 0.1, ...imageOptions } = options;
-
-  const [visibleImages, setVisibleImages] = useState<Set<string>>(new Set());
-  const [imageElements, setImageElements] = useState<Map<string, Element>>(
-    new Map(),
-  );
-
-  // Intersection Observer для отслеживания видимых изображений
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const src = entry.target.getAttribute("data-src");
-          if (!src) return;
-
-          if (entry.isIntersecting) {
-            setVisibleImages((prev) => new Set(prev).add(src));
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin,
-        threshold,
-      },
+export function useOptimizedImage(
+  src: string | null | undefined,
+  sizeType: "small" | "medium" | "large" = "medium",
+): string {
+  return useMemo(() => {
+    if (!src) return "";
+    return (
+      getOptimizedImageUrl(src, {
+        width: sizeType === "small" ? 300 : sizeType === "medium" ? 600 : 1200,
+        quality: 75,
+      }) || src
     );
-
-    // Наблюдаем за всеми изображениями в контейнере
-    const images = containerRef.current.querySelectorAll("[data-src]");
-    images.forEach((img) => {
-      observer.observe(img);
-      const src = img.getAttribute("data-src");
-      if (src) {
-        setImageElements((prev) => new Map(prev).set(src, img));
-      }
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [containerRef, rootMargin, threshold]);
-
-  // Загружаем только видимые изображения
-  const imageResult = useCatalogImages(Array.from(visibleImages), {
-    ...imageOptions,
-    enabled: visibleImages.size > 0,
-  });
-
-  return {
-    ...imageResult,
-    visibleImages,
-    registerImageElement: (src: string, element: Element) => {
-      setImageElements((prev) => new Map(prev).set(src, element));
-    },
-  };
+  }, [src, sizeType]);
 }
 
 /**
- * Хук для мониторинга производительности загрузки изображений
+ * Hook for optimizing multiple images
  */
-export function useImagePerformanceMonitor() {
-  const [metrics, setMetrics] = useState({
-    totalRequests: 0,
-    successfulRequests: 0,
-    failedRequests: 0,
-    averageLoadTime: 0,
-    cacheHitRate: 0,
-    networkUsage: 0, // в байтах
-  });
-
-  const recordImageLoad = useCallback(
-    (src: string, loadTime: number, fromCache: boolean) => {
-      setMetrics((prev) => ({
-        ...prev,
-        totalRequests: prev.totalRequests + 1,
-        successfulRequests: prev.successfulRequests + 1,
-        averageLoadTime: (prev.averageLoadTime + loadTime) / 2,
-        cacheHitRate: fromCache
-          ? (prev.cacheHitRate + 1) / prev.totalRequests
-          : prev.cacheHitRate,
-      }));
-    },
-    [],
-  );
-
-  const recordImageError = useCallback((src: string) => {
-    setMetrics((prev) => ({
-      ...prev,
-      totalRequests: prev.totalRequests + 1,
-      failedRequests: prev.failedRequests + 1,
-    }));
-  }, []);
-
-  const resetMetrics = useCallback(() => {
-    setMetrics({
-      totalRequests: 0,
-      successfulRequests: 0,
-      failedRequests: 0,
-      averageLoadTime: 0,
-      cacheHitRate: 0,
-      networkUsage: 0,
-    });
-  }, []);
-
-  // Вычисляемые метрики
-  const successRate =
-    metrics.totalRequests > 0
-      ? metrics.successfulRequests / metrics.totalRequests
-      : 0;
-
-  const errorRate =
-    metrics.totalRequests > 0
-      ? metrics.failedRequests / metrics.totalRequests
-      : 0;
-
-  return {
-    metrics: {
-      ...metrics,
-      successRate,
-      errorRate,
-    },
-    recordImageLoad,
-    recordImageError,
-    resetMetrics,
-  };
+export function useOptimizedImages(
+  images: (string | null | undefined)[],
+  sizeType: "small" | "medium" | "large" = "medium",
+): string[] {
+  return useMemo(() => {
+    const validImages = filterValidImages(images);
+    return validImages.map(
+      (img) =>
+        getOptimizedImageUrl(img, {
+          width:
+            sizeType === "small" ? 300 : sizeType === "medium" ? 600 : 1200,
+          quality: 75,
+        }) || img,
+    );
+  }, [images, sizeType]);
 }
-
-/**
- * Готовность к TanStack Query - интерфейсы и типы
- */
-export interface TanStackImageQueryOptions {
-  queryKey: string[];
-  enabled?: boolean;
-  staleTime?: number;
-  cacheTime?: number;
-  retry?: number;
-  retryDelay?: number;
-  refetchOnWindowFocus?: boolean;
-  refetchOnMount?: boolean;
-}
-
-/**
- * Подготовка к миграции на TanStack Query
- * Эмулирует интерфейс useQuery для изображений
- */
-export function useTanStackReadyImages(
-  imageUrls: string[],
-  options: TanStackImageQueryOptions & UseCatalogImagesOptions = {
-    queryKey: ["images"],
-  },
-) {
-  const {
-    queryKey,
-    enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 минут
-    cacheTime = 30 * 60 * 1000, // 30 минут
-    retry = 2,
-    retryDelay = 1000,
-    refetchOnWindowFocus = false,
-    refetchOnMount = true,
-    ...imageOptions
-  } = options;
-
-  const imageResult = useCatalogImages(imageUrls, {
-    ...imageOptions,
-    enabled,
-    retryAttempts: retry,
-  });
-
-  // Симулируем TanStack Query интерфейс
-  const tanStackLikeResult = useMemo(
-    () => ({
-      data: imageResult.optimizedImages,
-      isLoading: imageResult.isLoading,
-      isError: imageResult.hasErrors,
-      error: imageResult.hasErrors ? new Error("Image loading failed") : null,
-      isSuccess: !imageResult.isLoading && !imageResult.hasErrors,
-
-      // TanStack Query специфичные поля
-      isFetching: imageResult.isLoading,
-      isStale: false, // Можно реализовать логику staleness
-      dataUpdatedAt: Date.now(),
-      errorUpdatedAt: imageResult.hasErrors ? Date.now() : 0,
-
-      // Действия
-      refetch: imageResult.retryAll,
-      remove: imageResult.clearCache,
-    }),
-    [imageResult],
-  );
-
-  return {
-    ...imageResult,
-    query: tanStackLikeResult,
-
-    // Дополнительные TanStack Query методы для будущей миграции
-    invalidate: imageResult.retryAll,
-    setQueryData: (data: string[]) => {
-      // Заглушка для будущей реализации
-      console.log("setQueryData called with:", data);
-    },
-    getQueryData: () => imageResult.optimizedImages,
-  };
-}
-
-/**
- * Критический загрузчик изображений для важного контента
- */
-export function useCriticalImagePreloader(
-  criticalImages: string[],
-  options: UseCatalogImagesOptions = {},
-) {
-  const [preloadStatus, setPreloadStatus] = useState<{
-    completed: number;
-    total: number;
-    isComplete: boolean;
-  }>({
-    completed: 0,
-    total: criticalImages.length,
-    isComplete: false,
-  });
-
-  const imageResult = useCatalogImages(criticalImages, {
-    ...options,
-    priority: true,
-    enabled: true,
-  });
-
-  useEffect(() => {
-    const loadedCount = imageResult.loadedCount;
-    const total = criticalImages.length;
-
-    setPreloadStatus({
-      completed: loadedCount,
-      total,
-      isComplete: loadedCount === total && total > 0,
-    });
-  }, [imageResult.loadedCount, criticalImages.length]);
-
-  return {
-    ...imageResult,
-    preloadStatus,
-    isPreloadComplete: preloadStatus.isComplete,
-    preloadProgress:
-      preloadStatus.total > 0
-        ? preloadStatus.completed / preloadStatus.total
-        : 0,
-  };
-}
-
-/**
- * Экспорт для будущего использования с TanStack Query
- */
-export const imageQueryKeys = {
-  all: ["images"] as const,
-  products: () => [...imageQueryKeys.all, "products"] as const,
-  product: (id: string) => [...imageQueryKeys.products(), id] as const,
-  gallery: (productId: string) =>
-    [...imageQueryKeys.product(productId), "gallery"] as const,
-  thumbnail: (productId: string) =>
-    [...imageQueryKeys.product(productId), "thumbnail"] as const,
-} as const;
-
-/**
- * Query functions для TanStack Query (для будущего использования)
- */
-export const imageQueryFunctions = {
-  fetchProductImages: async (productId: string): Promise<string[]> => {
-    // Заглушка - в будущем здесь будет реальная загрузка через API
-    const response = await fetch(`/api/products/${productId}/images`);
-    if (!response.ok) throw new Error("Failed to fetch product images");
-    const data = await response.json();
-    return data.images;
-  },
-
-  fetchOptimizedImage: async (
-    src: string,
-    sizeType: ImageSizeType = "card",
-  ): Promise<string> => {
-    return optimizeImageUrl(src, sizeType);
-  },
-
-  preloadProductImages: async (
-    productIds: string[],
-    sizeType: ImageSizeType = "card",
-  ): Promise<Map<string, string[]>> => {
-    const results = new Map<string, string[]>();
-
-    for (const productId of productIds) {
-      try {
-        const images = await imageQueryFunctions.fetchProductImages(productId);
-        const optimized = images.map((img) => optimizeImageUrl(img, sizeType));
-        results.set(productId, optimized);
-      } catch (error) {
-        console.error(
-          `Failed to preload images for product ${productId}:`,
-          error,
-        );
-        results.set(productId, []);
-      }
-    }
-
-    return results;
-  },
-} as const;

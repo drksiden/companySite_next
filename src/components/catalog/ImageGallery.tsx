@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OptimizedImage } from "./OptimizedImage";
-import { getFirstValidImage, isValidImageUrl } from "@/utils/image";
+import { getFirstValidImage, isValidImageUrl } from "@/lib/imageUtils";
 
 interface ImageGalleryProps {
   images: string[];
@@ -256,19 +256,13 @@ export function ImageGallery({
         )}
 
         {/* Loading/Error Indicator */}
-        {(loading || error) && !isMinimal && (
+        {loading && !isMinimal && (
           <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm rounded-md px-2 py-1 z-20 shadow-lg border">
             <div className="flex items-center gap-1">
               {loading && (
                 <>
                   <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                   <span className="text-xs text-foreground">Загрузка</span>
-                </>
-              )}
-              {error && !loading && (
-                <>
-                  <div className="w-2 h-2 bg-destructive rounded-full" />
-                  <span className="text-xs text-destructive">Ошибка</span>
                 </>
               )}
             </div>

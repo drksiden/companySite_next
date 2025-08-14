@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { r2Client } from "@/utils/r2/client";
+import { deleteFileFromR2, DEFAULT_BUCKET } from "@/lib/r2";
 
 export async function DELETE(
   request: NextRequest,
@@ -18,12 +18,12 @@ export async function DELETE(
     // Декодируем ключ (может содержать слеши)
     const decodedKey = decodeURIComponent(key);
 
-    await r2Client.deleteFile(decodedKey);
+    await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key: decodedKey });
 
     // Пытаемся удалить миниатюру если есть
     const thumbnailKey = decodedKey.replace(/\.[^/.]+$/, "_thumb.webp");
     try {
-      await r2Client.deleteFile(thumbnailKey);
+      await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key: thumbnailKey });
     } catch (error) {
       // Игнорируем ошибку если миниатюры нет
     }

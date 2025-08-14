@@ -26,6 +26,7 @@ import {
   Clock,
   Heart,
   Share2,
+  Award,
 } from "@/components/icons/SimpleIcons";
 import type { Product, SearchProductsResult } from "@/types/catalog";
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createServerClient } from "@/lib/supabaseServer";
+import { formatPrice } from "@/lib/utils";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createServerClient();
 
     // Получаем полную информацию о товаре
     const { data: product, error } = await supabase
@@ -222,8 +223,4 @@ export async function GET(
       { status: 500 },
     );
   }
-}
-
-function formatPrice(price: number, symbol: string = "₸"): string {
-  return `${price.toLocaleString("kk-KZ")} ${symbol}`;
 }

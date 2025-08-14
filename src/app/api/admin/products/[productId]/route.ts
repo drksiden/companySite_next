@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createServerClient } from "@/lib/supabaseServer";
 import {
   uploadFileToR2,
   deleteFileFromR2,
   deleteMultipleFilesFromR2,
-} from "@/utils/r2/client";
+  extractKeyFromUrl,
+  DEFAULT_BUCKET,
+} from "@/lib/r2";
 
 // --- PUT метод для обновления товара ---
 export async function PUT(
@@ -12,7 +14,7 @@ export async function PUT(
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const { productId } = await params;
     const formData = await req.formData();
 
@@ -46,7 +48,10 @@ export async function PUT(
       (url: string) => !existingImageUrls.includes(url),
     );
     for (const url of imagesToDelete) {
-      await deleteFileFromR2(url);
+      const key = extractKeyFromUrl(url);
+      if (key) {
+        await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key });
+      }
     }
     const allImageUrls = [...existingImageUrls, ...newImageUrls];
 
@@ -73,7 +78,10 @@ export async function PUT(
         )
       : [];
     for (const doc of documentsToDelete) {
-      await deleteFileFromR2(doc.url);
+      const key = extractKeyFromUrl(doc.url);
+      if (key) {
+        await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key });
+      }
     }
     const allDocuments = [...existingDocuments, ...newDocuments];
 
@@ -168,7 +176,7 @@ export async function DELETE(
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     const { productId } = await params;
 
     // Сначала получаем URL изображений и документов, связанных с товаром
@@ -212,7 +220,10 @@ export async function DELETE(
     }
 
     // Удаляем все файлы одновременно
-    await deleteMultipleFilesFromR2(filesToDelete);
+    const validFilesToDelete = filesToDelete.filter(
+      (url): url is string => url != null && typeof url === "string",
+    );
+    await deleteMultipleFilesFromR2(validFilesToDelete);
 
     // Удаляем товар из Supabase
     const { error } = await supabase

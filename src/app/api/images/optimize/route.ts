@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 
+export const runtime = "nodejs";
+
 // Кэш для оптимизированных изображений
 const imageCache = new Map<
   string,
@@ -428,88 +430,6 @@ export async function OPTIONS() {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
-}
-
-// Утилита для определения оптимального формата на основе User-Agent
-function getBestFormat(userAgent: string): SupportedFormat {
-  const ua = userAgent.toLowerCase();
-
-  // Проверяем поддержку AVIF
-  if (ua.includes("chrome/") && parseInt(ua.split("chrome/")[1]) >= 85) {
-    return "avif";
-  }
-
-  // Проверяем поддержку WebP
-  if (
-    ua.includes("chrome/") ||
-    ua.includes("firefox/") ||
-    ua.includes("safari/")
-  ) {
-    return "webp";
-  }
-
-  // Fallback на JPEG
-  return "jpeg";
-}
-
-// Функция для автоматического определения лучшего формата
-function handleAutoFormat(request: NextRequest) {
-  const userAgent = request.headers.get("user-agent") || "";
-  const acceptHeader = request.headers.get("accept") || "";
-
-  // Определяем поддерживаемые форматы из Accept header
-  let bestFormat: SupportedFormat = "jpeg";
-
-  if (acceptHeader.includes("image/avif")) {
-    bestFormat = "avif";
-  } else if (acceptHeader.includes("image/webp")) {
-    bestFormat = "webp";
-  } else {
-    bestFormat = getBestFormat(userAgent);
-  }
-
-  return bestFormat;
-}
-
-// Очистка кэша (можно вызвать через отдельный endpoint)
-export async function DELETE() {
-  try {
-    imageCache.clear();
-
-    return NextResponse.json({
-      success: true,
-      message: "Image cache cleared",
-      clearedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to clear cache" },
-      { status: 500 },
-    );
-  }
-}
-
-// Информация о кэше
-export async function HEAD() {
-  const cacheStats = {
-    size: imageCache.size,
-    maxSize: MAX_CACHE_SIZE,
-    ttl: CACHE_TTL,
-    oldestEntry:
-      imageCache.size > 0
-        ? Math.min(...Array.from(imageCache.values()).map((v) => v.timestamp))
-        : null,
-  };
-
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "X-Cache-Size": cacheStats.size.toString(),
-      "X-Cache-Max-Size": cacheStats.maxSize.toString(),
-      "X-Cache-TTL": cacheStats.ttl.toString(),
-      "X-Cache-Oldest": cacheStats.oldestEntry?.toString() || "0",
     },
   });
 }

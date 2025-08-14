@@ -35,7 +35,7 @@ import {
   ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react";
-import { formatPrice } from "@/utils";
+import { formatPrice } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,

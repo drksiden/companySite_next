@@ -1,12 +1,11 @@
 // src/app/api/admin/users/reset-password/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { createClient } from "@/utils/supabase/server";
+import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
 import { UserRole } from "@/lib/services/user";
 
 // Вспомогательная функция для проверки авторизации
 async function authorizeAdmin(req: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authUserError,
@@ -59,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // ИСПРАВЛЕНИЕ: Изменяем 'password_reset' на 'recovery'
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    const { data, error } = await createAdminClient().auth.admin.generateLink({
       type: "recovery", // Правильный тип для сброса пароля
       email: email,
     });

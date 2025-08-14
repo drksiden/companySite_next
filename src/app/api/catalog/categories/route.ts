@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { listCategories } from "@/lib/services/catalog";
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const categories = await listCategories();
 
-    const { data: categories, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("is_active", true)
-      .order("name");
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return NextResponse.json(
-        { success: false, error: "Failed to fetch categories" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: categories || [],
-    });
-  } catch (error) {
-    console.error("Error fetching categories:", error);
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+      {
+        success: true,
+        data: categories,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300", // Cache for 5 minutes
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Catalog categories API error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch categories",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }
