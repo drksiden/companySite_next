@@ -1,164 +1,512 @@
-import { supabase } from "@/lib/supabaseClient";
-import { Brand, Category, Collection, Product } from "@/types/catalog";
+import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
+import { CatalogQuerySchema, type CatalogQuery } from "@/lib/schemas";
+import { formatPrice } from "@/lib/utils";
 
-export const catalogService = {
-  // Brands
-  async getBrands(): Promise<Brand[]> {
-    const { data, error } = await supabase
-      .from("brands")
-      .select("*")
-      .order("name");
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  sku?: string;
+  short_description?: string;
+  base_price: number;
+  sale_price?: number;
+  thumbnail?: string;
+  images: string[];
+  inventory_quantity: number;
+  track_inventory: boolean;
+  is_featured: boolean;
+  status: string;
+  created_at: string;
+  view_count: number;
+  sales_count: number;
+  brands?: {
+    id: string;
+    name: string;
+    slug: string;
+    logo_url?: string;
+  } | null;
+  categories?: {
+    id: string;
+    name: string;
+    slug: string;
+    path?: string;
+    level: number;
+  } | null;
+  currencies?: {
+    id: string;
+    code: string;
+    symbol: string;
+    name: string;
+  } | null;
+  collections?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
 
-    if (error) throw error;
-    return data;
-  },
+export interface CatalogMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
 
-  async getBrand(id: string): Promise<Brand | null> {
-    const { data, error } = await supabase
-      .from("brands")
-      .select("*")
-      .eq("id", id)
-      .single();
+export interface CatalogResponse {
+  data: CatalogProduct[];
+  meta: CatalogMeta;
+}
 
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-    return data;
-  },
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  parent_id?: string;
+  level: number;
+  path?: string;
+  image_url?: string;
+  product_count?: number;
+}
 
-  // Categories
-  async getCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name");
+export interface BrandItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo_url?: string;
+  website?: string;
+  product_count?: number;
+}
 
-    if (error) throw error;
-    return data;
-  },
+export interface CollectionItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image_url?: string;
+  product_count?: number;
+}
 
-  async getCategory(id: string): Promise<Category | null> {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("id", id)
-      .single();
+/**
+ * List products with filters, sorting, and pagination
+ */
+export async function listProducts(
+  queryParams: unknown,
+): Promise<CatalogResponse> {
+  const params = CatalogQuerySchema.parse(queryParams);
+  const supabase = await createServerClient();
 
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-    return data;
-  },
+  const {
+    page,
+    limit,
+    sort,
+    categories,
+    brands,
+    collections,
+    minPrice,
+    maxPrice,
+    inStockOnly,
+    search,
+  } = params;
+  const offset = (page - 1) * limit;
 
-  // Child categories
-  async getChildCategories(parentId?: string): Promise<Category[]> {
-    let query = supabase.from("categories").select("*").order("name");
+  // Build the query - simplified without joins
+  let query = supabase.from("products").select(
+    `
+      id,
+      name,
+      slug,
+      sku,
+      short_description,
+      base_price,
+      sale_price,
+      thumbnail,
+      images,
+      inventory_quantity,
+      track_inventory,
+      is_featured,
+      status,
+      created_at,
+      view_count,
+      sales_count,
+      brand_id,
+      category_id,
+      currency_id,
+      collection_id
+    `,
+    { count: "exact" },
+  );
 
-    if (parentId) {
-      query = query.eq("parent_id", parentId);
-    }
+  // Apply status filter (only active products)
+  query = query.eq("status", "active");
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  },
+  // Apply filters
+  if (categories.length > 0) {
+    query = query.in("category_id", categories);
+  }
 
-  // Collections
-  async getCollections(
-    categoryId?: string,
-    brandId?: string,
-  ): Promise<Collection[]> {
-    let query = supabase.from("collections").select("*").order("name");
+  if (brands.length > 0) {
+    query = query.in("brand_id", brands);
+  }
 
-    if (categoryId) {
-      query = query.eq("category_id", categoryId);
-    }
-    if (brandId) {
-      query = query.eq("brand_id", brandId);
-    }
+  if (collections.length > 0) {
+    query = query.in("collection_id", collections);
+  }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  },
+  if (minPrice && minPrice > 0) {
+    query = query.gte("base_price", minPrice);
+  }
 
-  async getCollection(id: string): Promise<Collection | null> {
-    const { data, error } = await supabase
-      .from("collections")
-      .select("*")
-      .eq("id", id)
-      .single();
+  if (maxPrice && maxPrice > 0) {
+    query = query.lte("base_price", maxPrice);
+  }
 
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-    return data;
-  },
+  if (inStockOnly) {
+    query = query.gt("inventory_quantity", 0);
+  }
 
-  // Products
-  async getProducts(filters?: {
-    brandId?: string;
-    categoryId?: string;
-    collectionId?: string;
-  }): Promise<Product[]> {
-    let query = supabase.from("products").select("*").order("name");
+  if (search) {
+    query = query.ilike("name", `%${search}%`);
+  }
 
-    if (filters) {
-      if (filters.brandId) query = query.eq("brand_id", filters.brandId);
-      if (filters.categoryId)
-        query = query.eq("category_id", filters.categoryId);
-      if (filters.collectionId)
-        query = query.eq("collection_id", filters.collectionId);
-    }
+  // Apply sorting
+  switch (sort) {
+    case "price.asc":
+      query = query.order("base_price", { ascending: true, nullsFirst: true });
+      break;
+    case "price.desc":
+      query = query.order("base_price", { ascending: false, nullsFirst: true });
+      break;
+    case "name.asc":
+      query = query.order("name", { ascending: true });
+      break;
+    case "name.desc":
+      query = query.order("name", { ascending: false });
+      break;
+    case "created.desc":
+      query = query.order("created_at", { ascending: false });
+      break;
+    default:
+      query = query.order("name", { ascending: true });
+  }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  },
+  // Apply pagination
+  query = query.range(offset, offset + limit - 1);
 
-  async getProduct(id: string): Promise<Product | null> {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const { data, error, count } = await query;
 
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-    return data;
-  },
+  if (error) {
+    console.error("Supabase error in listProducts:", error);
+    throw new Error("Database error");
+  }
 
-  async getProductWithDetails(id: string): Promise<{
-    product: Product;
-    brand: Brand;
-    collection: Collection | null;
-    category: Category;
-  } | null> {
-    const product = await this.getProduct(id);
-    if (!product) return null;
+  // Process products - simplified without joined data
+  const products = (data || []).map((product) => {
+    const finalPrice = product.sale_price || product.base_price;
+    const isOnSale = !!(
+      product.sale_price && product.sale_price < product.base_price
+    );
+    const discountPercentage = isOnSale
+      ? Math.round(
+          ((product.base_price - product.sale_price!) / product.base_price) *
+            100,
+        )
+      : 0;
 
-    if (!product.brand_id || !product.category_id) return null;
+    // Process images - filter out empty and invalid URLs
+    const images = product.images
+      ? (Array.isArray(product.images) ? product.images : []).filter(
+          (img) => img && typeof img === "string" && img.trim() !== "",
+        )
+      : [];
 
-    const [brand, collection, category] = await Promise.all([
-      this.getBrand(product.brand_id),
-      product.collection_id
-        ? this.getCollection(product.collection_id)
-        : Promise.resolve(null),
-      this.getCategory(product.category_id),
-    ]);
-
-    if (!brand || !category) return null;
+    // If thumbnail is empty, use first image from array
+    const thumbnail =
+      product.thumbnail && product.thumbnail.trim() !== ""
+        ? product.thumbnail
+        : images.length > 0
+          ? images[0]
+          : null;
 
     return {
-      product,
-      brand,
-      collection,
-      category,
-    };
-  },
-};
+      ...product,
+      thumbnail,
+      images,
+      final_price: finalPrice,
+      is_on_sale: isOnSale,
+      discount_percentage: discountPercentage,
+      formatted_price: formatPrice(finalPrice, "₸"),
+      // Set related data to null since we're not joining
+      brands: null,
+      categories: null,
+      currencies: null,
+      collections: null,
+    } as CatalogProduct;
+  });
+
+  const totalPages = Math.ceil((count || 0) / limit);
+
+  const meta: CatalogMeta = {
+    page,
+    limit,
+    total: count || 0,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  };
+
+  return { data: products, meta };
+}
+
+/**
+ * Get all categories for filters
+ */
+export async function listCategories(): Promise<CategoryItem[]> {
+  const supabase = await createServerClient();
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug, description, parent_id, level, path, image_url")
+    .order("name");
+
+  if (error) {
+    console.error("Supabase error in listCategories:", error);
+    throw new Error("Database error");
+  }
+
+  return data || [];
+}
+
+/**
+ * Get all brands for filters
+ */
+export async function listBrands(): Promise<BrandItem[]> {
+  const supabase = await createServerClient();
+
+  const { data, error } = await supabase
+    .from("brands")
+    .select("id, name, slug, description, logo_url, website")
+    .order("name");
+
+  if (error) {
+    console.error("Supabase error in listBrands:", error);
+    throw new Error("Database error");
+  }
+
+  return data || [];
+}
+
+/**
+ * Get all collections for filters
+ */
+export async function listCollections(): Promise<CollectionItem[]> {
+  const supabase = await createServerClient();
+
+  const { data, error } = await supabase
+    .from("collections")
+    .select("id, name, slug, description, image_url")
+    .order("name");
+
+  if (error) {
+    console.error("Supabase error in listCollections:", error);
+    throw new Error("Database error");
+  }
+
+  return data || [];
+}
+
+/**
+ * Get single product by ID or slug
+ */
+export async function getProduct(
+  idOrSlug: string,
+): Promise<CatalogProduct | null> {
+  const supabase = createAdminClient();
+
+  let query = supabase.from("products").select(
+    `
+      id,
+      name,
+      slug,
+      sku,
+      short_description,
+      description,
+      base_price,
+      sale_price,
+      thumbnail,
+      images,
+      inventory_quantity,
+      track_inventory,
+      is_featured,
+      status,
+      created_at,
+      view_count,
+      sales_count,
+      specifications,
+      brands(
+        id,
+        name,
+        slug,
+        logo_url,
+        description,
+        website_url
+      ),
+      categories(
+        id,
+        name,
+        slug,
+        path,
+        level,
+        description
+      ),
+      currencies(
+        id,
+        code,
+        symbol,
+        name
+      ),
+      collections(
+        id,
+        name,
+        slug,
+        description
+      )
+    `,
+  );
+
+  // Try by ID first, then by slug
+  if (
+    idOrSlug.match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+  ) {
+    query = query.eq("id", idOrSlug);
+  } else {
+    query = query.eq("slug", idOrSlug);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    console.error("Supabase error in getProduct:", error);
+    throw new Error("Database error");
+  }
+
+  // Fix the data structure for single relations
+  const processedData = {
+    ...data,
+    brands: Array.isArray(data.brands) ? data.brands[0] || null : data.brands,
+    categories: Array.isArray(data.categories)
+      ? data.categories[0] || null
+      : data.categories,
+    currencies: Array.isArray(data.currencies)
+      ? data.currencies[0] || null
+      : data.currencies,
+    collections: Array.isArray(data.collections)
+      ? data.collections[0] || null
+      : data.collections,
+  } as CatalogProduct;
+
+  return processedData;
+}
+
+/**
+ * Get category by ID or slug
+ */
+export async function getCategory(
+  idOrSlug: string,
+): Promise<CategoryItem | null> {
+  const supabase = createAdminClient();
+
+  let query = supabase.from("categories").select("*");
+
+  if (
+    idOrSlug.match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+  ) {
+    query = query.eq("id", idOrSlug);
+  } else {
+    query = query.eq("slug", idOrSlug);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    console.error("Supabase error in getCategory:", error);
+    throw new Error("Database error");
+  }
+
+  return data;
+}
+
+/**
+ * Get brand by ID or slug
+ */
+export async function getBrand(idOrSlug: string): Promise<BrandItem | null> {
+  const supabase = createAdminClient();
+
+  let query = supabase.from("brands").select("*");
+
+  if (
+    idOrSlug.match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+  ) {
+    query = query.eq("id", idOrSlug);
+  } else {
+    query = query.eq("slug", idOrSlug);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    console.error("Supabase error in getBrand:", error);
+    throw new Error("Database error");
+  }
+
+  return data;
+}
+
+/**
+ * Get products count by filters (for analytics)
+ */
+export async function getProductsCount(filters?: {
+  categoryId?: string;
+  brandId?: string;
+  collectionId?: string;
+}): Promise<number> {
+  const supabase = createAdminClient();
+
+  let query = supabase
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
+
+  if (filters?.categoryId) {
+    query = query.eq("category_id", filters.categoryId);
+  }
+
+  if (filters?.brandId) {
+    query = query.eq("brand_id", filters.brandId);
+  }
+
+  if (filters?.collectionId) {
+    query = query.eq("collection_id", filters.collectionId);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("Supabase error in getProductsCount:", error);
+    return 0;
+  }
+
+  return count || 0;
+}
