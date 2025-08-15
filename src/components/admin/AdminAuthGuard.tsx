@@ -1,11 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode, useRef } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
+
+// Кэш для проверки авторизации (5 минут)
+const authCache = new Map<
+  string,
+  { user: any; userRole: string | null; timestamp: number }
+>();
+const AUTH_CACHE_DURATION = 5 * 60 * 1000; // 5 минут
 
 interface AdminAuthGuardProps {
   children: ReactNode;
@@ -18,82 +25,164 @@ export function AdminAuthGuard({
   requiredRole = ["manager", "admin", "super_admin"],
   fallback,
 }: AdminAuthGuardProps) {
+  // В dev режиме можно полностью отключить проверку
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_DISABLE_AUTH === "true"
+  ) {
+    return <>{children}</>;
+  }
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<string>("");
   const router = useRouter();
+  const lastCheckRef = useRef<number>(0);
+  const listenerRef = useRef<any>(null);
 
   useEffect(() => {
     let ignore = false;
-    async function checkAuth() {
-      setLoading(true);
-      const { data, error } = await supabase.auth.getUser();
-      console.log(
-        "AdminAuthGuard - User:",
-        data?.user ? `${data.user.id} (${data.user.email})` : "null",
-      );
-      console.log("AdminAuthGuard - Auth error:", error);
 
-      if (!ignore) {
-        setUser(data?.user || null);
-        if (data?.user?.id) {
-          // Получаем роль из таблицы user_profiles
-          const { data: profile, error: profileError } = await supabase
-            .from("user_profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .single();
-          console.log("AdminAuthGuard - Profile:", profile);
-          console.log("AdminAuthGuard - Profile error:", profileError);
-          setUserRole(profile?.role || null);
-        } else {
-          setUserRole(null);
+    async function checkAuth(forceRefresh = false) {
+      const now = Date.now();
+      const cacheKey = "current_user";
+
+      // Отладочная информация
+      setDebugInfo(`Auth check: ${new Date().toLocaleTimeString()}`);
+
+      // Проверяем кэш, если не принудительное обновление
+      if (!forceRefresh && now - lastCheckRef.current < 30000) {
+        // 30 секунд между проверками
+        const cached = authCache.get(cacheKey);
+        if (cached && now - cached.timestamp < AUTH_CACHE_DURATION) {
+          if (!ignore) {
+            setUser(cached.user);
+            setUserRole(cached.userRole);
+            setLoading(false);
+            setDebugInfo(
+              `Используется кэш: ${new Date(cached.timestamp).toLocaleTimeString()}`,
+            );
+          }
+          return;
         }
-        setLoading(false);
+      }
+
+      setLoading(true);
+      lastCheckRef.current = now;
+
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (!ignore) {
+          let currentUser = data?.user || null;
+          let currentRole = null;
+
+          if (currentUser?.id) {
+            // Получаем роль из таблицы user_profiles
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("role")
+              .eq("id", currentUser.id)
+              .single();
+            currentRole = profile?.role || null;
+          }
+
+          // Кэшируем результат
+          authCache.set(cacheKey, {
+            user: currentUser,
+            userRole: currentRole,
+            timestamp: now,
+          });
+
+          setUser(currentUser);
+          setUserRole(currentRole);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("AdminAuthGuard - Auth check failed:", error);
+        if (!ignore) {
+          setUser(null);
+          setUserRole(null);
+          setLoading(false);
+        }
       }
     }
+
+    // Первоначальная проверка
     checkAuth();
-    // Подписка на изменения сессии
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      checkAuth();
-    });
+
+    // Подписка на изменения сессии отключена для предотвращения
+    // перезагрузки при переключении вкладок браузера
+    // if (!listenerRef.current) {
+    //   const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    //     if (event === "SIGNED_OUT" || event === "SIGNED_IN") {
+    //       // Очищаем кэш при изменении авторизации
+    //       authCache.clear();
+    //       checkAuth(true);
+    //     }
+    //   });
+    //   listenerRef.current = listener;
+    // }
+
     return () => {
       ignore = true;
-      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Очистка подписки при размонтировании
+  useEffect(() => {
+    return () => {
+      if (listenerRef.current) {
+        listenerRef.current.subscription.unsubscribe();
+        listenerRef.current = null;
+      }
     };
   }, []);
 
   useEffect(() => {
-    console.log("AdminAuthGuard - State changed:", {
-      loading,
-      user: user?.id,
-      userRole,
-      requiredRole,
-    });
     if (loading) return;
-    if (!user) {
-      console.log("AdminAuthGuard - No user, redirecting to signin");
-      router.push(
-        "/auth/signin?callbackUrl=" +
-          encodeURIComponent(window.location.pathname),
-      );
+
+    const currentPath = window.location.pathname;
+
+    // Избегаем проверок для статических ресурсов
+    if (
+      currentPath.includes("/_next/") ||
+      currentPath.includes(".css") ||
+      currentPath.includes(".js") ||
+      currentPath.includes(".map")
+    ) {
       return;
     }
+
+    if (!user) {
+      // Избегаем циклических редиректов
+      if (currentPath !== "/auth/signin" && !currentPath.startsWith("/auth/")) {
+        router.push(
+          "/auth/signin?callbackUrl=" + encodeURIComponent(currentPath),
+        );
+      }
+      return;
+    }
+
     if (
       !userRole ||
       !requiredRole.includes(
         userRole as "customer" | "admin" | "manager" | "super_admin",
       )
     ) {
-      console.log(
-        "AdminAuthGuard - Insufficient role, current:",
-        userRole,
-        "required:",
-        requiredRole,
-      );
-      if (userRole === "customer") {
+      // Избегаем циклических редиректов
+      if (
+        userRole === "customer" &&
+        currentPath !== "/" &&
+        !currentPath.startsWith("/auth/")
+      ) {
         router.push("/");
-      } else {
+      } else if (
+        userRole !== "customer" &&
+        currentPath !== "/admin" &&
+        !currentPath.startsWith("/admin/") &&
+        !currentPath.startsWith("/auth/")
+      ) {
         router.push("/admin");
       }
     }
@@ -105,6 +194,9 @@ export function AdminAuthGuard({
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Проверка доступа...</p>
+          {process.env.NODE_ENV === "development" && (
+            <p className="text-xs text-gray-400 mt-2">{debugInfo}</p>
+          )}
         </div>
       </div>
     );
@@ -180,32 +272,72 @@ export function useAdminAuth(
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastCheckRef = useRef<number>(0);
 
   useEffect(() => {
     let ignore = false;
+
     async function checkAuth() {
+      const now = Date.now();
+      const cacheKey = "hook_user";
+
+      // Проверяем кэш (1 минута для хука)
+      if (now - lastCheckRef.current < 60000) {
+        const cached = authCache.get(cacheKey);
+        if (cached && now - cached.timestamp < AUTH_CACHE_DURATION) {
+          if (!ignore) {
+            setUser(cached.user);
+            setUserRole(cached.userRole);
+            setLoading(false);
+          }
+          return;
+        }
+      }
+
       setLoading(true);
+      lastCheckRef.current = now;
+
       const { data } = await supabase.auth.getUser();
       if (!ignore) {
-        setUser(data?.user || null);
-        if (data?.user?.id) {
+        let currentUser = data?.user || null;
+        let currentRole = null;
+
+        if (currentUser?.id) {
           const { data: profile } = await supabase
             .from("user_profiles")
             .select("role, permissions")
-            .eq("id", data.user.id)
+            .eq("id", currentUser.id)
             .single();
-          setUserRole(profile?.role || null);
+          currentRole = profile?.role || null;
         }
+
+        // Кэшируем результат
+        authCache.set(cacheKey, {
+          user: currentUser,
+          userRole: currentRole,
+          timestamp: now,
+        });
+
+        setUser(currentUser);
+        setUserRole(currentRole);
         setLoading(false);
       }
     }
+
     checkAuth();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      checkAuth();
-    });
+
+    // Отключаем подписку на изменения для предотвращения
+    // перезагрузки при переключении вкладок браузера
+    // const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    //   if (event === "SIGNED_OUT" || event === "SIGNED_IN") {
+    //     authCache.clear();
+    //     checkAuth();
+    //   }
+    // });
+
     return () => {
       ignore = true;
-      listener?.subscription.unsubscribe();
+      // listener?.subscription.unsubscribe();
     };
   }, []);
 

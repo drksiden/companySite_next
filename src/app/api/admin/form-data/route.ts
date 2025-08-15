@@ -17,12 +17,9 @@ export async function GET(request: NextRequest) {
       case "currencies":
         return getCurrenciesData(supabase);
       case "all":
-        return getAllFormData(supabase);
+      case null:
       default:
-        return NextResponse.json(
-          { error: "Invalid type parameter" },
-          { status: 400 },
-        );
+        return getAllFormData(supabase);
     }
   } catch (error) {
     console.error("Error in form-data API:", error);

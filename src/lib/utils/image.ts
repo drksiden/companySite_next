@@ -4,8 +4,8 @@
 
 // Список доменов, которые требуют unoptimized режим
 const UNOPTIMIZED_DOMAINS = [
-  'r2.dev',
-  'pub-1506276de6ac4a07aa6fe582457507c1.r2.dev',
+  "r2.dev",
+  "pub-1506276de6ac4a07aa6fe582457507c1.r2.dev",
 ];
 
 /**
@@ -16,7 +16,7 @@ const UNOPTIMIZED_DOMAINS = [
 export function shouldUseUnoptimized(src: string): boolean {
   if (!src) return false;
 
-  return UNOPTIMIZED_DOMAINS.some(domain => src.includes(domain));
+  return UNOPTIMIZED_DOMAINS.some((domain) => src.includes(domain));
 }
 
 /**
@@ -25,7 +25,7 @@ export function shouldUseUnoptimized(src: string): boolean {
  * @returns true если URL валидный
  */
 export function isValidImageUrl(url?: string | null): boolean {
-  if (!url || typeof url !== 'string') return false;
+  if (!url || typeof url !== "string") return false;
 
   // Проверяем базовую структуру URL
   try {
@@ -36,7 +36,11 @@ export function isValidImageUrl(url?: string | null): boolean {
 
   // Проверяем расширения изображений
   const imageExtensions = /\.(jpg|jpeg|png|gif|svg|webp|avif)(\?.*)?$/i;
-  return imageExtensions.test(url) || url.includes('images/') || url.includes('media/');
+  return (
+    imageExtensions.test(url) ||
+    url.includes("images/") ||
+    url.includes("media/")
+  );
 }
 
 /**
@@ -49,14 +53,14 @@ export function isValidImageUrl(url?: string | null): boolean {
 export function getImageProps(
   src: string,
   alt: string,
-  priority: boolean = false
+  priority: boolean = false,
 ) {
   return {
     src,
     alt,
     priority,
     unoptimized: shouldUseUnoptimized(src),
-    placeholder: 'blur' as const,
+    placeholder: "blur" as const,
     blurDataURL: generateBlurDataURL(),
   };
 }
@@ -67,12 +71,11 @@ export function getImageProps(
  * @param height Высота placeholder
  * @returns Data URL для blur placeholder
  */
-export function generateBlurDataURL(width: number = 40, height: number = 40): string {
-  return `data:image/svg+xml;base64,${btoa(
-    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${width}" height="${height}" fill="#f3f4f6"/>
-    </svg>`
-  )}`;
+export function generateBlurDataURL(
+  width: number = 40,
+  height: number = 40,
+): string {
+  return "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
 }
 
 /**
@@ -80,18 +83,20 @@ export function generateBlurDataURL(width: number = 40, height: number = 40): st
  * @param variant Вариант отображения
  * @returns Строка sizes для Next.js Image
  */
-export function getImageSizes(variant: 'thumbnail' | 'card' | 'hero' | 'gallery'): string {
+export function getImageSizes(
+  variant: "thumbnail" | "card" | "hero" | "gallery",
+): string {
   switch (variant) {
-    case 'thumbnail':
-      return '(max-width: 768px) 64px, 96px';
-    case 'card':
-      return '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw';
-    case 'hero':
-      return '100vw';
-    case 'gallery':
-      return '(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 60vw';
+    case "thumbnail":
+      return "(max-width: 768px) 64px, 96px";
+    case "card":
+      return "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw";
+    case "hero":
+      return "100vw";
+    case "gallery":
+      return "(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 60vw";
     default:
-      return '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw';
+      return "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw";
   }
 }
 
@@ -105,14 +110,9 @@ export function getImageSizes(variant: 'thumbnail' | 'card' | 'hero' | 'gallery'
 export function createFallbackImage(
   width: number = 400,
   height: number = 400,
-  text: string = 'Изображение недоступно'
+  text: string = "Изображение недоступно",
 ): string {
-  return `data:image/svg+xml;base64,${btoa(
-    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${width}" height="${height}" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="14">${text}</text>
-    </svg>`
-  )}`;
+  return "/placeholder.jpg";
 }
 
 /**
@@ -121,7 +121,7 @@ export function createFallbackImage(
  * @returns Promise с результатами загрузки
  */
 export async function preloadImages(urls: string[]): Promise<string[]> {
-  const preloadPromises = urls.map(url => {
+  const preloadPromises = urls.map((url) => {
     return new Promise<string>((resolve, reject) => {
       const img = new HTMLImageElement();
       img.onload = () => resolve(url);
@@ -133,12 +133,13 @@ export async function preloadImages(urls: string[]): Promise<string[]> {
   try {
     const results = await Promise.allSettled(preloadPromises);
     return results
-      .filter((result): result is PromiseFulfilledResult<string> =>
-        result.status === 'fulfilled'
+      .filter(
+        (result): result is PromiseFulfilledResult<string> =>
+          result.status === "fulfilled",
       )
-      .map(result => result.value);
+      .map((result) => result.value);
   } catch (error) {
-    console.error('Error preloading images:', error);
+    console.error("Error preloading images:", error);
     return [];
   }
 }
@@ -157,7 +158,7 @@ export function getOptimalQuality(width?: number, height?: number): number {
   // Большие изображения - меньше качество для экономии трафика
   if (pixels > 2000000) return 60; // > 2MP
   if (pixels > 1000000) return 70; // > 1MP
-  if (pixels > 500000) return 80;  // > 0.5MP
+  if (pixels > 500000) return 80; // > 0.5MP
 
   return 85; // Маленькие изображения - высокое качество
 }

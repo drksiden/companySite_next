@@ -18,18 +18,21 @@ interface FetchState<T> {
 }
 
 // Глобальный кэш для всех компонентов
-const globalCache = new Map<string, {
-  data: any;
-  timestamp: number;
-  promise?: Promise<any>;
-}>();
+const globalCache = new Map<
+  string,
+  {
+    data: any;
+    timestamp: number;
+    promise?: Promise<any>;
+  }
+>();
 
 // Активные запросы для дедупликации
 const activeRequests = new Map<string, Promise<any>>();
 
 export function useOptimizedFetch<T>(
   url: string | null,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ) {
   const {
     method = "GET",
@@ -60,89 +63,107 @@ export function useOptimizedFetch<T>(
   }, [url, method, body]);
 
   // Проверяем кэш
-  const getCachedData = useCallback((key: string) => {
-    if (!cache) return null;
+  const getCachedData = useCallback(
+    (key: string) => {
+      if (!cache) return null;
 
-    const cached = globalCache.get(key);
-    if (!cached) return null;
+      const cached = globalCache.get(key);
+      if (!cached) return null;
 
-    const isExpired = Date.now() - cached.timestamp > cacheTime;
-    if (isExpired) {
-      globalCache.delete(key);
-      return null;
-    }
+      const isExpired = Date.now() - cached.timestamp > cacheTime;
+      if (isExpired) {
+        globalCache.delete(key);
+        return null;
+      }
 
-    return cached.data;
-  }, [cache, cacheTime]);
+      return cached.data;
+    },
+    [cache, cacheTime],
+  );
 
   // Сохраняем в кэш
-  const setCachedData = useCallback((key: string, data: any) => {
-    if (!cache) return;
+  const setCachedData = useCallback(
+    (key: string, data: any) => {
+      if (!cache) return;
 
-    globalCache.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
-  }, [cache]);
+      globalCache.set(key, {
+        data,
+        timestamp: Date.now(),
+      });
+    },
+    [cache],
+  );
 
   // Основная функция fetch
-  const fetchData = useCallback(async (signal: AbortSignal): Promise<T> => {
-    if (!url) throw new Error("URL is required");
+  const fetchData = useCallback(
+    async (signal: AbortSignal): Promise<T> => {
+      if (!url) throw new Error("URL is required");
 
-    const key = cacheKey();
-    if (!key) throw new Error("Invalid cache key");
+      const key = cacheKey();
+      if (!key) throw new Error("Invalid cache key");
 
-    // Проверяем кэш
-    const cachedData = getCachedData(key);
-    if (cachedData) {
-      return cachedData;
-    }
+      // Проверяем кэш
+      const cachedData = getCachedData(key);
+      if (cachedData) {
+        return cachedData;
+      }
 
-    // Дедупликация запросов
-    if (dedupe && activeRequests.has(key)) {
-      return activeRequests.get(key)!;
-    }
+      // Дедупликация запросов
+      if (dedupe && activeRequests.has(key)) {
+        return activeRequests.get(key)!;
+      }
 
-    const requestOptions: RequestInit = {
+      const requestOptions: RequestInit = {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        signal,
+      };
+
+      if (body && method !== "GET") {
+        requestOptions.body = JSON.stringify(body);
+      }
+
+      const fetchPromise = fetch(url, requestOptions)
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          // Сохраняем в кэш
+          setCachedData(key, data);
+          return data;
+        })
+        .finally(() => {
+          // Удаляем из активных запросов
+          if (dedupe) {
+            activeRequests.delete(key);
+          }
+        });
+
+      // Добавляем в активные запросы
+      if (dedupe) {
+        activeRequests.set(key, fetchPromise);
+      }
+
+      return fetchPromise;
+    },
+    [
+      url,
       method,
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      signal,
-    };
-
-    if (body && method !== "GET") {
-      requestOptions.body = JSON.stringify(body);
-    }
-
-    const fetchPromise = fetch(url, requestOptions)
-      .then(async (response) => {
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Сохраняем в кэш
-        setCachedData(key, data);
-        return data;
-      })
-      .finally(() => {
-        // Удаляем из активных запросов
-        if (dedupe) {
-          activeRequests.delete(key);
-        }
-      });
-
-    // Добавляем в активные запросы
-    if (dedupe) {
-      activeRequests.set(key, fetchPromise);
-    }
-
-    return fetchPromise;
-  }, [url, method, headers, body, dedupe, cacheKey, getCachedData, setCachedData]);
+      headers,
+      body,
+      dedupe,
+      cacheKey,
+      getCachedData,
+      setCachedData,
+    ],
+  );
 
   // Функция для принудительного обновления
   const refetch = useCallback(async () => {
@@ -164,7 +185,7 @@ export function useOptimizedFetch<T>(
     // Создаем новый контроллер
     abortControllerRef.current = new AbortController();
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
       const data = await fetchData(abortControllerRef.current.signal);
@@ -220,7 +241,7 @@ export function useOptimizedFetch<T>(
     // Создаем новый контроллер
     abortControllerRef.current = new AbortController();
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null }));
 
     fetchData(abortControllerRef.current.signal)
       .then((data) => {

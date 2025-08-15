@@ -242,9 +242,9 @@ const useDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Check cache first (cache for 60 seconds)
+        // Check cache first (cache for 5 minutes)
         const now = Date.now();
-        if (cacheRef.current && now - cacheRef.current.timestamp < 60000) {
+        if (cacheRef.current && now - cacheRef.current.timestamp < 300000) {
           setStats(cacheRef.current.stats);
           setRecentActivity(cacheRef.current.recentActivity);
           setTopProducts(cacheRef.current.topProducts);

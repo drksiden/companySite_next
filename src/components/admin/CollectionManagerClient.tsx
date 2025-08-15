@@ -1,20 +1,73 @@
 "use client";
 
-import { useState, useMemo } from 'react';
-import { Collection, collectionService } from '@/lib/services/collection';
-import { Brand, Category } from '@/types/catalog';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CollectionForm } from '@/components/admin/CollectionForm';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Trash2, Loader2, Edit, ArrowUpDown, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable, ColumnFiltersState } from '@tanstack/react-table';
+import { useState, useMemo } from "react";
+import { Collection, collectionService } from "@/lib/services/collection";
+import { Brand, Category } from "@/types/catalog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/enhanced-dialog";
+import { CollectionForm } from "@/components/admin/CollectionForm";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Trash2,
+  Loader2,
+  Edit,
+  ArrowUpDown,
+  MoreHorizontal,
+  Image as ImageIcon,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+  ColumnFiltersState,
+} from "@tanstack/react-table";
 
 interface CollectionManagerClientProps {
   initialCollections: Collection[];
@@ -22,14 +75,22 @@ interface CollectionManagerClientProps {
   categories: Category[];
 }
 
-export function CollectionManagerClient({ initialCollections, brands, categories }: CollectionManagerClientProps) {
+export function CollectionManagerClient({
+  initialCollections,
+  brands,
+  categories,
+}: CollectionManagerClientProps) {
   const [collections, setCollections] = useState(initialCollections);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+  const [editingCollection, setEditingCollection] = useState<Collection | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
-  const [collectionIdsToDelete, setCollectionIdsToDelete] = useState<string[]>([]);
+  const [collectionIdsToDelete, setCollectionIdsToDelete] = useState<string[]>(
+    [],
+  );
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
@@ -54,7 +115,9 @@ export function CollectionManagerClient({ initialCollections, brands, categories
 
   const openDeleteDialog = (collectionIds: string[]) => {
     // Фильтруем только валидные id
-    const validIds = collectionIds.filter(id => typeof id === 'string' && id.length > 0 && id !== '0');
+    const validIds = collectionIds.filter(
+      (id) => typeof id === "string" && id.length > 0 && id !== "0",
+    );
     setCollectionIdsToDelete(validIds);
     setIsAlertDialogOpen(true);
   };
@@ -77,22 +140,26 @@ export function CollectionManagerClient({ initialCollections, brands, categories
           anyBlocked = true;
           blockedCount++;
           // Логируем ошибку для отладки
-          console.error('Ошибка при удалении коллекции', id, err);
-          if (err && typeof err === 'object' && Object.keys(err).length === 0) {
-            toast.warning(`Возможная проблема при удалении коллекции (id: ${id}): пустая ошибка, но коллекция могла быть удалена.`);
+          console.error("Ошибка при удалении коллекции", id, err);
+          if (err && typeof err === "object" && Object.keys(err).length === 0) {
+            toast.warning(
+              `Возможная проблема при удалении коллекции (id: ${id}): пустая ошибка, но коллекция могла быть удалена.`,
+            );
           }
         }
       }
       if (blockedCount > 0) {
-        toast.error(`Не удалось удалить ${blockedCount} коллекц${blockedCount === 1 ? 'ию' : blockedCount < 5 ? 'ии' : 'ий'} (есть связанные товары или ошибка).`);
+        toast.error(
+          `Не удалось удалить ${blockedCount} коллекц${blockedCount === 1 ? "ию" : blockedCount < 5 ? "ии" : "ий"} (есть связанные товары или ошибка).`,
+        );
       }
       if (blockedCount < collectionIdsToDelete.length) {
-        toast.success('Коллекции успешно удалены');
+        toast.success("Коллекции успешно удалены");
       }
       await fetchCollections();
     } catch (e) {
-      console.error('Ошибка при массовом удалении коллекций', e);
-      toast.error('Ошибка при удалении коллекций');
+      console.error("Ошибка при массовом удалении коллекций", e);
+      toast.error("Ошибка при удалении коллекций");
     } finally {
       setIsDeleting(false);
       setIsAlertDialogOpen(false);
@@ -110,124 +177,169 @@ export function CollectionManagerClient({ initialCollections, brands, categories
     try {
       if (editingCollection) {
         await collectionService.updateCollection(editingCollection.id, data);
-        toast.success('Коллекция обновлена');
+        toast.success("Коллекция обновлена");
       } else {
         await collectionService.createCollection(data);
-        toast.success('Коллекция создана');
+        toast.success("Коллекция создана");
       }
       setIsModalOpen(false);
       setEditingCollection(null);
       await fetchCollections();
     } catch (e) {
-      toast.error('Ошибка при сохранении коллекции');
+      toast.error("Ошибка при сохранении коллекции");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const columns: ColumnDef<Collection>[] = useMemo(() => [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-    {
-      accessorKey: "name",
-      header: ({ column }) => (
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Название<ArrowUpDown className="ml-2 h-4 w-4" /></Button>
-      ),
-      cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
-    },
-    {
-      accessorKey: "slug",
-      header: "Slug",
-      cell: ({ row }) => <div>{row.getValue("slug")}</div>,
-    },
-    {
-      accessorKey: "brand_id",
-      header: "Бренд",
-      cell: ({ row }) => {
-        const brand = brands.find(b => b.id === row.getValue("brand_id"));
-        return brand ? <span className="inline-block px-2 py-0.5 rounded bg-muted text-xs">{brand.name}</span> : <span className="text-muted-foreground text-xs">—</span>;
+  const columns: ColumnDef<Collection>[] = useMemo(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) =>
+              table.toggleAllPageRowsSelected(!!value)
+            }
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
       },
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
-      accessorKey: "category_id",
-      header: "Категория",
-      cell: ({ row }) => {
-        const category = categories.find(c => c.id === row.getValue("category_id"));
-        return category ? <span className="inline-block px-2 py-0.5 rounded bg-muted text-xs">{category.name}</span> : <span className="text-muted-foreground text-xs">—</span>;
+      {
+        accessorKey: "name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Название
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <div className="font-medium">{row.getValue("name")}</div>
+        ),
       },
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
-      accessorKey: "image_url",
-      header: "Изображение",
-      cell: ({ row }) => {
-        const url = row.getValue("image_url");
-        if (typeof url === 'string' && url.trim() !== '') {
-          return <img src={url} alt="preview" className="w-10 h-10 object-cover rounded" />;
-        }
-        return <span className="text-muted-foreground"><ImageIcon className="w-5 h-5" /></span>;
+      {
+        accessorKey: "slug",
+        header: "Slug",
+        cell: ({ row }) => <div>{row.getValue("slug")}</div>,
       },
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
-      accessorKey: "is_active",
-      header: "Активна",
-      cell: ({ row }) => row.getValue("is_active") ? 'Да' : 'Нет',
-    },
-    {
-      accessorKey: "sort_order",
-      header: "Порядок",
-      cell: ({ row }) => row.getValue("sort_order"),
-    },
-    {
-      id: "actions",
-      enableHiding: false,
-      cell: ({ row }) => {
-        const collection = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Открыть меню</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Действия</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => handleEditCollection(collection)}>
-                <Edit className="mr-2 h-4 w-4" /> Редактировать
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => openDeleteDialog([collection.id])} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" /> Удалить
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
+      {
+        accessorKey: "brand_id",
+        header: "Бренд",
+        cell: ({ row }) => {
+          const brand = brands.find((b) => b.id === row.getValue("brand_id"));
+          return brand ? (
+            <span className="inline-block px-2 py-0.5 rounded bg-muted text-xs">
+              {brand.name}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          );
+        },
+        enableSorting: false,
+        enableHiding: true,
       },
-    },
-  ], [brands, categories]);
+      {
+        accessorKey: "category_id",
+        header: "Категория",
+        cell: ({ row }) => {
+          const category = categories.find(
+            (c) => c.id === row.getValue("category_id"),
+          );
+          return category ? (
+            <span className="inline-block px-2 py-0.5 rounded bg-muted text-xs">
+              {category.name}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          );
+        },
+        enableSorting: false,
+        enableHiding: true,
+      },
+      {
+        accessorKey: "image_url",
+        header: "Изображение",
+        cell: ({ row }) => {
+          const url = row.getValue("image_url");
+          if (typeof url === "string" && url.trim() !== "") {
+            return (
+              <img
+                src={url}
+                alt="preview"
+                className="w-10 h-10 object-cover rounded"
+              />
+            );
+          }
+          return (
+            <span className="text-muted-foreground">
+              <ImageIcon className="w-5 h-5" />
+            </span>
+          );
+        },
+        enableSorting: false,
+        enableHiding: true,
+      },
+      {
+        accessorKey: "is_active",
+        header: "Активна",
+        cell: ({ row }) => (row.getValue("is_active") ? "Да" : "Нет"),
+      },
+      {
+        accessorKey: "sort_order",
+        header: "Порядок",
+        cell: ({ row }) => row.getValue("sort_order"),
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        cell: ({ row }) => {
+          const collection = row.original;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Открыть меню</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => handleEditCollection(collection)}
+                >
+                  <Edit className="mr-2 h-4 w-4" /> Редактировать
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => openDeleteDialog([collection.id])}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Удалить
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [brands, categories],
+  );
 
   const table = useReactTable({
     data: collections,
@@ -248,7 +360,9 @@ export function CollectionManagerClient({ initialCollections, brands, categories
 
   // Вместо Object.keys(table.getFilteredSelectedRowModel().rowsById)
   const selectedRows = table.getFilteredSelectedRowModel().rows;
-  const selectedRowsIds = selectedRows.map(row => row.original.id).filter(id => typeof id === 'string' && id.length > 0 && id !== '0');
+  const selectedRowsIds = selectedRows
+    .map((row) => row.original.id)
+    .filter((id) => typeof id === "string" && id.length > 0 && id !== "0");
 
   return (
     <div>
@@ -256,8 +370,16 @@ export function CollectionManagerClient({ initialCollections, brands, categories
         <h1 className="text-3xl font-bold mb-4 sm:mb-0">Коллекции</h1>
         <div className="flex gap-2">
           {selectedRowsIds.length > 0 && (
-            <Button variant="destructive" onClick={() => openDeleteDialog(selectedRowsIds)} disabled={isDeleting}>
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            <Button
+              variant="destructive"
+              onClick={() => openDeleteDialog(selectedRowsIds)}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
               Удалить выбранные ({selectedRowsIds.length})
             </Button>
           )}
@@ -269,12 +391,20 @@ export function CollectionManagerClient({ initialCollections, brands, categories
           <Input
             placeholder="Поиск по названию..."
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+            onChange={(event) =>
+              table.getColumn("name")?.setFilterValue(event.target.value)
+            }
             className="max-w-sm"
           />
           <Select
-            onValueChange={(value) => table.getColumn('brand_id')?.setFilterValue(value === 'all' ? undefined : value)}
-            value={(table.getColumn('brand_id')?.getFilterValue() as string) || 'all'}
+            onValueChange={(value) =>
+              table
+                .getColumn("brand_id")
+                ?.setFilterValue(value === "all" ? undefined : value)
+            }
+            value={
+              (table.getColumn("brand_id")?.getFilterValue() as string) || "all"
+            }
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Фильтр по бренду" />
@@ -283,14 +413,23 @@ export function CollectionManagerClient({ initialCollections, brands, categories
               <SelectGroup>
                 <SelectItem value="all">Все бренды</SelectItem>
                 {brands.map((brand) => (
-                  <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                  <SelectItem key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
           <Select
-            onValueChange={(value) => table.getColumn('category_id')?.setFilterValue(value === 'all' ? undefined : value)}
-            value={(table.getColumn('category_id')?.getFilterValue() as string) || 'all'}
+            onValueChange={(value) =>
+              table
+                .getColumn("category_id")
+                ?.setFilterValue(value === "all" ? undefined : value)
+            }
+            value={
+              (table.getColumn("category_id")?.getFilterValue() as string) ||
+              "all"
+            }
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Фильтр по категории" />
@@ -299,7 +438,9 @@ export function CollectionManagerClient({ initialCollections, brands, categories
               <SelectGroup>
                 <SelectItem value="all">Все категории</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
@@ -312,7 +453,12 @@ export function CollectionManagerClient({ initialCollections, brands, categories
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -321,15 +467,26 @@ export function CollectionManagerClient({ initialCollections, brands, categories
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
                     Коллекции не найдены.
                   </TableCell>
                 </TableRow>
@@ -338,15 +495,22 @@ export function CollectionManagerClient({ initialCollections, brands, categories
           </Table>
         </div>
         <div className="text-muted-foreground flex items-center justify-end py-4 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} из {table.getFilteredRowModel().rows.length} строк(и) выбрано.
+          {table.getFilteredSelectedRowModel().rows.length} из{" "}
+          {table.getFilteredRowModel().rows.length} строк(и) выбрано.
         </div>
       </div>
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent style={{ width: '95%', maxWidth: '600px' }}>
+        <DialogContent size="lg" scrollable>
           <DialogHeader>
-            <DialogTitle>{editingCollection ? 'Редактировать коллекцию' : 'Создать новую коллекцию'}</DialogTitle>
+            <DialogTitle>
+              {editingCollection
+                ? "Редактировать коллекцию"
+                : "Создать новую коллекцию"}
+            </DialogTitle>
             <DialogDescription>
-              {editingCollection ? 'Измените данные коллекции и сохраните изменения.' : 'Заполните информацию о новой коллекции.'}
+              {editingCollection
+                ? "Измените данные коллекции и сохраните изменения."
+                : "Заполните информацию о новой коллекции."}
             </DialogDescription>
           </DialogHeader>
           <CollectionForm
@@ -363,13 +527,22 @@ export function CollectionManagerClient({ initialCollections, brands, categories
           <AlertDialogHeader>
             <AlertDialogTitle>Вы уверены, что хотите удалить?</AlertDialogTitle>
             <AlertDialogDescription>
-              Это действие нельзя отменить. Все выбранные коллекции будут безвозвратно удалены.
+              Это действие нельзя отменить. Все выбранные коллекции будут
+              безвозвратно удалены.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirmed} disabled={isDeleting} className="bg-red-600 hover:bg-red-500">
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-500"
+            >
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
               Продолжить удаление
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -377,4 +550,4 @@ export function CollectionManagerClient({ initialCollections, brands, categories
       </AlertDialog>
     </div>
   );
-} 
+}

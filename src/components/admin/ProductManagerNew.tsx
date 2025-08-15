@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { useOptimizedFetch } from "@/hooks/useOptimizedFetch";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useDataCache } from "@/hooks/useAdminSettings";
 import {
   Dialog,
   DialogContent,
@@ -56,10 +62,19 @@ import {
   Package,
   TrendingUp,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ProductFormNew } from "./ProductFormNew";
+import { LoadingSkeleton } from "./LoadingSkeleton";
+import {
+  ProductStatusIndicator,
+  StockStatusIndicator,
+  FeaturedIndicator,
+} from "./ProductStatusIndicator";
+import { ProductImageDisplay } from "./ProductImageDisplay";
+import { DialogScrollableContent } from "@/components/ui/scrollable-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,6 +120,8 @@ export function ProductManagerNew() {
     null,
   );
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
@@ -119,22 +136,30 @@ export function ProductManagerNew() {
     hasMore: false,
   });
 
-  // Оптимизированная загрузка данных для форм
-  const {
-    data: formDataResponse,
-    loading: formDataLoading,
-    error: formDataError,
-  } = useOptimizedFetch<AdminFormData>("/api/admin/form-data?type=all", {
-    cache: true,
-    cacheTime: 10 * 60 * 1000, // 10 минут
-  });
+  // Простая загрузка данных для форм
+  const [formDataLoading, setFormDataLoading] = useState(false);
+  const [formDataError, setFormDataError] = useState<string | null>(null);
 
-  // Устанавливаем данные форм
+  // Загружаем данные форм
   useEffect(() => {
-    if (formDataResponse) {
-      setFormData(formDataResponse);
-    }
-  }, [formDataResponse]);
+    const loadFormData = async () => {
+      try {
+        setFormDataLoading(true);
+        const response = await fetch("/api/admin/form-data?type=all");
+        if (!response.ok) throw new Error("Failed to load form data");
+        const data = await response.json();
+        setFormData(data);
+      } catch (error) {
+        setFormDataError(
+          error instanceof Error ? error.message : "Unknown error",
+        );
+      } finally {
+        setFormDataLoading(false);
+      }
+    };
+
+    loadFormData();
+  }, []);
 
   // Построение URL для запроса продуктов
   const productsUrl = useMemo(() => {
@@ -152,37 +177,84 @@ export function ProductManagerNew() {
     return `/api/admin/products?${params}`;
   }, [filters, pagination.limit, pagination.offset]);
 
-  // Оптимизированная загрузка продуктов
-  const {
-    data: productsResponse,
-    loading: productsLoading,
-    error: productsError,
-    refetch: refetchProducts,
-  } = useOptimizedFetch<{
-    products: CatalogProduct[];
+  // Простая загрузка продуктов
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
+  // Используем новый хук для кэширования
+  const { getCachedData, setCachedData, isCacheEnabled } = useDataCache<{
+    products: any[];
     total: number;
     hasMore: boolean;
-  }>(productsUrl, {
-    cache: true,
-    cacheTime: 2 * 60 * 1000, // 2 минуты для продуктов
-  });
+  }>("products");
 
-  // Устанавливаем продукты и пагинацию
-  useEffect(() => {
-    if (productsResponse) {
-      setProducts(productsResponse.products || []);
+  // Загружаем продукты
+  const loadProducts = async (url: string, isRefresh = false) => {
+    try {
+      // Проверяем кэш сначала (кроме случаев принудительного обновления)
+      if (!isRefresh && isCacheEnabled) {
+        const cachedData = getCachedData(url);
+        if (cachedData) {
+          setProducts(cachedData.products || []);
+          setPagination((prev) => ({
+            ...prev,
+            total: cachedData.total || 0,
+            hasMore: cachedData.hasMore || false,
+          }));
+          return;
+        }
+      }
+
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setProductsLoading(true);
+      }
+      setProductsError(null);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to load products");
+      const data = await response.json();
+
+      // Кэшируем данные
+      if (isCacheEnabled) {
+        setCachedData(url, {
+          products: data.products || [],
+          total: data.total || 0,
+          hasMore: data.hasMore || false,
+        });
+      }
+
+      // Добавляем небольшую задержку для плавности анимации
+      if (isRefresh) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      setProducts(data.products || []);
       setPagination((prev) => ({
         ...prev,
-        total: productsResponse.total || 0,
-        hasMore: productsResponse.hasMore || false,
+        total: data.total || 0,
+        hasMore: data.hasMore || false,
       }));
+    } catch (error) {
+      setProductsError(
+        error instanceof Error ? error.message : "Unknown error",
+      );
+    } finally {
+      setProductsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [productsResponse]);
+  };
+
+  // Загружаем продукты при изменении URL
+  useEffect(() => {
+    const isFirstLoad = products.length === 0;
+    loadProducts(productsUrl, !isFirstLoad);
+  }, [productsUrl]);
 
   // Устанавливаем общее состояние загрузки
   useEffect(() => {
-    setLoading(productsLoading);
-  }, [productsLoading]);
+    setLoading(formDataLoading || productsLoading);
+  }, [formDataLoading, productsLoading]);
 
   // Показываем ошибки
   useEffect(() => {
@@ -194,6 +266,13 @@ export function ProductManagerNew() {
     }
   }, [formDataError, productsError]);
 
+  // Функция для закрытия диалога с очисткой состояния
+  const handleCloseDialog = useCallback(() => {
+    setIsFormOpen(false);
+    setEditingProduct(null);
+    setDialogKey((prev) => prev + 1); // Принудительно пересоздаем диалог
+  }, []);
+
   const handleCreateProduct = async (data: globalThis.FormData) => {
     try {
       setSubmitting(true);
@@ -204,9 +283,26 @@ export function ProductManagerNew() {
       });
 
       if (response.ok) {
-        toast.success("Продукт успешно создан");
-        setIsFormOpen(false);
-        refetchProducts();
+        const result = await response.json();
+        let message = "Продукт успешно создан";
+
+        // Добавляем информацию о загрузке файлов
+        if (result.uploadInfo) {
+          const { imagesUploaded, documentsUploaded, errors } =
+            result.uploadInfo;
+          if (imagesUploaded > 0 || documentsUploaded > 0) {
+            message += ` (загружено: ${imagesUploaded} изображений, ${documentsUploaded} документов)`;
+          }
+          if (errors && errors.length > 0) {
+            message += `. Ошибки загрузки: ${errors.join(", ")}`;
+          }
+        }
+
+        toast.success(message);
+        handleCloseDialog();
+        // Плавное обновление списка
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        loadProducts(productsUrl, true);
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось создать продукт");
@@ -229,10 +325,26 @@ export function ProductManagerNew() {
       });
 
       if (response.ok) {
-        toast.success("Продукт успешно обновлен");
-        setIsFormOpen(false);
-        setEditingProduct(null);
-        refetchProducts();
+        const result = await response.json();
+        let message = "Продукт успешно обновлен";
+
+        // Добавляем информацию о загрузке файлов
+        if (result.uploadInfo) {
+          const { imagesUploaded, documentsUploaded, errors } =
+            result.uploadInfo;
+          if (imagesUploaded > 0 || documentsUploaded > 0) {
+            message += ` (загружено: ${imagesUploaded} новых изображений, ${documentsUploaded} новых документов)`;
+          }
+          if (errors && errors.length > 0) {
+            message += `. Ошибки загрузки: ${errors.join(", ")}`;
+          }
+        }
+
+        toast.success(message);
+        handleCloseDialog();
+        // Плавное обновление списка
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        loadProducts(productsUrl, true);
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось обновить продукт");
@@ -251,13 +363,15 @@ export function ProductManagerNew() {
     }
 
     try {
-      const response = await fetch(`/api/admin/products?id=${productId}`, {
+      const response = await fetch(`/api/admin/products/${productId}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
-        toast.success("Продукт успешно удален");
-        refetchProducts();
+        toast.success("Продукт удален");
+        // Плавное обновление списка после удаления
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        loadProducts(productsUrl, true);
       } else {
         const error = await response.json();
         toast.error(error.error || "Не удалось удалить продукт");
@@ -282,43 +396,22 @@ export function ProductManagerNew() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      draft: "secondary",
-      active: "default",
-      archived: "outline",
-      out_of_stock: "destructive",
-    } as const;
-
-    const labels = {
-      draft: "Черновик",
-      active: "Активный",
-      archived: "Архивирован",
-      out_of_stock: "Нет в наличии",
-    } as const;
-
     return (
-      <Badge variant={variants[status as keyof typeof variants] || "secondary"}>
-        {labels[status as keyof typeof labels] || status}
-      </Badge>
+      <ProductStatusIndicator
+        status={status as "draft" | "active" | "archived" | "out_of_stock"}
+        size="sm"
+      />
     );
   };
 
-  const getStockStatus = (quantity: number, minLevel: number = 0) => {
-    if (quantity === 0) {
-      return <Badge variant="destructive">Нет в наличии</Badge>;
-    } else if (quantity <= minLevel) {
-      return (
-        <Badge variant="outline" className="text-orange-600">
-          Заканчивается
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge variant="default" className="bg-green-600">
-          В наличии
-        </Badge>
-      );
-    }
+  const getStockStatus = (quantity: number, minLevel: number = 5) => {
+    return (
+      <StockStatusIndicator
+        quantity={quantity}
+        minStockLevel={minLevel}
+        size="sm"
+      />
+    );
   };
 
   return (
@@ -332,14 +425,27 @@ export function ProductManagerNew() {
           </p>
         </div>
 
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <Dialog
+          key={dialogKey}
+          open={isFormOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              handleCloseDialog();
+            } else {
+              setIsFormOpen(true);
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct(null)}>
+            <Button
+              onClick={() => setEditingProduct(null)}
+              className="enhanced-shadow"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Добавить товар
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent size="xl" scrollable={true}>
             <DialogHeader>
               <DialogTitle>
                 {editingProduct ? "Редактировать товар" : "Добавить товар"}
@@ -351,6 +457,7 @@ export function ProductManagerNew() {
               </DialogDescription>
             </DialogHeader>
             <ProductFormNew
+              key={editingProduct?.id || "new"}
               onSubmit={
                 editingProduct ? handleUpdateProduct : handleCreateProduct
               }
@@ -518,145 +625,261 @@ export function ProductManagerNew() {
 
       {/* Таблица товаров */}
       <Card>
-        <CardHeader>
-          <CardTitle>Товары</CardTitle>
-          <CardDescription>Найдено {pagination.total} товаров</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Товары</CardTitle>
+            <CardDescription>
+              Найдено {pagination.total} товаров
+              {isRefreshing && (
+                <span className="ml-2 text-primary">• Обновление...</span>
+              )}
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadProducts(productsUrl, true)}
+            disabled={loading || isRefreshing}
+            className="transition-all duration-200"
+          >
+            {isRefreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Обновление
+              </>
+            ) : (
+              "Обновить"
+            )}
+          </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent
+          className={
+            isRefreshing
+              ? "opacity-75 transition-opacity duration-300"
+              : "transition-opacity duration-300"
+          }
+        >
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <LoadingSkeleton rows={5} showFilters={false} />
+          ) : products.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Товары не найдены
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {filters.search
+                  ? "Попробуйте изменить параметры поиска"
+                  : "Начните с добавления первого товара"}
+              </p>
+              {!filters.search && (
+                <Button
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setIsFormOpen(true);
+                  }}
+                  className="enhanced-shadow"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить первый товар
+                </Button>
+              )}
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Товар</TableHead>
-                    <TableHead>Категория</TableHead>
-                    <TableHead>Бренд</TableHead>
-                    <TableHead>Цена</TableHead>
-                    <TableHead>Остаток</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Действия</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        {product.thumbnail ? (
-                          <Image
-                            src={product.thumbnail}
-                            alt={product.name}
-                            width={40}
-                            height={40}
-                            className="rounded object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                            <Package className="h-4 w-4 text-muted-foreground" />
+              <div className="rounded-lg border overflow-hidden">
+                <Table className="admin-table">
+                  <TableHeader>
+                    <TableRow className="border-b">
+                      <TableHead className="w-16 text-center bg-muted/50">
+                        Фото
+                      </TableHead>
+                      <TableHead className="min-w-[200px] bg-muted/50">
+                        Товар
+                      </TableHead>
+                      <TableHead className="w-[120px] bg-muted/50">
+                        Категория
+                      </TableHead>
+                      <TableHead className="w-[120px] bg-muted/50">
+                        Бренд
+                      </TableHead>
+                      <TableHead className="w-[120px] text-right bg-muted/50">
+                        Цена
+                      </TableHead>
+                      <TableHead className="w-[100px] text-center bg-muted/50">
+                        Остаток
+                      </TableHead>
+                      <TableHead className="w-[100px] text-center bg-muted/50">
+                        Статус
+                      </TableHead>
+                      <TableHead className="w-[80px] text-center bg-muted/50">
+                        Действия
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((product, index) => (
+                      <TableRow
+                        key={product.id}
+                        className="hover:bg-muted/30 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animationFillMode: "both",
+                        }}
+                      >
+                        <TableCell className="text-center p-2">
+                          <div className="flex justify-center">
+                            <ProductImageDisplay
+                              thumbnail={product.thumbnail}
+                              images={(product as any).images || []}
+                              productName={product.name}
+                              size="md"
+                              showZoom={true}
+                              showGallery={true}
+                            />
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {product.sku && `SKU: ${product.sku}`}
-                          </div>
-                          {product.is_featured && (
-                            <Badge variant="secondary" className="mt-1">
-                              <Star className="h-3 w-3 mr-1" />
-                              Рекомендуемый
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {(product as any).category?.name || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {(product as any).brand?.name || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {formatPrice(
-                              product.base_price || 0,
-                              (product as any).currencies,
+                        </TableCell>
+                        <TableCell className="p-3">
+                          <div className="space-y-1">
+                            <div className="font-medium text-foreground leading-tight">
+                              {product.name}
+                            </div>
+                            {product.sku && (
+                              <div className="text-xs text-muted-foreground font-mono">
+                                SKU: {product.sku}
+                              </div>
+                            )}
+                            {product.is_featured && (
+                              <FeaturedIndicator
+                                isFeatured={true}
+                                size="sm"
+                                className="mt-1"
+                              />
                             )}
                           </div>
-                          {product.sale_price && (
-                            <div className="text-sm text-muted-foreground line-through">
+                        </TableCell>
+                        <TableCell className="p-3">
+                          <div
+                            className="text-sm text-overflow-ellipsis"
+                            title={(product as any).category?.name}
+                          >
+                            {(product as any).category?.name || (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-3">
+                          <div
+                            className="text-sm text-overflow-ellipsis"
+                            title={(product as any).brand?.name}
+                          >
+                            {(product as any).brand?.name || (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-3 text-right">
+                          <div className="space-y-1">
+                            <div className="font-medium text-sm">
                               {formatPrice(
-                                product.sale_price,
+                                product.base_price || 0,
                                 (product as any).currencies,
                               )}
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium">
-                            {product.inventory_quantity} шт.
+                            {product.sale_price && (
+                              <div className="text-xs text-muted-foreground line-through">
+                                {formatPrice(
+                                  product.sale_price,
+                                  (product as any).currencies,
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {getStockStatus(product.inventory_quantity)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(product.status)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Действия</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setEditingProduct(product);
-                                setIsFormOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Редактировать
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Просмотр
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteProduct(product.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Удалить
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        </TableCell>
+                        <TableCell className="p-3 text-center">
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium">
+                              {product.inventory_quantity} шт.
+                            </div>
+                            {getStockStatus(product.inventory_quantity)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-3 text-center">
+                          {getStatusBadge(product.status)}
+                        </TableCell>
+                        <TableCell className="p-3 text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 hover:bg-accent transition-colors duration-200"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>Действия</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingProduct(product);
+                                  setIsFormOpen(true);
+                                }}
+                                className="transition-colors duration-200 hover:bg-accent"
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Редактировать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="transition-colors duration-200">
+                                <Eye className="h-4 w-4 mr-2" />
+                                Просмотр
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      "Вы уверены, что хотите удалить этот товар?",
+                                    )
+                                  ) {
+                                    handleDeleteProduct(product.id);
+                                  }
+                                }}
+                                className="text-destructive hover:bg-destructive/10 transition-colors duration-200"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Удалить
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Пагинация */}
               {pagination.total > pagination.limit && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Показано {pagination.offset + 1}-
-                    {Math.min(
-                      pagination.offset + pagination.limit,
-                      pagination.total,
-                    )}{" "}
-                    из {pagination.total}
+                <div className="flex items-center justify-between mt-6 p-4 bg-muted/20 rounded-lg border">
+                  <div className="text-sm text-muted-foreground font-medium">
+                    Показано{" "}
+                    <span className="text-foreground">
+                      {pagination.offset + 1}
+                    </span>
+                    -
+                    <span className="text-foreground">
+                      {Math.min(
+                        pagination.offset + pagination.limit,
+                        pagination.total,
+                      )}
+                    </span>{" "}
+                    из{" "}
+                    <span className="text-foreground font-semibold">
+                      {pagination.total}
+                    </span>{" "}
+                    товаров
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -666,9 +889,15 @@ export function ProductManagerNew() {
                         )
                       }
                       disabled={pagination.offset === 0}
+                      className="transition-all duration-200 hover:shadow-sm"
                     >
                       Предыдущая
                     </Button>
+                    <div className="text-sm text-muted-foreground px-2">
+                      Страница{" "}
+                      {Math.floor(pagination.offset / pagination.limit) + 1} из{" "}
+                      {Math.ceil(pagination.total / pagination.limit)}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -676,6 +905,7 @@ export function ProductManagerNew() {
                         handlePageChange(pagination.offset + pagination.limit)
                       }
                       disabled={!pagination.hasMore}
+                      className="transition-all duration-200 hover:shadow-sm"
                     >
                       Следующая
                     </Button>

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
-import { uploadFileToR2 } from "@/lib/r2";
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,21 +128,65 @@ export async function POST(req: NextRequest) {
     // --- Обработка изображений ---
     const imageFiles = formData.getAll("imageFiles") as File[];
     const newImageUrls: string[] = [];
+    const uploadErrors: string[] = [];
+
     for (const file of imageFiles) {
       if (file.size > 0) {
-        const url = await uploadFileToR2(file, "images/products");
-        newImageUrls.push(url);
+        try {
+          const { uploadFileToR2, validateImageFile } = await import(
+            "@/lib/r2"
+          );
+
+          // Валидация файла
+          const validation = validateImageFile(file);
+          if (!validation.valid) {
+            uploadErrors.push(`Image ${file.name}: ${validation.error}`);
+            continue;
+          }
+
+          const url = await uploadFileToR2(file, "images/products");
+          newImageUrls.push(url);
+          console.log(`Successfully uploaded image: ${file.name} -> ${url}`);
+        } catch (error) {
+          const errorMessage = `Failed to upload image ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          console.error(errorMessage, error);
+          uploadErrors.push(errorMessage);
+        }
       }
     }
 
     // --- Обработка документов ---
     const documentFiles = formData.getAll("documentFiles") as File[];
     const newDocuments = [];
+
     for (const file of documentFiles) {
       if (file.size > 0) {
-        const url = await uploadFileToR2(file, "documents/products");
-        newDocuments.push({ url, name: file.name, type: file.type });
+        try {
+          const { uploadFileToR2, validateDocumentFile } = await import(
+            "@/lib/r2"
+          );
+
+          // Валидация файла
+          const validation = validateDocumentFile(file);
+          if (!validation.valid) {
+            uploadErrors.push(`Document ${file.name}: ${validation.error}`);
+            continue;
+          }
+
+          const url = await uploadFileToR2(file, "documents/products");
+          newDocuments.push({ url, name: file.name, type: file.type });
+          console.log(`Successfully uploaded document: ${file.name} -> ${url}`);
+        } catch (error) {
+          const errorMessage = `Failed to upload document ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          console.error(errorMessage, error);
+          uploadErrors.push(errorMessage);
+        }
       }
+    }
+
+    // Если есть ошибки загрузки, логируем их но продолжаем создание товара
+    if (uploadErrors.length > 0) {
+      console.warn("Upload errors occurred:", uploadErrors);
     }
 
     // --- Сборка данных для создания ---
@@ -311,7 +354,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    // Возвращаем результат с информацией о загрузке файлов
+    const response = {
+      ...data,
+      uploadInfo: {
+        imagesUploaded: newImageUrls.length,
+        documentsUploaded: newDocuments.length,
+        errors: uploadErrors.length > 0 ? uploadErrors : undefined,
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Server error in POST:", error);
     return NextResponse.json(
@@ -341,10 +394,30 @@ export async function PUT(req: NextRequest) {
     );
     const newImageUrls: string[] = [];
 
+    const updateUploadErrors: string[] = [];
+
     for (const file of imageFiles) {
       if (file.size > 0) {
-        const url = await uploadFileToR2(file, "images/products");
-        newImageUrls.push(url);
+        try {
+          const { uploadFileToR2, validateImageFile } = await import(
+            "@/lib/r2"
+          );
+
+          // Валидация файла
+          const validation = validateImageFile(file);
+          if (!validation.valid) {
+            updateUploadErrors.push(`Image ${file.name}: ${validation.error}`);
+            continue;
+          }
+
+          const url = await uploadFileToR2(file, "images/products");
+          newImageUrls.push(url);
+          console.log(`Successfully uploaded image: ${file.name} -> ${url}`);
+        } catch (error) {
+          const errorMessage = `Failed to upload image ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          console.error(errorMessage, error);
+          updateUploadErrors.push(errorMessage);
+        }
       }
     }
 
@@ -357,9 +430,34 @@ export async function PUT(req: NextRequest) {
 
     for (const file of documentFiles) {
       if (file.size > 0) {
-        const url = await uploadFileToR2(file, "documents/products");
-        newDocuments.push({ url, name: file.name, type: file.type });
+        try {
+          const { uploadFileToR2, validateDocumentFile } = await import(
+            "@/lib/r2"
+          );
+
+          // Валидация файла
+          const validation = validateDocumentFile(file);
+          if (!validation.valid) {
+            updateUploadErrors.push(
+              `Document ${file.name}: ${validation.error}`,
+            );
+            continue;
+          }
+
+          const url = await uploadFileToR2(file, "documents/products");
+          newDocuments.push({ url, name: file.name, type: file.type });
+          console.log(`Successfully uploaded document: ${file.name} -> ${url}`);
+        } catch (error) {
+          const errorMessage = `Failed to upload document ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          console.error(errorMessage, error);
+          updateUploadErrors.push(errorMessage);
+        }
       }
+    }
+
+    // Если есть ошибки загрузки, логируем их но продолжаем обновление товара
+    if (updateUploadErrors.length > 0) {
+      console.warn("Upload errors occurred during update:", updateUploadErrors);
     }
 
     // --- Сборка данных для обновления ---
@@ -508,7 +606,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    // Возвращаем результат с информацией о загрузке файлов
+    const response = {
+      ...data,
+      uploadInfo: {
+        imagesUploaded: newImageUrls.length,
+        documentsUploaded: newDocuments.length,
+        errors: updateUploadErrors.length > 0 ? updateUploadErrors : undefined,
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Server error in PUT:", error);
     return NextResponse.json(

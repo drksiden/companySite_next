@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/ui/enhanced-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -435,7 +435,7 @@ export default function CategoryFormClient({
 
       {/* Category Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent size="lg" scrollable>
           <DialogHeader>
             <DialogTitle>{getFormTitle()}</DialogTitle>
             <DialogDescription>

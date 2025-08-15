@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CatalogProduct } from "@/lib/services/catalog";
-import { getOptimizedImageSrc, getPlaceholderImageUrl } from "@/lib/imageUtils";
 
 interface ProductCardProps {
   product: CatalogProduct;
@@ -32,8 +31,12 @@ export default function ProductCard({
   const [imageError, setImageError] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  const imageSrc = getOptimizedImageSrc(product.thumbnail);
-  const fallbackSrc = getPlaceholderImageUrl(400, 400, "Нет фото");
+  // Safe image handling - no complex functions
+  const imageSrc =
+    product.thumbnail && product.thumbnail.trim() !== ""
+      ? product.thumbnail
+      : "/placeholder.jpg";
+  const fallbackSrc = "/placeholder.jpg";
 
   const finalPrice = product.sale_price || product.base_price;
   const isOnSale = !!(
@@ -57,21 +60,27 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     setIsWishlisted(!isWishlisted);
-    // TODO: Implement wishlist API call
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implement add to cart functionality
     console.log("Add to cart:", product.id);
   };
 
   const handleQuickView = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Implement quick view modal
     console.log("Quick view:", product.id);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
   };
 
   if (layout === "list") {
@@ -83,22 +92,29 @@ export default function ProductCard({
               {/* Image */}
               <div className="relative w-32 h-32 flex-shrink-0">
                 <div className="relative w-full h-full rounded-lg overflow-hidden bg-muted">
-                  <Image
-                    src={imageSrc || fallbackSrc}
-                    alt={product.name}
-                    fill
-                    className={cn(
-                      "object-cover transition-all duration-300",
-                      "group-hover:scale-105",
-                      imageLoading && "animate-pulse",
-                    )}
-                    onLoad={() => setImageLoading(false)}
-                    onError={() => {
-                      setImageError(true);
-                      setImageLoading(false);
-                    }}
-                    sizes="128px"
-                  />
+                  {imageSrc !== "/placeholder.jpg" && !imageError ? (
+                    <Image
+                      src={imageSrc}
+                      alt={product.name}
+                      fill
+                      className={cn(
+                        "object-cover transition-all duration-300",
+                        "group-hover:scale-105",
+                        imageLoading && "animate-pulse",
+                      )}
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                      sizes="128px"
+                      unoptimized={true}
+                      quality={75}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center border border-gray-300 rounded">
+                      <span className="text-gray-500 text-xs font-medium">
+                        No Image
+                      </span>
+                    </div>
+                  )}
 
                   {/* Badges */}
                   <div className="absolute top-2 left-2 flex flex-col gap-1">
@@ -108,10 +124,10 @@ export default function ProductCard({
                       </Badge>
                     )}
                     {product.is_featured && (
-                      <Badge variant="secondary">Хит</Badge>
+                      <Badge variant="secondary">Hit</Badge>
                     )}
                     {!isInStock && (
-                      <Badge variant="destructive">Нет в наличии</Badge>
+                      <Badge variant="destructive">Out of Stock</Badge>
                     )}
                   </div>
                 </div>
@@ -193,7 +209,8 @@ export default function ProductCard({
                       onClick={handleAddToCart}
                       className="ml-4"
                     >
-                      <ShoppingCart className="h-4 w-4 mr-2" />В корзину
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
                     </Button>
                   )}
                 </div>
@@ -240,28 +257,35 @@ export default function ProductCard({
               imageClasses[size],
             )}
           >
-            <Image
-              src={imageSrc || fallbackSrc}
-              alt={product.name}
-              fill
-              className={cn(
-                "object-cover transition-all duration-300",
-                "group-hover:scale-105",
-                imageLoading && "animate-pulse",
-              )}
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-              }}
-              sizes={
-                size === "small"
-                  ? "200px"
-                  : size === "medium"
-                    ? "300px"
-                    : "400px"
-              }
-            />
+            {imageSrc !== "/placeholder.jpg" && !imageError ? (
+              <Image
+                src={imageSrc}
+                alt={product.name}
+                fill
+                className={cn(
+                  "object-cover transition-all duration-300",
+                  "group-hover:scale-105",
+                  imageLoading && "animate-pulse",
+                )}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                sizes={
+                  size === "small"
+                    ? "200px"
+                    : size === "medium"
+                      ? "300px"
+                      : "400px"
+                }
+                unoptimized={true}
+                quality={75}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center border border-gray-300 rounded">
+                <span className="text-gray-500 text-sm font-medium">
+                  No Image
+                </span>
+              </div>
+            )}
 
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -301,15 +325,16 @@ export default function ProductCard({
                   -{discountPercentage}%
                 </Badge>
               )}
-              {product.is_featured && <Badge variant="secondary">Хит</Badge>}
-              {!isInStock && <Badge variant="destructive">Нет в наличии</Badge>}
+              {product.is_featured && <Badge variant="secondary">Hit</Badge>}
+              {!isInStock && <Badge variant="destructive">Out of Stock</Badge>}
             </div>
 
             {/* Add to Cart - Bottom overlay */}
             {showAddToCart && isInStock && (
               <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                 <Button onClick={handleAddToCart} className="w-full" size="sm">
-                  <ShoppingCart className="h-4 w-4 mr-2" />В корзину
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
                 </Button>
               </div>
             )}
@@ -364,8 +389,8 @@ export default function ProductCard({
               {product.track_inventory && size !== "small" && (
                 <p className="text-xs text-muted-foreground">
                   {isInStock
-                    ? `В наличии: ${product.inventory_quantity} шт.`
-                    : "Нет в наличии"}
+                    ? `In stock: ${product.inventory_quantity} pcs.`
+                    : "Out of stock"}
                 </p>
               )}
             </div>

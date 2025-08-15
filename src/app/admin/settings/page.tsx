@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AdminSettingsPanel } from "@/hooks/useAdminSettings";
 
 // Типы для настроек
 interface GeneralSettings {
@@ -222,12 +223,13 @@ export default function SettingsPage() {
       {/* Основной контент */}
       <motion.div variants={itemVariants}>
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="general">Общие</TabsTrigger>
             <TabsTrigger value="notifications">Уведомления</TabsTrigger>
             <TabsTrigger value="payments">Оплата</TabsTrigger>
             <TabsTrigger value="shipping">Доставка</TabsTrigger>
             <TabsTrigger value="security">Безопасность</TabsTrigger>
+            <TabsTrigger value="admin">Админка</TabsTrigger>
           </TabsList>
 
           {/* Общие настройки */}
@@ -813,6 +815,25 @@ export default function SettingsPage() {
                     Функции безопасности будут доступны в следующих обновлениях
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Настройки админки */}
+          <TabsContent value="admin" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="mr-2 h-5 w-5" />
+                  Настройки админки
+                </CardTitle>
+                <CardDescription>
+                  Управление автообновлением и кэшированием данных в
+                  административной панели
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AdminSettingsPanel />
               </CardContent>
             </Card>
           </TabsContent>

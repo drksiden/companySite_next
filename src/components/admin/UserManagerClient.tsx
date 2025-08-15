@@ -63,7 +63,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/components/ui/enhanced-dialog";
 import {
   Select,
   SelectContent,
@@ -671,7 +671,7 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
                   Создать
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent size="lg" scrollable>
                 <DialogHeader>
                   <DialogTitle>
                     {editingUser

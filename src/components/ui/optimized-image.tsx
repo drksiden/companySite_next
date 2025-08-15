@@ -366,12 +366,8 @@ export function ProductImage({
 
 // Утилита для генерации blur placeholder
 function generateBlurDataURL(): string {
-  // Простой серый blur placeholder
-  return `data:image/svg+xml;base64,${btoa(
-    `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-      <rect width="40" height="40" fill="#f3f4f6"/>
-    </svg>`,
-  )}`;
+  // Простой серый blur placeholder без проблемного btoa
+  return "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
 }
 
 // Removed duplicate useImagePreloader - using the one from hooks/useImagePreloader.ts

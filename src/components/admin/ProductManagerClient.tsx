@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/enhanced-dialog";
 import { ProductForm } from "@/components/admin/ProductForm";
 import {
   Table,
@@ -568,7 +568,7 @@ export function ProductManagerClient({
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent style={{ width: "95%", maxWidth: "800px" }}>
+        <DialogContent size="xl" scrollable>
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? "Редактировать товар" : "Создать новый товар"}
