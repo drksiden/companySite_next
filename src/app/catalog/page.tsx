@@ -20,17 +20,14 @@ interface CatalogPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-async function fetchCatalogData(
-  searchParams: Record<string, string | string[] | undefined>,
-) {
+async function fetchCatalogData() {
   try {
-    // Convert searchParams to plain object for service functions
-    const params: Record<string, string> = {};
-    Object.entries(searchParams).forEach(([key, value]) => {
-      if (value !== undefined) {
-        params[key] = Array.isArray(value) ? value[0] : value;
-      }
-    });
+    // Fetch all products without pagination and filters for client-side processing
+    const params = {
+      page: "1",
+      limit: "1000", // Large number to get all products
+      sort: "name.asc",
+    };
 
     // Fetch products and metadata in parallel
     const [productsResult, categories, brands] = await Promise.all([
@@ -41,7 +38,6 @@ async function fetchCatalogData(
 
     return {
       products: productsResult.data,
-      meta: productsResult.meta,
       categories,
       brands,
     };
@@ -53,9 +49,7 @@ async function fetchCatalogData(
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   try {
-    const { products, meta, categories, brands } = await fetchCatalogData(
-      await searchParams,
-    );
+    const { products, categories, brands } = await fetchCatalogData();
 
     return (
       <div className="min-h-screen bg-background">
@@ -64,7 +58,6 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             initialProducts={products}
             initialCategories={categories}
             initialBrands={brands}
-            initialMeta={meta}
           />
         </Suspense>
       </div>

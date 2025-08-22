@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Menu, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { AdminAuthGuard } from "@/components/admin/AdminAuthGuard";
+import AdminAuthGuard from "@/components/admin/AdminAuthGuard";
 import { Sidebar } from "@/components/admin/Sidebar";
 
 // Simplified page transition variants for better performance

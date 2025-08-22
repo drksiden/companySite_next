@@ -8,6 +8,7 @@ export interface CatalogProduct {
   slug: string;
   sku?: string;
   short_description?: string;
+  description?: string;
   base_price: number;
   sale_price?: number;
   thumbnail?: string;
@@ -19,6 +20,7 @@ export interface CatalogProduct {
   created_at: string;
   view_count: number;
   sales_count: number;
+  specifications?: Record<string, any>;
   brands?: {
     id: string;
     name: string;
@@ -113,7 +115,7 @@ export async function listProducts(
   } = params;
   const offset = (page - 1) * limit;
 
-  // Build the query - simplified without joins
+  // Build the query with joins for related data
   let query = supabase.from("products").select(
     `
       id,
@@ -132,10 +134,30 @@ export async function listProducts(
       created_at,
       view_count,
       sales_count,
-      brand_id,
-      category_id,
-      currency_id,
-      collection_id
+      brands(
+        id,
+        name,
+        slug,
+        logo_url
+      ),
+      categories(
+        id,
+        name,
+        slug,
+        path,
+        level
+      ),
+      currencies(
+        id,
+        code,
+        symbol,
+        name
+      ),
+      collections(
+        id,
+        name,
+        slug
+      )
     `,
     { count: "exact" },
   );
@@ -203,7 +225,7 @@ export async function listProducts(
     throw new Error("Database error");
   }
 
-  // Process products - simplified without joined data
+  // Process products with joined data
   const products = (data || []).map((product) => {
     const finalPrice = product.sale_price || product.base_price;
     const isOnSale = !!(
@@ -231,6 +253,7 @@ export async function listProducts(
           ? images[0]
           : null;
 
+    // Fix the data structure for single relations
     return {
       ...product,
       thumbnail,
@@ -239,11 +262,18 @@ export async function listProducts(
       is_on_sale: isOnSale,
       discount_percentage: discountPercentage,
       formatted_price: formatPrice(finalPrice, "₸"),
-      // Set related data to null since we're not joining
-      brands: null,
-      categories: null,
-      currencies: null,
-      collections: null,
+      brands: Array.isArray(product.brands)
+        ? product.brands[0] || null
+        : product.brands,
+      categories: Array.isArray(product.categories)
+        ? product.categories[0] || null
+        : product.categories,
+      currencies: Array.isArray(product.currencies)
+        ? product.currencies[0] || null
+        : product.currencies,
+      collections: Array.isArray(product.collections)
+        ? product.collections[0] || null
+        : product.collections,
     } as CatalogProduct;
   });
 

@@ -24,11 +24,9 @@ export const signUpSchema = z
     password: z
       .string()
       .min(8, { message: "Пароль должен быть не менее 8 символов." }),
-    confirmPassword: z
-      .string()
-      .min(8, {
-        message: "Подтверждение пароля должно быть не менее 8 символов.",
-      }),
+    confirmPassword: z.string().min(8, {
+      message: "Подтверждение пароля должно быть не менее 8 символов.",
+    }),
     phone: z.string().optional(), // Оставляем опциональным, как было
     company: z.string().optional(), // Новое поле: Название компании (опциональное)
     accountType: z.enum(["individual", "business"], {
@@ -66,7 +64,7 @@ export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
 // Catalog schemas
 export const CatalogQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(48).default(20),
+  limit: z.coerce.number().min(1).max(1000).default(20),
   sort: z
     .enum(["price.asc", "price.desc", "name.asc", "name.desc", "created.desc"])
     .default("name.asc"),
@@ -84,12 +82,14 @@ export const CatalogQuerySchema = z.object({
     .transform((val) => (val ? val.split(",").filter(Boolean) : [])),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
-  inStockOnly: z.coerce
-    .number()
-    .min(0)
-    .max(1)
+  inStockOnly: z
+    .union([
+      z.string().transform((val) => val === "true" || val === "1"),
+      z.boolean(),
+      z.number().transform((val) => val === 1),
+    ])
     .optional()
-    .transform((val) => val === 1),
+    .default(false),
   search: z.string().optional(),
 });
 

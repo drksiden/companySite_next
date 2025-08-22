@@ -8,43 +8,15 @@ const nextConfig = {
         hostname: "localhost",
       },
       {
-        protocol: "https",
-        hostname: "**.r2.dev",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "pub-1506276de6ac4a07aa6fe582457507c1.r2.dev",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "**.r2.cloudflarestorage.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "**.supabase.co",
+        protocol: 'https',
+        hostname: 'cloudflare.com',
+        port: '',
+        pathname: '/pub-1506276de6ac4a07aa6fe582457507c1.r2.dev/**',
+        search: '',
       },
       {
         protocol: "https",
         hostname: "supabase.co",
-      },
-      {
-        protocol: "https",
-        hostname: "**.amazonaws.com",
-      },
-      {
-        protocol: "https",
-        hostname: "amazonaws.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**.storage.googleapis.com",
-      },
-      {
-        protocol: "https",
-        hostname: "storage.googleapis.com",
       },
     ],
     formats: ["image/webp", "image/avif"],
@@ -130,16 +102,16 @@ const nextConfig = {
   },
 
   // Webpack конфигурация
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // SVG как компоненты React
-    config.module.rules.push({
-      test: /\.svg$/i,
-      issuer: /\.[jt]sx?$/,
-      use: ["@svgr/webpack"],
-    });
+  // webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+  //   // SVG как компоненты React
+  //   config.module.rules.push({
+  //     test: /\.svg$/i,
+  //     issuer: /\.[jt]sx?$/,
+  //     use: ["@svgr/webpack"],
+  //   });
 
-    return config;
-  },
+  //   return config;
+  // },
 
   // Типизация
   typescript: {

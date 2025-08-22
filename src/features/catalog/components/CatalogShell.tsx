@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import SortSelect from "./SortSelect";
 import ProductGrid from "./ProductGrid";
 import EmptyState from "./EmptyState";
 import LoadingSkeletons from "./LoadingSkeletons";
-import { ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { Filter, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CatalogProduct,
@@ -22,43 +22,31 @@ interface CatalogShellProps {
   initialProducts: CatalogProduct[];
   initialCategories: CategoryItem[];
   initialBrands: BrandItem[];
-  initialMeta?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
 }
 
 export default function CatalogShell({
   initialProducts,
   initialCategories,
   initialBrands,
-  initialMeta,
 }: CatalogShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [products, setProducts] = useState<CatalogProduct[]>(initialProducts);
+  const [allProducts] = useState<CatalogProduct[]>(initialProducts);
+  const [displayedProducts, setDisplayedProducts] = useState<CatalogProduct[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [meta, setMeta] = useState(
-    initialMeta || {
-      page: 1,
-      limit: 20,
-      total: 0,
-      totalPages: 0,
-      hasNext: false,
-      hasPrev: false,
-    },
-  );
+  const [itemsPerPage] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pendingFilters, setPendingFilters] = useState<Partial<
+    typeof currentFilters
+  > | null>(null);
+  const [isFilteringPending, setIsFilteringPending] = useState(false);
 
   // Get current filters from URL
   const currentFilters = {
-    page: parseInt(searchParams.get("page") || "1"),
-    limit: parseInt(searchParams.get("limit") || "20"),
     sort: searchParams.get("sort") || "name.asc",
     categories:
       searchParams.get("categories")?.split(",").filter(Boolean) || [],
@@ -71,47 +59,171 @@ export default function CatalogShell({
     maxPrice: searchParams.get("maxPrice")
       ? parseFloat(searchParams.get("maxPrice")!)
       : undefined,
-    inStockOnly: searchParams.get("inStockOnly") === "1",
+    inStockOnly: searchParams.get("inStockOnly") === "true",
     search: searchParams.get("search") || "",
   };
 
-  // Fetch products when filters change
-  const fetchProducts = async (params: Record<string, string>) => {
-    setLoading(true);
-    try {
-      const queryString = new URLSearchParams(params).toString();
-      const response = await fetch(`/api/catalog/products?${queryString}`, {
-        cache: "no-store",
+  // Client-side filtering and sorting
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = [...allProducts];
+
+    // Apply search filter
+    if (currentFilters.search) {
+      const searchLower = currentFilters.search.toLowerCase();
+      filtered = filtered.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchLower) ||
+          product.short_description?.toLowerCase().includes(searchLower) ||
+          product.sku?.toLowerCase().includes(searchLower),
+      );
+    }
+
+    // Apply category filter
+    if (currentFilters.categories.length > 0) {
+      filtered = filtered.filter((product) => {
+        if (!product.categories) return false;
+        const productCategory = Array.isArray(product.categories)
+          ? product.categories[0]
+          : product.categories;
+
+        if (!productCategory) return false;
+
+        // Check if product category ID is directly selected
+        if (currentFilters.categories.includes(productCategory.id)) {
+          return true;
+        }
+
+        // Check if any of the selected categories is a parent of the product category
+        // by checking if the selected category ID appears in the product category's path
+        if (productCategory.path) {
+          return currentFilters.categories.some((selectedCategoryId) => {
+            // Find the selected category from initial categories list
+            const selectedCategory = initialCategories.find(
+              (cat) => cat.id === selectedCategoryId,
+            );
+            if (!selectedCategory) return false;
+
+            // If selected category path exists in product category path, it's a parent
+            return (
+              productCategory.path!.includes(selectedCategory.slug) ||
+              productCategory.path!.includes(selectedCategoryId)
+            );
+          });
+        }
+
+        return false;
+      });
+    }
+
+    // Apply brand filter
+    if (currentFilters.brands.length > 0) {
+      filtered = filtered.filter((product) => {
+        if (!product.brands) return false;
+        const brandId = Array.isArray(product.brands)
+          ? product.brands[0]?.id
+          : product.brands.id;
+        return brandId && currentFilters.brands.includes(brandId);
+      });
+    }
+
+    // Apply price filters
+    if (currentFilters.minPrice !== undefined) {
+      filtered = filtered.filter(
+        (product) => product.base_price >= currentFilters.minPrice!,
+      );
+    }
+    if (currentFilters.maxPrice !== undefined) {
+      filtered = filtered.filter(
+        (product) => product.base_price <= currentFilters.maxPrice!,
+      );
+    }
+
+    // Apply stock filter
+    if (currentFilters.inStockOnly) {
+      filtered = filtered.filter((product) => product.inventory_quantity > 0);
+    }
+
+    // Apply sorting
+    switch (currentFilters.sort) {
+      case "price.asc":
+        filtered.sort((a, b) => a.base_price - b.base_price);
+        break;
+      case "price.desc":
+        filtered.sort((a, b) => b.base_price - a.base_price);
+        break;
+      case "name.asc":
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name.desc":
+        filtered.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case "created.desc":
+        filtered.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        break;
+      default:
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return filtered;
+  }, [allProducts, currentFilters]);
+
+  // Update displayed products when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setDisplayedProducts(filteredAndSortedProducts.slice(0, itemsPerPage));
+  }, [filteredAndSortedProducts, itemsPerPage]);
+
+  // Debounced filter update function
+  const debouncedUpdateFilters = useCallback(
+    (newFilters: Partial<typeof currentFilters>) => {
+      setPendingFilters(newFilters);
+      setIsFilteringPending(true);
+    },
+    [],
+  );
+
+  // Apply pending filters with debounce
+  useEffect(() => {
+    if (!pendingFilters) return;
+
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+
+      // Merge current filters with new ones
+      const updatedFilters = { ...currentFilters, ...pendingFilters };
+
+      // Build query params
+      Object.entries(updatedFilters).forEach(([key, value]) => {
+        if (value !== undefined && value !== "" && value !== null) {
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              params.set(key, value.join(","));
+            }
+          } else {
+            params.set(key, value.toString());
+          }
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
+      // Update URL
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      router.replace(newUrl);
+      setPendingFilters(null);
+      setIsFilteringPending(false);
+    }, 500);
 
-      const result = await response.json();
+    return () => clearTimeout(timer);
+  }, [pendingFilters, currentFilters, router]);
 
-      if (result.success) {
-        setProducts(result.data);
-        setMeta(result.meta);
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Update URL and fetch products
+  // Immediate filter update function for non-debounced actions
   const updateFilters = (newFilters: Partial<typeof currentFilters>) => {
     const params = new URLSearchParams();
 
     // Merge current filters with new ones
     const updatedFilters = { ...currentFilters, ...newFilters };
-
-    // Reset to page 1 if not explicitly setting page
-    if (!newFilters.page) {
-      updatedFilters.page = 1;
-    }
 
     // Build query params
     Object.entries(updatedFilters).forEach(([key, value]) => {
@@ -129,22 +241,23 @@ export default function CatalogShell({
     // Update URL
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     router.replace(newUrl);
-
-    // Fetch new products
-    const fetchParams: Record<string, string> = {};
-    params.forEach((value, key) => {
-      fetchParams[key] = value;
-    });
-    fetchProducts(fetchParams);
   };
 
-  // Handle pagination
-  const handlePageChange = (page: number) => {
-    updateFilters({ page });
-    // Scroll to top of catalog
-    document
-      .getElementById("catalog-top")
-      ?.scrollIntoView({ behavior: "smooth" });
+  // Load more products
+  const loadMoreProducts = () => {
+    setLoading(true);
+
+    setTimeout(() => {
+      const nextPage = currentPage + 1;
+      const startIndex = 0;
+      const endIndex = nextPage * itemsPerPage;
+
+      setDisplayedProducts(
+        filteredAndSortedProducts.slice(startIndex, endIndex),
+      );
+      setCurrentPage(nextPage);
+      setLoading(false);
+    }, 500); // Small delay to show loading state
   };
 
   // Handle sort change
@@ -152,15 +265,20 @@ export default function CatalogShell({
     updateFilters({ sort });
   };
 
-  // Handle filter changes
+  // Handle filter changes with debounce
   const handleFiltersChange = (filters: Partial<typeof currentFilters>) => {
-    updateFilters(filters);
+    // Immediate updates for certain filter types
+    if (filters.sort || filters.inStockOnly !== undefined) {
+      updateFilters(filters);
+    } else {
+      // Debounced updates for search, categories, brands, price
+      debouncedUpdateFilters(filters);
+    }
   };
 
   // Clear all filters
   const clearFilters = () => {
     router.replace(window.location.pathname);
-    fetchProducts({});
   };
 
   // Check if any filters are active
@@ -180,8 +298,15 @@ export default function CatalogShell({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold">Каталог товаров</h1>
-          <p className="text-muted-foreground mt-2">
-            Найдено {meta.total} товаров
+          <p className="text-muted-foreground mt-2" suppressHydrationWarning>
+            {isFilteringPending ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Применяем фильтры...
+              </span>
+            ) : (
+              `Найдено ${filteredAndSortedProducts.length} товаров`
+            )}
           </p>
         </div>
 
@@ -319,9 +444,7 @@ export default function CatalogShell({
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-          {loading ? (
-            <LoadingSkeletons />
-          ) : products.length === 0 ? (
+          {displayedProducts.length === 0 && !loading ? (
             <EmptyState
               hasFilters={hasActiveFilters}
               onClearFilters={clearFilters}
@@ -329,77 +452,46 @@ export default function CatalogShell({
           ) : (
             <>
               <Suspense fallback={<LoadingSkeletons />}>
-                <ProductGrid products={products} />
+                <ProductGrid products={displayedProducts} />
               </Suspense>
 
-              {/* Pagination */}
-              {meta.totalPages > 1 && (
-                <div className="mt-12 flex items-center justify-center gap-2">
+              {/* Load More Button */}
+              {displayedProducts.length < filteredAndSortedProducts.length && (
+                <div className="mt-12 flex items-center justify-center">
                   <Button
                     variant="outline"
-                    size="sm"
-                    disabled={!meta.hasPrev || loading}
-                    onClick={() => handlePageChange(meta.page - 1)}
+                    size="lg"
+                    onClick={loadMoreProducts}
+                    disabled={loading}
+                    className="min-w-[200px]"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Назад
-                  </Button>
-
-                  <div className="flex items-center gap-1">
-                    {Array.from(
-                      { length: Math.min(5, meta.totalPages) },
-                      (_, i) => {
-                        let pageNum: number;
-
-                        if (meta.totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (meta.page <= 3) {
-                          pageNum = i + 1;
-                        } else if (meta.page >= meta.totalPages - 2) {
-                          pageNum = meta.totalPages - 4 + i;
-                        } else {
-                          pageNum = meta.page - 2 + i;
-                        }
-
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={
-                              pageNum === meta.page ? "default" : "outline"
-                            }
-                            size="sm"
-                            disabled={loading}
-                            onClick={() => handlePageChange(pageNum)}
-                            className="w-10"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      },
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Загружаем...
+                      </>
+                    ) : (
+                      <>
+                        Загрузить еще (
+                        {Math.min(
+                          itemsPerPage,
+                          filteredAndSortedProducts.length -
+                            displayedProducts.length,
+                        )}{" "}
+                        товаров)
+                      </>
                     )}
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!meta.hasNext || loading}
-                    onClick={() => handlePageChange(meta.page + 1)}
-                  >
-                    Вперед
-                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               )}
 
               {/* Results info */}
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                Показано {products.length} из {meta.total} товаров
-                {meta.totalPages > 1 && (
-                  <span>
-                    {" "}
-                    • Страница {meta.page} из {meta.totalPages}
-                  </span>
-                )}
+              <div
+                className="mt-6 text-center text-sm text-muted-foreground"
+                suppressHydrationWarning
+              >
+                Показано {displayedProducts.length} из{" "}
+                {filteredAndSortedProducts.length} товаров
               </div>
             </>
           )}
