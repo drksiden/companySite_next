@@ -349,6 +349,7 @@ export function Header() {
               width={140}
               height={40}
               className="block dark:hidden h-10 w-auto"
+              style={{ width: "auto", height: "40px" }}
               priority
             />
             <Image
@@ -357,6 +358,7 @@ export function Header() {
               width={140}
               height={40}
               className="hidden dark:block h-10 w-auto"
+              style={{ width: "auto", height: "40px" }}
               priority
             />
           </Link>

@@ -1,28 +1,41 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, ShoppingCart } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { CatalogProduct } from "@/lib/services/catalog";
 
 interface ProductCardProps {
   product: CatalogProduct;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+// Server-side function to determine image source consistently
+const getFinalImageSrc = (product: CatalogProduct): string => {
+  // Try thumbnail first
+  if (
+    product.thumbnail &&
+    !product.thumbnail.includes("example.com") &&
+    !product.thumbnail.includes("placeholder")
+  ) {
+    return product.thumbnail;
+  }
 
-  // Safe image handling
-  const imageSrc =
-    product.thumbnail && product.thumbnail.trim() !== ""
-      ? product.thumbnail
-      : "/placeholder.jpg";
+  // Try first image from array
+  if (product.images && product.images.length > 0) {
+    const firstImage = product.images[0];
+    if (
+      firstImage &&
+      !firstImage.includes("example.com") &&
+      !firstImage.includes("placeholder")
+    ) {
+      return firstImage;
+    }
+  }
+
+  return "/images/placeholder-product.svg";
+};
+
+export default function ProductCard({ product }: ProductCardProps) {
+  const imageSrc = getFinalImageSrc(product);
 
   const finalPrice = product.sale_price || product.base_price;
   const isOnSale = !!(
@@ -42,85 +55,40 @@ export default function ProductCard({ product }: ProductCardProps) {
     return `${price.toLocaleString("kk-KZ")} ₸`;
   };
 
-  const handleWishlistToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsWishlisted(!isWishlisted);
-  };
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log("Add to cart:", product.id);
-  };
-
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
   return (
-    <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden h-full">
+    <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden h-full product-card">
       <Link href={`/catalog/product/${product.slug}`}>
         <div className="relative">
           {/* Image */}
-          <div className="relative aspect-square overflow-hidden bg-gray-100">
-            {imageSrc !== "/placeholder.jpg" && !imageError ? (
-              <Image
-                src={imageSrc}
-                alt={product.name}
-                fill
-                className="object-cover transition-all duration-300 group-hover:scale-105"
-                onError={handleImageError}
-                sizes="300px"
-                quality={75}
-              />
-            ) : (
-              <Image
-                src="/placeholder.jpg"
-                alt={`${product.name} - изображение товара`}
-                fill
-                className="object-cover transition-all duration-300 group-hover:scale-105"
-                sizes="300px"
-                quality={60}
-              />
-            )}
+          <div className="relative w-full h-64 overflow-hidden bg-gray-100 product-card-image">
+            <Image
+              src={imageSrc}
+              alt={product.name}
+              width={300}
+              height={256}
+              className={`w-full h-full transition-all duration-300 group-hover:scale-105 ${
+                imageSrc === "/images/placeholder-product.svg"
+                  ? "object-contain p-4"
+                  : "object-cover"
+              }`}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              quality={75}
+              priority={false}
+              unoptimized={imageSrc === "/images/placeholder-product.svg"}
+            />
 
             {/* Overlay with description on hover */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition-all duration-300 flex items-end">
-              <div className="p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition-all duration-300 flex items-end opacity-0 group-hover:opacity-100">
+              <div className="p-4 text-white w-full">
                 {product.short_description && (
-                  <p className="text-sm leading-relaxed line-clamp-3">
+                  <p className="text-sm leading-relaxed line-clamp-4">
                     {product.short_description}
                   </p>
                 )}
-              </div>
-            </div>
-
-            {/* Action buttons - top right */}
-            <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleWishlistToggle}
-                className={cn(
-                  "h-9 w-9 p-0 bg-white/90 hover:bg-white shadow-lg",
-                  isWishlisted && "text-red-500",
+                {!product.short_description && product.name && (
+                  <p className="text-sm leading-relaxed">{product.name}</p>
                 )}
-              >
-                <Heart
-                  className={cn("h-4 w-4", isWishlisted && "fill-current")}
-                />
-              </Button>
-
-              {isInStock && (
-                <Button
-                  onClick={handleAddToCart}
-                  size="sm"
-                  className="h-9 w-9 p-0 shadow-lg"
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                </Button>
-              )}
+              </div>
             </div>
 
             {/* Badges - top left */}
@@ -193,17 +161,6 @@ export default function ProductCard({ product }: ProductCardProps) {
                       : "Нет в наличии"}
                   </span>
                 </div>
-              )}
-
-              {/* Add to cart button - always visible at bottom */}
-              {isInStock && (
-                <Button
-                  onClick={handleAddToCart}
-                  className="w-full mt-4"
-                  size="sm"
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />В корзину
-                </Button>
               )}
             </div>
           </CardContent>

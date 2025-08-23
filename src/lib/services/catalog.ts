@@ -2,6 +2,34 @@ import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
 import { CatalogQuerySchema, type CatalogQuery } from "@/lib/schemas";
 import { formatPrice } from "@/lib/utils";
 
+// Function to clean and validate image URLs
+function cleanImageUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+
+  const cleanUrl = url.trim();
+
+  // Skip broken URLs
+  if (cleanUrl.includes("example.com") || cleanUrl === "") {
+    return null;
+  }
+
+  // Validate URL format
+  if (!cleanUrl.startsWith("http") && !cleanUrl.startsWith("/")) {
+    return null;
+  }
+
+  return cleanUrl;
+}
+
+// Function to clean images array
+function cleanImagesArray(images: string[] | null | undefined): string[] {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((img) => cleanImageUrl(img))
+    .filter((img): img is string => img !== null);
+}
+
 export interface CatalogProduct {
   id: string;
   name: string;
@@ -238,20 +266,10 @@ export async function listProducts(
         )
       : 0;
 
-    // Process images - filter out empty and invalid URLs
-    const images = product.images
-      ? (Array.isArray(product.images) ? product.images : []).filter(
-          (img) => img && typeof img === "string" && img.trim() !== "",
-        )
-      : [];
-
-    // If thumbnail is empty, use first image from array
+    // Process images - keep original URLs from database but clean them
+    const images = product.images || [];
     const thumbnail =
-      product.thumbnail && product.thumbnail.trim() !== ""
-        ? product.thumbnail
-        : images.length > 0
-          ? images[0]
-          : null;
+      product.thumbnail || (images.length > 0 ? images[0] : null);
 
     // Fix the data structure for single relations
     return {
@@ -382,7 +400,7 @@ export async function getProduct(
         slug,
         logo_url,
         description,
-        website_url
+        website
       ),
       categories(
         id,

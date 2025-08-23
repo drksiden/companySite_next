@@ -34,7 +34,12 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const AUTO_INTERVAL = 5000;
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const changeSlide = useCallback(
     (newIndex: number) => {
@@ -48,24 +53,24 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
   );
 
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || !isMounted) return;
     const timer = setTimeout(
       () => changeSlide(currentSlide + 1),
       AUTO_INTERVAL,
     );
     return () => clearTimeout(timer);
-  }, [currentSlide, isPaused, changeSlide]);
+  }, [currentSlide, isPaused, changeSlide, isMounted]);
 
   const slideVariants = {
     enter: (direction: number) => ({
-      x: direction > 0 ? 200 : -200,
-      opacity: 0,
+      x: isMounted ? (direction > 0 ? 200 : -200) : 0,
+      opacity: isMounted ? 0 : 1,
     }),
     center: { zIndex: 1, x: 0, opacity: 1 },
     exit: (direction: number) => ({
       zIndex: 0,
-      x: direction < 0 ? 200 : -200,
-      opacity: 0,
+      x: isMounted ? (direction < 0 ? 200 : -200) : 0,
+      opacity: isMounted ? 0 : 1,
     }),
   };
 
@@ -73,12 +78,16 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
     enter: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.4, ease: "easeOut", delay: 0.2 },
+      transition: {
+        duration: isMounted ? 0.4 : 0,
+        ease: "easeOut",
+        delay: isMounted ? 0.2 : 0,
+      },
     },
     exit: {
-      opacity: 0,
-      y: -10,
-      transition: { duration: 0.2, ease: "easeIn" },
+      opacity: isMounted ? 0 : 1,
+      y: isMounted ? -10 : 0,
+      transition: { duration: isMounted ? 0.2 : 0, ease: "easeIn" },
     },
   };
 
@@ -94,9 +103,9 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
             key={`${currentSlide}-title`}
             className="text-2xl lg:text-3xl font-semibold text-blue-700 dark:text-blue-300"
             variants={textVariants}
-            initial="exit"
+            initial={isMounted ? "exit" : "enter"}
             animate="enter"
-            exit="exit"
+            exit={isMounted ? "exit" : "enter"}
           >
             {slides[currentSlide].title}
           </motion.h3>
@@ -111,12 +120,16 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
             className="absolute inset-0 flex items-center justify-center"
             custom={direction}
             variants={slideVariants}
-            initial="enter"
+            initial={isMounted ? "enter" : "center"}
             animate="center"
-            exit="exit"
+            exit={isMounted ? "exit" : "center"}
             transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.3 },
+              x: {
+                type: "spring",
+                stiffness: isMounted ? 300 : 0,
+                damping: 30,
+              },
+              opacity: { duration: isMounted ? 0.3 : 0 },
             }}
           >
             <Link
@@ -151,12 +164,12 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
               animate={{ width: currentSlide === index ? "100%" : "0%" }}
               transition={{
                 duration:
-                  currentSlide === index && !isPaused
+                  currentSlide === index && !isPaused && isMounted
                     ? AUTO_INTERVAL / 1000
                     : 0.4,
                 ease: "linear",
               }}
-              key={`${currentSlide}-${index}-${isPaused}`}
+              key={`${currentSlide}-${index}-${isPaused}-${isMounted}`}
             />
           </button>
         ))}
@@ -166,9 +179,9 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
           <motion.div
             key={`${currentSlide}-desc`}
             variants={textVariants}
-            initial="exit"
+            initial={isMounted ? "exit" : "enter"}
             animate="enter"
-            exit="exit"
+            exit={isMounted ? "exit" : "enter"}
             className="py-2"
           >
             <p className="text-lg line-clamp-3 md:line-clamp-2">
@@ -202,6 +215,11 @@ export function ProductSection({
   };
 
   const [logoVisible, setLogoVisible] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const renderBrandLogo = () => {
     if (!brandLogoUrl || !logoVisible) return null;
@@ -218,15 +236,27 @@ export function ProductSection({
           width={150}
           height={72}
           className={`block dark:hidden h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
-          onError={() => setLogoVisible(false)}
+          onError={() => {
+            console.warn(`Logo failed to load: "${brandLogoUrl}"`);
+            setLogoVisible(false);
+          }}
+          onLoad={() =>
+            console.log(`Logo loaded successfully: "${brandLogoUrl}"`)
+          }
         />
         <Image
           src={brandLogoUrlDark}
-          alt={`${brandName} Logo`}
+          alt={`${brandName} Logo dark`}
           width={150}
           height={72}
           className={`hidden dark:block h-14 md:h-18 w-auto object-contain ${logoBgClass} rounded-lg p-2`}
-          onError={() => setLogoVisible(false)}
+          onError={() => {
+            console.warn(`Logo dark failed to load: "${brandLogoUrlDark}"`);
+            setLogoVisible(false);
+          }}
+          onLoad={() =>
+            console.log(`Logo dark loaded successfully: "${brandLogoUrlDark}"`)
+          }
         />
       </motion.div>
     );
@@ -240,7 +270,7 @@ export function ProductSection({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
             className="space-y-6 text-center lg:text-left"
-            initial="hidden"
+            initial={isMounted ? "hidden" : "visible"}
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={sectionVariants}
@@ -281,9 +311,11 @@ export function ProductSection({
             </motion.div>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={
+              isMounted ? { opacity: 0, scale: 0.9 } : { opacity: 1, scale: 1 }
+            }
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: isMounted ? 0.5 : 0, ease: "easeOut" }}
             className="w-full"
           >
             <Carousel slides={slides} />

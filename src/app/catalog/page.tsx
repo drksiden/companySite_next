@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   keywords: ["каталог", "товары", "интернет-магазин", "покупки", "доставка"],
 };
 
+// Force dynamic rendering to prevent hydration issues
+export const dynamic = "force-dynamic";
+
 interface CatalogPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
@@ -25,7 +28,7 @@ async function fetchCatalogData() {
     // Fetch all products without pagination and filters for client-side processing
     const params = {
       page: "1",
-      limit: "1000", // Large number to get all products
+      limit: "50", // Reduced limit for better performance
       sort: "name.asc",
     };
 
@@ -37,33 +40,31 @@ async function fetchCatalogData() {
     ]);
 
     return {
-      products: productsResult.data,
-      categories,
-      brands,
+      products: productsResult.data || [],
+      categories: categories || [],
+      brands: brands || [],
     };
   } catch (error) {
     console.error("Error fetching catalog data:", error);
-    throw error;
+    // Return empty data instead of throwing to prevent page crash
+    return {
+      products: [],
+      categories: [],
+      brands: [],
+    };
   }
 }
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  try {
-    const { products, categories, brands } = await fetchCatalogData();
+  const { products, categories, brands } = await fetchCatalogData();
 
-    return (
-      <div className="min-h-screen bg-background">
-        <Suspense fallback={<LoadingSkeletons count={12} />}>
-          <CatalogShell
-            initialProducts={products}
-            initialCategories={categories}
-            initialBrands={brands}
-          />
-        </Suspense>
-      </div>
-    );
-  } catch (error) {
-    console.error("Catalog page error:", error);
-    notFound();
-  }
+  return (
+    <div className="min-h-screen bg-background">
+      <CatalogShell
+        initialProducts={products}
+        initialCategories={categories}
+        initialBrands={brands}
+      />
+    </div>
+  );
 }

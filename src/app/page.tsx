@@ -1,23 +1,23 @@
-'use client'; // Очень важно, чтобы это был клиентский компонент
+"use client";
 
-import { motion } from 'framer-motion';
-import { Hero } from '@/components/Hero';
-import { PartnersCarousel } from '@/components/PartnersCarousel';
-import { ProductSections } from '@/components/ProductSections';
-import { PromoCard } from '@/components/PromoCard';
-import { Services } from '@/components/Services';
-import { SectionWrapper } from '@/components/SectionWrapper';
+import { useState, useEffect } from "react";
+import { Hero } from "@/components/Hero";
+import { PartnersCarousel } from "@/components/PartnersCarousel";
+import { ProductSections } from "@/components/ProductSections";
+import { PromoCard } from "@/components/PromoCard";
+import { Services } from "@/components/Services";
+import { SectionWrapper } from "@/components/SectionWrapper";
 
 export default function HomePage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.3 }}
-      >
+      <div className={isMounted ? "animate-fade-in" : ""}>
         <Hero />
         <SectionWrapper className="w-full">
           <PartnersCarousel />
@@ -37,7 +37,7 @@ export default function HomePage() {
         <SectionWrapper className="w-full">
           <Services />
         </SectionWrapper>
-      </motion.div>
+      </div>
     </>
   );
 }
