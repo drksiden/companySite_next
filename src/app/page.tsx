@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Hero } from "@/components/Hero";
 import { PartnersCarousel } from "@/components/PartnersCarousel";
 import { ProductSections } from "@/components/ProductSections";
@@ -9,15 +8,9 @@ import { Services } from "@/components/Services";
 import { SectionWrapper } from "@/components/SectionWrapper";
 
 export default function HomePage() {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   return (
     <>
-      <div className={isMounted ? "animate-fade-in" : ""}>
+      <div className="opacity-0 animate-fade-in">
         <Hero />
         <SectionWrapper className="w-full">
           <PartnersCarousel />

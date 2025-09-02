@@ -259,7 +259,7 @@ export function ProductCard({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1">
+                    {/* <div className="flex items-center gap-2 mt-1">
                       {isInStock ? (
                         <Badge variant="secondary" className="text-xs">
                           <CheckCircle className="h-3 w-3 mr-1" />В наличии
@@ -270,7 +270,7 @@ export function ProductCard({
                           Нет в наличии
                         </Badge>
                       )}
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Временно скрыта кнопка "В корзину" */}
@@ -398,13 +398,13 @@ export function ProductCard({
           </AnimatePresence>
 
           {/* Stock Status Overlay */}
-          {!isInStock && (
+          {/* {!isInStock && (
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
               <Badge variant="secondary" className="bg-background/90">
                 Нет в наличии
               </Badge>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Content */}

@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Product, Category as ProductCategory } from "@/lib/api/catalog";
 import { Package, Search, ImageOff } from "lucide-react";
-// import { useRegion } from '@/providers/region'; // Провайдер региона удален
 
 interface CatalogProps {
   initialProducts?: Product[];

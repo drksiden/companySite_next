@@ -211,7 +211,7 @@ export default function ProductClientComponent({
                 <p className="text-sm text-muted-foreground">
                   Артикул: {productSKU}
                 </p>
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   {priceInfo.isSale && (
                     <Badge variant="destructive" className="text-xs">
                       -{priceInfo.discountPercent}%
@@ -226,7 +226,7 @@ export default function ProductClientComponent({
                   >
                     {stockStatusText}
                   </div>
-                </div>
+                </div> */}
               </div>
 
               {/* Цена */}

@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 interface AdminAuthGuardProps {
   children: React.ReactNode;
-  requireRole?: "admin" | "manager" | "user";
+  requireRole?: "admin" | "manager" | "user" | "super_admin";
   fallback?: React.ReactNode;
 }
 
@@ -21,6 +21,7 @@ export default function AdminAuthGuard({
 }: AdminAuthGuardProps) {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function AdminAuthGuard({
     async function checkAuth(forceRefresh = false) {
       const now = Date.now();
       const cacheKey = "current_user";
+      const profileCacheKey = "user_profile";
 
       // Отладочная информация
       setDebugInfo(`Checking auth at ${new Date().toISOString()}`);
@@ -50,19 +52,25 @@ export default function AdminAuthGuard({
       // Проверяем кэш
       if (!forceRefresh && now - lastCheckRef.current < 5000) {
         const cachedUser = sessionStorage.getItem(cacheKey);
-        if (cachedUser) {
+        const cachedProfile = sessionStorage.getItem(profileCacheKey);
+        if (cachedUser && cachedProfile) {
           try {
-            const parsed = JSON.parse(cachedUser);
+            const parsedUser = JSON.parse(cachedUser);
+            const parsedProfile = JSON.parse(cachedProfile);
             if (!ignore) {
-              setUser(parsed);
-              setUserRole(parsed?.user_metadata?.role || "user");
+              setUser(parsedUser);
+              setUserProfile(parsedProfile);
+              setUserRole(parsedProfile?.role || "user");
               setLoading(false);
-              setDebugInfo(`Using cached user: ${parsed.email}`);
+              setDebugInfo(
+                `Using cached user: ${parsedUser.email} (${parsedProfile.role})`,
+              );
             }
             return;
           } catch (e) {
-            console.error("Error parsing cached user:", e);
+            console.error("Error parsing cached data:", e);
             sessionStorage.removeItem(cacheKey);
+            sessionStorage.removeItem(profileCacheKey);
           }
         }
       }
@@ -82,6 +90,7 @@ export default function AdminAuthGuard({
             setDebugInfo(`User error: ${userError.message}`);
             setUser(null);
             setUserRole(null);
+            setUserProfile(null);
             setLoading(false);
           }
           return;
@@ -92,22 +101,43 @@ export default function AdminAuthGuard({
             setDebugInfo("No authenticated user found");
             setUser(null);
             setUserRole(null);
+            setUserProfile(null);
             setLoading(false);
           }
           return;
         }
 
-        // Проверяем роль пользователя
-        const role = currentUser.user_metadata?.role || "user";
+        // Получаем профиль пользователя из таблицы user_profiles
+        const { data: profile, error: profileError } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("id", currentUser.id)
+          .single();
+
+        if (profileError) {
+          console.error("Profile fetch error:", profileError);
+          if (!ignore) {
+            setDebugInfo(`Profile error: ${profileError.message}`);
+            setUser(currentUser);
+            setUserProfile(null);
+            setUserRole("user"); // fallback роль
+            setLoading(false);
+          }
+          return;
+        }
 
         if (!ignore) {
           setUser(currentUser);
-          setUserRole(role);
+          setUserProfile(profile);
+          setUserRole(profile?.role || "user");
           setLoading(false);
-          setDebugInfo(`Authenticated as: ${currentUser.email} (${role})`);
+          setDebugInfo(
+            `Authenticated as: ${currentUser.email} (${profile?.role || "user"})`,
+          );
 
-          // Кэшируем пользователя
+          // Кэшируем данные
           sessionStorage.setItem(cacheKey, JSON.stringify(currentUser));
+          sessionStorage.setItem(profileCacheKey, JSON.stringify(profile));
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -117,6 +147,7 @@ export default function AdminAuthGuard({
           );
           setUser(null);
           setUserRole(null);
+          setUserProfile(null);
           setLoading(false);
         }
       }
@@ -142,12 +173,23 @@ export default function AdminAuthGuard({
       if (event === "SIGNED_OUT") {
         setUser(null);
         setUserRole(null);
+        setUserProfile(null);
         sessionStorage.removeItem("current_user");
+        sessionStorage.removeItem("user_profile");
       } else if (event === "SIGNED_IN" && session?.user) {
-        const role = session.user.user_metadata?.role || "user";
+        // При входе получаем профиль из базы
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+
+        const role = profile?.role || "user";
         setUser(session.user);
+        setUserProfile(profile);
         setUserRole(role);
         sessionStorage.setItem("current_user", JSON.stringify(session.user));
+        sessionStorage.setItem("user_profile", JSON.stringify(profile));
       }
     });
 
@@ -164,18 +206,17 @@ export default function AdminAuthGuard({
     // Проверяем роль каждые 30 секунд
     const interval = setInterval(async () => {
       if (user) {
-        const {
-          data: { user: freshUser },
-        } = await supabase.auth.getUser();
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
 
-        if (freshUser) {
-          const newRole = freshUser.user_metadata?.role || "user";
-          if (newRole !== userRole) {
-            setUserRole(newRole);
-            setUser(freshUser);
-            sessionStorage.setItem("current_user", JSON.stringify(freshUser));
-            setDebugInfo(`Role updated to: ${newRole}`);
-          }
+        if (profile && profile.role !== userRole) {
+          setUserProfile(profile);
+          setUserRole(profile.role);
+          sessionStorage.setItem("user_profile", JSON.stringify(profile));
+          setDebugInfo(`Role updated to: ${profile.role}`);
         }
       }
     }, 30000);
@@ -271,7 +312,13 @@ export default function AdminAuthGuard({
   const hasRequiredRole = () => {
     if (!userRole) return false;
 
-    const roleHierarchy = { user: 1, manager: 2, admin: 3 };
+    const roleHierarchy = {
+      user: 1,
+      customer: 1,
+      manager: 2,
+      admin: 3,
+      super_admin: 4,
+    };
     const userLevel =
       roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
     const requiredLevel = roleHierarchy[requireRole] || 0;

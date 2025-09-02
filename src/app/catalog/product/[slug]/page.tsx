@@ -34,7 +34,7 @@ export async function generateMetadata({
         product.categories?.name,
         "купить",
         "интернет-магазин",
-      ].filter(Boolean),
+      ].filter(Boolean) as string[],
       openGraph: {
         title: product.name,
         description: product.short_description || product.name,

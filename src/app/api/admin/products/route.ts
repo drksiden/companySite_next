@@ -17,35 +17,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from("products")
-      .select(
-        `
-        *,
-        categories:category_id (
-          id,
-          name,
-          slug,
-          path,
-          level
-        ),
-        brands:brand_id (
-          id,
-          name,
-          slug,
-          logo_url
-        ),
-        collections:collection_id (
-          id,
-          name,
-          slug
-        ),
-        currencies:currency_id (
-          id,
-          code,
-          symbol,
-          name
-        )
-      `,
-      )
+      .select("*")
       .order("created_at", { ascending: false });
 
     // Apply filters
@@ -318,35 +290,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from("products")
       .insert(insertData)
-      .select(
-        `
-        *,
-        categories (
-          id,
-          name,
-          slug,
-          path,
-          level
-        ),
-        brands (
-          id,
-          name,
-          slug,
-          logo_url
-        ),
-        collections (
-          id,
-          name,
-          slug
-        ),
-        currencies (
-          id,
-          code,
-          symbol,
-          name
-        )
-      `,
-      )
+      .select("*")
       .single();
 
     if (error) {
@@ -570,35 +514,7 @@ export async function PUT(req: NextRequest) {
       .from("products")
       .update(updateData)
       .eq("id", productId)
-      .select(
-        `
-        *,
-        categories:category_id (
-          id,
-          name,
-          slug,
-          path,
-          level
-        ),
-        brands:brand_id (
-          id,
-          name,
-          slug,
-          logo_url
-        ),
-        collections:collection_id (
-          id,
-          name,
-          slug
-        ),
-        currencies:currency_id (
-          id,
-          code,
-          symbol,
-          name
-        )
-      `,
-      )
+      .select("*")
       .single();
 
     if (error) {
