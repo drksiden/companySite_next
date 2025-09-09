@@ -1,8 +1,16 @@
 // src/types/catalog.ts
 
-export type ProductStatus = 'draft' | 'active' | 'archived' | 'out_of_stock';
-export type AttributeType = 'text' | 'number' | 'boolean' | 'select' | 'multiselect' | 'date' | 'file' | 'color';
-export type UserRole = 'customer' | 'manager' | 'admin' | 'super_admin';
+export type ProductStatus = "draft" | "active" | "archived" | "out_of_stock";
+export type AttributeType =
+  | "text"
+  | "number"
+  | "boolean"
+  | "select"
+  | "multiselect"
+  | "date"
+  | "file"
+  | "color";
+export type UserRole = "customer" | "manager" | "admin" | "super_admin";
 
 // ==============================================
 // ОСНОВНЫЕ ИНТЕРФЕЙСЫ КАТАЛОГА
@@ -59,7 +67,7 @@ export interface Category {
   meta_keywords?: string;
   created_at: string;
   updated_at: string;
-  
+
   // Связанные данные
   parent?: Category;
   children?: Category[];
@@ -78,7 +86,7 @@ export interface Collection {
   sort_order: number;
   created_at: string;
   updated_at: string;
-  
+
   // Связанные данные
   brand?: Brand;
   subcategory_id?: string;
@@ -109,7 +117,7 @@ export interface Attribute {
   sort_order: number;
   created_at: string;
   updated_at: string;
-  
+
   // Связанные данные
   group?: AttributeGroup;
 }
@@ -120,7 +128,7 @@ export interface CategoryAttribute {
   attribute_id: string;
   is_required: boolean;
   sort_order: number;
-  
+
   // Связанные данные
   attribute?: Attribute;
 }
@@ -136,7 +144,7 @@ export interface ProductAttributeValue {
   value_json?: any;
   created_at: string;
   updated_at: string;
-  
+
   // Связанные данные
   attribute?: Attribute;
 }
@@ -166,24 +174,24 @@ export interface Product {
   short_description?: string;
   description?: string;
   technical_description?: string;
-  
+
   // Категоризация
   category_id: string;
   brand_id?: string;
   collection_id?: string;
-  
+
   // Ценообразование
   base_price?: number;
   sale_price?: number;
   cost_price?: number;
   currency_id?: string;
-  
+
   // Складские данные
   track_inventory: boolean;
   inventory_quantity: number;
   min_stock_level: number;
   allow_backorder: boolean;
-  
+
   // Физические характеристики
   weight?: number;
   dimensions?: {
@@ -192,35 +200,35 @@ export interface Product {
     height?: number;
   };
   unit_id?: string;
-  
+
   // Изображения и файлы
   images: string[];
   thumbnail?: string;
   documents?: ProductDocument[];
-  
+
   // Технические характеристики
   specifications: Record<string, any>;
-  
+
   // Статус и видимость
   status: ProductStatus;
   is_featured: boolean;
   is_digital: boolean;
-  
+
   // SEO
   meta_title?: string;
   meta_description?: string;
   meta_keywords?: string;
-  
+
   // Сортировка и аналитика
   sort_order: number;
   view_count: number;
   sales_count: number;
-  
+
   // Технические поля
   created_at: string;
   updated_at: string;
   published_at?: string;
-  
+
   // Связанные данные
   category?: Category;
   brand?: Brand;
@@ -229,7 +237,7 @@ export interface Product {
   unit?: Unit;
   variants?: ProductVariant[];
   attribute_values?: ProductAttributeValue[];
-  
+
   // Вычисляемые поля
   final_price?: number; // base_price или sale_price
   is_on_sale?: boolean;
@@ -288,12 +296,23 @@ export interface SearchProductsResult {
   id: string;
   name: string;
   slug: string;
+  sku?: string;
   short_description?: string;
   base_price?: number;
+  sale_price?: number;
   thumbnail?: string;
+  images?: string[];
   brand_name?: string;
   category_name?: string;
   inventory_quantity: number;
+  track_inventory: boolean;
+  created_at?: string;
+  is_featured?: boolean;
+  is_on_sale?: boolean;
+  discount_percentage?: number;
+  final_price?: number;
+  formatted_price?: string;
+  specifications?: Record<string, any>;
   rank?: number;
 }
 
@@ -414,14 +433,16 @@ export interface CatalogContextType {
   collections: Collection[];
   loading: boolean;
   error?: string;
-  
+
   // Методы
-  searchProducts: (params: SearchProductsParams) => Promise<SearchProductsResult[]>;
+  searchProducts: (
+    params: SearchProductsParams,
+  ) => Promise<SearchProductsResult[]>;
   getProduct: (slug: string) => Promise<ProductWithRelations | null>;
   getCategory: (slug: string) => Promise<CategoryWithChildren | null>;
   getCategoryTree: () => Promise<CategoryTree[]>;
   getCategoryFilters: (categoryId: string) => Promise<CategoryFilter[]>;
-  
+
   // Кэш
   clearCache: () => void;
   refreshData: () => Promise<void>;
@@ -472,15 +493,15 @@ export interface ProductFilters {
   search?: string;
 }
 
-export type ProductSortBy = 
-  | 'name_asc' 
-  | 'name_desc' 
-  | 'price_asc' 
-  | 'price_desc' 
-  | 'created_asc' 
-  | 'created_desc' 
-  | 'popularity' 
-  | 'featured';
+export type ProductSortBy =
+  | "name_asc"
+  | "name_desc"
+  | "price_asc"
+  | "price_desc"
+  | "created_asc"
+  | "created_desc"
+  | "popularity"
+  | "featured";
 
 export interface ProductListParams extends ProductFilters {
   sortBy?: ProductSortBy;
@@ -532,7 +553,13 @@ export interface AdminStats {
 }
 
 export interface BulkOperation {
-  action: 'activate' | 'deactivate' | 'delete' | 'update_category' | 'update_brand' | 'update_price';
+  action:
+    | "activate"
+    | "deactivate"
+    | "delete"
+    | "update_category"
+    | "update_brand"
+    | "update_price";
   productIds: string[];
   data?: any; // дополнительные данные для операции
 }
@@ -553,7 +580,7 @@ export interface BulkOperationResult {
 export interface ProductEvent {
   id: string;
   product_id: string;
-  event_type: 'view' | 'purchase' | 'add_to_cart' | 'add_to_wishlist';
+  event_type: "view" | "purchase" | "add_to_cart" | "add_to_wishlist";
   user_id?: string;
   session_id?: string;
   metadata?: any;
@@ -564,7 +591,7 @@ export interface InventoryLog {
   id: string;
   product_id: string;
   variant_id?: string;
-  change_type: 'increase' | 'decrease' | 'set';
+  change_type: "increase" | "decrease" | "set";
   quantity_before: number;
   quantity_after: number;
   reason: string;
@@ -577,7 +604,7 @@ export interface InventoryLog {
 // ==============================================
 
 export interface ExportOptions {
-  format: 'csv' | 'xlsx' | 'json';
+  format: "csv" | "xlsx" | "json";
   filters?: ProductFilters;
   fields: string[];
   includeImages?: boolean;
@@ -651,7 +678,7 @@ export interface CartItem {
   quantity: number;
   price: number;
   added_at: string;
-  
+
   // Связанные данные
   product?: Product;
   variant?: ProductVariant;
@@ -662,7 +689,7 @@ export interface WishlistItem {
   user_id: string;
   product_id: string;
   added_at: string;
-  
+
   // Связанные данные
   product?: Product;
 }
@@ -673,7 +700,7 @@ export interface WishlistItem {
 
 export interface ProductAnalytics {
   product_id: string;
-  period: 'day' | 'week' | 'month' | 'year';
+  period: "day" | "week" | "month" | "year";
   views: number;
   unique_views: number;
   cart_adds: number;
@@ -742,31 +769,42 @@ export interface ApiResponse<T> {
 
 export interface ApiClient {
   // Продукты
-  getProducts: (params?: ProductListParams) => Promise<ApiResponse<ProductListResponse>>;
+  getProducts: (
+    params?: ProductListParams,
+  ) => Promise<ApiResponse<ProductListResponse>>;
   getProduct: (slug: string) => Promise<ApiResponse<ProductWithRelations>>;
-  searchProducts: (params: SearchProductsParams) => Promise<ApiResponse<SearchProductsResult[]>>;
-  
+  searchProducts: (
+    params: SearchProductsParams,
+  ) => Promise<ApiResponse<SearchProductsResult[]>>;
+
   // Категории
   getCategories: (parentId?: string) => Promise<ApiResponse<Category[]>>;
   getCategory: (slug: string) => Promise<ApiResponse<CategoryWithChildren>>;
   getCategoryTree: () => Promise<ApiResponse<CategoryTree[]>>;
-  getCategoryFilters: (categoryId: string) => Promise<ApiResponse<CategoryFilter[]>>;
-  
+  getCategoryFilters: (
+    categoryId: string,
+  ) => Promise<ApiResponse<CategoryFilter[]>>;
+
   // Бренды
   getBrands: () => Promise<ApiResponse<Brand[]>>;
   getBrand: (slug: string) => Promise<ApiResponse<BrandWithStats>>;
-  
+
   // Коллекции
   getCollections: (brandId?: string) => Promise<ApiResponse<Collection[]>>;
   getCollection: (slug: string) => Promise<ApiResponse<Collection>>;
-  
+
   // Файлы
-  uploadFile: (file: File, options?: ImageUploadOptions) => Promise<FileUploadResponse>;
+  uploadFile: (
+    file: File,
+    options?: ImageUploadOptions,
+  ) => Promise<FileUploadResponse>;
   deleteFile: (key: string) => Promise<{ success: boolean }>;
-  
+
   // Админские функции
   getAdminStats: () => Promise<ApiResponse<AdminStats>>;
-  bulkUpdateProducts: (operation: BulkOperation) => Promise<ApiResponse<BulkOperationResult>>;
+  bulkUpdateProducts: (
+    operation: BulkOperation,
+  ) => Promise<ApiResponse<BulkOperationResult>>;
   exportProducts: (options: ExportOptions) => Promise<ApiResponse<string>>; // URL файла
   importProducts: (file: File) => Promise<ApiResponse<ImportResult>>;
 }
@@ -777,9 +815,8 @@ export interface ApiClient {
 
 export interface ProductCardProps {
   product: Product | SearchProductsResult;
-  variant?: 'grid' | 'list' | 'compact';
+  variant?: "grid" | "list" | "compact";
   showQuickView?: boolean;
-  showCompare?: boolean;
   showWishlist?: boolean;
   className?: string;
 }
@@ -787,7 +824,7 @@ export interface ProductCardProps {
 export interface CategoryCardProps {
   category: Category;
   showProductCount?: boolean;
-  variant?: 'card' | 'tile' | 'banner';
+  variant?: "card" | "tile" | "banner";
   className?: string;
 }
 
@@ -808,7 +845,7 @@ export interface ProductGalleryProps {
 export interface ProductSpecsProps {
   specifications: Record<string, any>;
   attributes?: ProductAttributeValue[];
-  variant?: 'table' | 'grid' | 'accordion';
+  variant?: "table" | "grid" | "accordion";
   className?: string;
 }
 
@@ -824,37 +861,36 @@ export interface CatalogConfig {
     quality: number;
     placeholder: string;
   };
-  
+
   // Пагинация
   pagination: {
     defaultLimit: number;
     maxLimit: number;
   };
-  
+
   // Поиск
   search: {
     minQueryLength: number;
     maxResults: number;
     enableSuggestions: boolean;
   };
-  
+
   // Валюта
   currency: {
     default: string;
     format: Intl.NumberFormatOptions;
   };
-  
+
   // SEO
   seo: {
     titleTemplate: string;
     defaultDescription: string;
     keywords: string[];
   };
-  
+
   // Функции
   features: {
     wishlist: boolean;
-    compare: boolean;
     reviews: boolean;
     variants: boolean;
     bundles: boolean;

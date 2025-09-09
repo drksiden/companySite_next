@@ -1,11 +1,22 @@
-import appleLogo from "./partnersLogos/appleLogo.png"; // Укажите правильное расширение (.png, .jpg и т.д.)
-import nikeLogo from "./partnersLogos/NikeLogo.png";
-import youtubeLogo from "./partnersLogos/YoutubeLogo.png";
-
 export const partners = [
-  { id: "1", name: "Partner 1", logo: appleLogo },
-  { id: "2", name: "Partner 2", logo: nikeLogo },
-  { id: "3", name: "Partner 3", logo: youtubeLogo },
-  { id: "4", name: "Partner 4", logo: appleLogo },
-  { id: "5", name: "Partner 5", logo: appleLogo },
+  {
+    id: "1",
+    name: "KAZ Minerals",
+    logo: "/images/partners/kaz-minerals.svg",
+  },
+  {
+    id: "2",
+    name: "Kazakhmys",
+    logo: "/images/partners/kazakhmys.svg",
+  },
+  {
+    id: "3",
+    name: "Sensata Group",
+    logo: "/images/partners/sensata-group.png",
+  },
+  {
+    id: "4",
+    name: "VK Development",
+    logo: "/images/partners/vk-dev.svg",
+  },
 ];

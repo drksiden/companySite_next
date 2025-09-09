@@ -1,23 +1,21 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+// next.config.ts
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '9000',
-        pathname: '/static/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'pub-1506276de6ac4a07aa6fe582457507c1.r2.dev',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "pub-1506276de6ac4a07aa6fe582457507c1.r2.dev",
+        pathname: "/**",
       },
     ],
-    
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+  experimental: {
+    optimizePackageImports: ["framer-motion"],
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

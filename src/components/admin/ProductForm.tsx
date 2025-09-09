@@ -1,22 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { ProductFormData, Category, Brand, Collection, Currency } from '@/types/catalog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import React, { useState, useEffect } from "react";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  ProductFormData,
+  Category,
+  Brand,
+  Collection,
+  Currency,
+} from "@/types/catalog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -25,10 +31,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Loader2, Image as ImageIcon, Trash2, Plus } from 'lucide-react';
-import Image from 'next/image';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from "@/components/ui/form";
+import { Loader2, Image as ImageIcon, Trash2, Plus } from "lucide-react";
+import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -36,37 +42,72 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 
 // Обновленная и исправленная схема Zod
 export const formSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, 'Название товара обязательно'),
-  slug: z.string().min(1, 'Slug обязателен').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug должен содержать только строчные буквы, цифры и дефисы"),
+  name: z.string().min(1, "Название товара обязательно"),
+  slug: z
+    .string()
+    .min(1, "Slug обязателен")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug должен содержать только строчные буквы, цифры и дефисы",
+    ),
   images: z.array(z.string()).default([]).optional().nullable(),
-  category_id: z.string().min(1, 'Выберите категорию'),
+  category_id: z.string().min(1, "Выберите категорию"),
   brand_id: z.string().optional().nullable(),
   collection_id: z.string().optional().nullable(),
   short_description: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   technical_description: z.string().optional().nullable(),
-  base_price: z.coerce.number().min(0.01, 'Цена должна быть больше 0'),
-  inventory_quantity: z.coerce.number().int().min(0, 'Количество не может быть отрицательным').optional(),
+  base_price: z.coerce.number().min(0.01, "Цена должна быть больше 0"),
+  inventory_quantity: z.coerce
+    .number()
+    .int()
+    .min(0, "Количество не может быть отрицательным")
+    .optional(),
   track_inventory: z.boolean().optional(),
-  min_stock_level: z.coerce.number().int().min(0, 'Уровень запаса не может быть отрицательным').optional(),
+  min_stock_level: z.coerce
+    .number()
+    .int()
+    .min(0, "Уровень запаса не может быть отрицательным")
+    .optional(),
   allow_backorder: z.boolean().optional(),
   is_featured: z.boolean().optional(),
   is_digital: z.boolean().optional(),
-  sort_order: z.coerce.number().int().min(0, 'Порядок сортировки не может быть отрицательным').optional(),
-  status: z.enum(['draft', 'active', 'archived', 'out_of_stock']),
-  dimensions: z.object({
-    length: z.coerce.number().optional().nullable(),
-    width: z.coerce.number().optional().nullable(),
-    height: z.coerce.number().optional().nullable(),
-    weight: z.coerce.number().optional().nullable(),
-  }).optional().nullable(),
-  documents: z.array(z.object({ url: z.string(), name: z.string(), type: z.string() })).default([]).optional().nullable(),
-  specifications: z.array(z.object({ key: z.string(), value: z.string(), unit: z.string().optional().nullable() })).default([]).optional().nullable(),
+  sort_order: z.coerce
+    .number()
+    .int()
+    .min(0, "Порядок сортировки не может быть отрицательным")
+    .optional(),
+  status: z.enum(["draft", "active", "archived", "out_of_stock"]),
+  dimensions: z
+    .object({
+      length: z.coerce.number().optional().nullable(),
+      width: z.coerce.number().optional().nullable(),
+      height: z.coerce.number().optional().nullable(),
+      weight: z.coerce.number().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+  documents: z
+    .array(z.object({ url: z.string(), name: z.string(), type: z.string() }))
+    .default([])
+    .optional()
+    .nullable(),
+  specifications: z
+    .array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+        unit: z.string().optional().nullable(),
+      }),
+    )
+    .default([])
+    .optional()
+    .nullable(),
   meta_title: z.string().optional().nullable(),
   meta_description: z.string().optional().nullable(),
   meta_keywords: z.string().optional().nullable(),
@@ -95,7 +136,7 @@ export function ProductForm({
 }: ProductFormProps) {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
-  
+
   // Инициализация состояний пустыми массивами, чтобы избежать ошибок
   const [specifications, setSpecifications] = useState<
     { key: string; value: string; unit?: string | null }[]
@@ -107,10 +148,10 @@ export function ProductForm({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name ?? '',
-      slug: initialData?.slug ?? '',
+      name: initialData?.name ?? "",
+      slug: initialData?.slug ?? "",
       images: initialData?.images ?? [],
-      category_id: initialData?.category_id ?? '',
+      category_id: initialData?.category_id ?? "",
       brand_id: initialData?.brand_id ?? null,
       collection_id: initialData?.collection_id ?? null,
       short_description: initialData?.short_description ?? null,
@@ -124,8 +165,13 @@ export function ProductForm({
       is_featured: initialData?.is_featured ?? false,
       is_digital: initialData?.is_digital ?? false,
       sort_order: initialData?.sort_order ?? 0,
-      status: initialData?.status ?? 'draft',
-      dimensions: initialData?.dimensions ?? { length: null, width: null, height: null, weight: null },
+      status: initialData?.status ?? "draft",
+      dimensions: initialData?.dimensions ?? {
+        length: null,
+        width: null,
+        height: null,
+        weight: null,
+      },
       specifications: initialData?.specifications ?? [],
       documents: initialData?.documents ?? [],
       meta_title: initialData?.meta_title ?? null,
@@ -138,7 +184,11 @@ export function ProductForm({
   useEffect(() => {
     if (initialData) {
       // Используем Array.isArray для надежной проверки
-      setSpecifications(Array.isArray(initialData.specifications) ? initialData.specifications : []);
+      setSpecifications(
+        Array.isArray(initialData.specifications)
+          ? initialData.specifications
+          : [],
+      );
       setExistingDocuments(initialData.documents || []);
       form.reset({
         ...initialData,
@@ -146,70 +196,91 @@ export function ProductForm({
         dimensions: initialData.dimensions ?? {},
         documents: initialData.documents ?? [],
         // Убедимся, что форма получает массив, а не объект
-        specifications: Array.isArray(initialData.specifications) ? initialData.specifications : [],
+        specifications: Array.isArray(initialData.specifications)
+          ? initialData.specifications
+          : [],
       });
     }
   }, [initialData, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setImageFiles(prev => [...prev, ...files]);
+    setImageFiles((prev) => [...prev, ...files]);
   };
-  
+
   const handleRemoveImage = (indexToRemove: number) => {
-    const existingImages = form.getValues('images') || [];
+    const existingImages = form.getValues("images") || [];
     const existingCount = existingImages.length;
-  
+
     if (indexToRemove < existingCount) {
-      const newImages = existingImages.filter((_, index) => index !== indexToRemove);
-      form.setValue('images', newImages);
+      const newImages = existingImages.filter(
+        (_, index) => index !== indexToRemove,
+      );
+      form.setValue("images", newImages);
     } else {
       const fileIndex = indexToRemove - existingCount;
       const newFiles = imageFiles.filter((_, index) => index !== fileIndex);
       setImageFiles(newFiles);
     }
   };
-  
+
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setDocumentFiles(Array.from(e.target.files));
     }
   };
-  
+
   const handleRemoveDocument = (urlToRemove: string) => {
-    const newDocuments = existingDocuments.filter(doc => doc.url !== urlToRemove);
+    const newDocuments = existingDocuments.filter(
+      (doc) => doc.url !== urlToRemove,
+    );
     setExistingDocuments(newDocuments);
-    form.setValue('documents', newDocuments);
+    form.setValue("documents", newDocuments);
   };
-  
+
   const handleAddSpec = () => {
-    setSpecifications([...specifications, { key: '', value: '', unit: '' }]);
+    setSpecifications([...specifications, { key: "", value: "", unit: "" }]);
   };
 
   const handleRemoveSpec = (indexToRemove: number) => {
-    setSpecifications(specifications.filter((_, index) => index !== indexToRemove));
+    setSpecifications(
+      specifications.filter((_, index) => index !== indexToRemove),
+    );
   };
 
   const handleSpecChange = (index: number, field: string, value: string) => {
     const updatedSpecs = specifications.map((spec, i) =>
-      i === index ? { ...spec, [field]: value } : spec
+      i === index ? { ...spec, [field]: value } : spec,
     );
     setSpecifications(updatedSpecs);
   };
 
   const getButtonText = () => {
     if (isSubmitting) {
-      return initialData?.id ? 'Сохранение...' : 'Создание...';
+      return initialData?.id ? "Сохранение..." : "Создание...";
     }
-    return initialData?.id ? 'Сохранить изменения' : 'Добавить товар';
+    return initialData?.id ? "Сохранить изменения" : "Добавить товар";
   };
 
-  const existingImages = form.watch('images');
-  const allImages = [...(existingImages || []), ...imageFiles.map(file => URL.createObjectURL(file))];
+  const existingImages = form.watch("images");
+  const allImages = [
+    ...(existingImages || []),
+    ...imageFiles.map((file) => URL.createObjectURL(file)),
+  ];
 
   const onSubmitHandler: SubmitHandler<FormData> = (values) => {
-    const filledSpecifications = specifications.filter(spec => spec.key && spec.value);
-    onSubmit({ ...values, specifications: filledSpecifications, documents: existingDocuments }, imageFiles, documentFiles);
+    const filledSpecifications = specifications.filter(
+      (spec) => spec.key && spec.value,
+    );
+    onSubmit(
+      {
+        ...values,
+        specifications: filledSpecifications,
+        documents: existingDocuments,
+      },
+      imageFiles,
+      documentFiles,
+    );
   };
 
   return (
@@ -260,7 +331,10 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Категория</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите категорию" />
@@ -284,7 +358,10 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Бренд (опционально)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите бренд" />
@@ -309,7 +386,10 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Коллекция (опционально)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите коллекцию" />
@@ -334,7 +414,10 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Статус товара</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите статус" />
@@ -344,7 +427,9 @@ export function ProductForm({
                       <SelectItem value="draft">Черновик</SelectItem>
                       <SelectItem value="active">Активный</SelectItem>
                       <SelectItem value="archived">Архивирован</SelectItem>
-                      <SelectItem value="out_of_stock">Нет в наличии</SelectItem>
+                      <SelectItem value="out_of_stock">
+                        Нет в наличии
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -358,7 +443,12 @@ export function ProductForm({
                 <FormItem>
                   <FormLabel>Порядок сортировки</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -374,7 +464,15 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Цена</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="99.99" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="99.99"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -387,7 +485,16 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Вес (кг)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.5" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.5"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -402,7 +509,16 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Длина (см)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="10" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="10"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -415,7 +531,16 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Ширина (см)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="5" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="5"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -428,7 +553,16 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Высота (см)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="2" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="2"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value))
+                        }
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -438,11 +572,26 @@ export function ProductForm({
           </TabsContent>
           <TabsContent value="images" className="space-y-4">
             <Label htmlFor="image-upload">Изображения</Label>
-            <Input id="image-upload" type="file" multiple onChange={handleFileChange} />
+            <Input
+              id="image-upload"
+              type="file"
+              multiple
+              onChange={handleFileChange}
+            />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
               {allImages.map((src, index) => (
-                <div key={index} className="relative aspect-square rounded-md overflow-hidden">
-                  <Image src={src} alt={`product image ${index + 1}`} fill style={{ objectFit: "cover" }} />
+                <div
+                  key={index}
+                  className="relative aspect-square rounded-md overflow-hidden"
+                  style={{ height: "200px" }}
+                >
+                  <Image
+                    src={src}
+                    alt={`product image ${index + 1}`}
+                    width={200}
+                    height={200}
+                    className="w-full h-full object-cover"
+                  />
                   <Button
                     type="button"
                     variant="destructive"
@@ -470,11 +619,21 @@ export function ProductForm({
             </div>
             {existingDocuments.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-2">Существующие документы:</h3>
+                <h3 className="text-sm font-medium mb-2">
+                  Существующие документы:
+                </h3>
                 <ul className="space-y-2">
                   {existingDocuments.map((doc, index) => (
-                    <li key={doc.url} className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-800">
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline flex-1 truncate">
+                    <li
+                      key={doc.url}
+                      className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-800"
+                    >
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline flex-1 truncate"
+                      >
                         {doc.name}
                       </a>
                       <Button
@@ -492,7 +651,9 @@ export function ProductForm({
             )}
           </TabsContent>
           <TabsContent value="specifications" className="space-y-4">
-            <h2 className="text-xl font-semibold">Технические характеристики</h2>
+            <h2 className="text-xl font-semibold">
+              Технические характеристики
+            </h2>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -503,41 +664,48 @@ export function ProductForm({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(specifications) && specifications.map((spec, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <Input
-                        placeholder="Например: Процессор"
-                        value={spec.key}
-                        onChange={(e) => handleSpecChange(index, 'key', e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        placeholder="Например: Intel Core i7"
-                        value={spec.value}
-                        onChange={(e) => handleSpecChange(index, 'value', e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        placeholder="Например: ГГц, ГБ"
-                        value={spec.unit ?? ''}
-                        onChange={(e) => handleSpecChange(index, 'unit', e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoveSpec(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {Array.isArray(specifications) &&
+                  specifications.map((spec, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Input
+                          placeholder="Например: Процессор"
+                          value={spec.key}
+                          onChange={(e) =>
+                            handleSpecChange(index, "key", e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Например: Intel Core i7"
+                          value={spec.value}
+                          onChange={(e) =>
+                            handleSpecChange(index, "value", e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Например: ГГц, ГБ"
+                          value={spec.unit ?? ""}
+                          onChange={(e) =>
+                            handleSpecChange(index, "unit", e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleRemoveSpec(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
             <Button type="button" onClick={handleAddSpec}>
@@ -552,7 +720,11 @@ export function ProductForm({
                 <FormItem>
                   <FormLabel>SEO Заголовок</FormLabel>
                   <FormControl>
-                    <Input placeholder="Заголовок для поисковых систем" {...field} value={field.value ?? ''} />
+                    <Input
+                      placeholder="Заголовок для поисковых систем"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -565,7 +737,11 @@ export function ProductForm({
                 <FormItem>
                   <FormLabel>SEO Описание</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Краткое описание для поисковых систем" {...field} value={field.value ?? ''} />
+                    <Textarea
+                      placeholder="Краткое описание для поисковых систем"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -578,7 +754,11 @@ export function ProductForm({
                 <FormItem>
                   <FormLabel>SEO Ключевые слова</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ключевые слова через запятую" {...field} value={field.value ?? ''} />
+                    <Input
+                      placeholder="Ключевые слова через запятую"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

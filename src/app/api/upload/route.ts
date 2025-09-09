@@ -1,155 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { r2Client } from '@/lib/cloudflare-r2';
-import sharp from 'sharp';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  createPresignedPutURL,
+  generateFileKey,
+  validateImageFile,
+  DEFAULT_BUCKET,
+  MAX_UPLOAD_SIZE_MB,
+  getPublicUrl,
+} from "@/lib/r2";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const runtime = "nodejs";
 
-interface UploadOptions {
-  generateThumbnail?: boolean;
-  quality?: number;
-  maxWidth?: number;
-  maxHeight?: number;
-  watermark?: boolean;
-}
+const BodySchema = z.object({
+  fileName: z.string().min(1, "File name is required"),
+  contentType: z.string().regex(/^image\//, "Only image files are allowed"),
+});
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const options: UploadOptions = {
-      generateThumbnail: formData.get('generateThumbnail') === 'true',
-      quality: parseInt(formData.get('quality') as string) || 85,
-      maxWidth: parseInt(formData.get('maxWidth') as string) || 2048,
-      maxHeight: parseInt(formData.get('maxHeight') as string) || 2048,
-      watermark: formData.get('watermark') === 'true',
-    };
+    const body = await req.json();
+    const parsed = BodySchema.safeParse(body);
 
-    if (!file) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'No file provided', success: false },
-        { status: 400 }
+        { error: "Invalid request body", details: parsed.error.issues },
+        { status: 400 },
       );
     }
 
-    // Валидация типа файла
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.', success: false },
-        { status: 400 }
-      );
+    const { fileName, contentType } = parsed.data;
+
+    // Create a mock file object for validation
+    const mockFile = {
+      name: fileName,
+      type: contentType,
+      size: MAX_UPLOAD_SIZE_MB * 1024 * 1024, // We'll validate actual size on client
+    } as File;
+
+    // Validate file type and extension
+    const validation = validateImageFile(mockFile);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Валидация размера файла
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File too large. Maximum size is 10MB.', success: false },
-        { status: 400 }
-      );
-    }
+    // Generate unique file key
+    const key = generateFileKey({ originalName: fileName, folder: "images" });
 
-    const fileBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(fileBuffer);
+    // Create presigned URL
+    const uploadUrl = await createPresignedPutURL({
+      bucket: DEFAULT_BUCKET,
+      key,
+      contentType,
+      expiresIn: 60 * 5, // 5 minutes
+    });
 
-    // Обработка изображения с помощью Sharp
-    let processedBuffer = buffer;
-    let finalContentType = file.type;
+    // Generate public URL for the uploaded file
+    const publicUrl = getPublicUrl(key);
 
-    if (file.type.startsWith('image/')) {
-      const image = sharp(buffer);
-      
-      // Получаем метаданные изображения
-      const metadata = await image.metadata();
-      
-      // Изменяем размер если нужно
-      if (metadata.width && metadata.width > options.maxWidth! || 
-          metadata.height && metadata.height > options.maxHeight!) {
-        image.resize(options.maxWidth, options.maxHeight, {
-          fit: 'inside',
-          withoutEnlargement: true,
-        });
-      }
-
-      // Конвертируем в WebP для лучшего сжатия
-      if (file.type !== 'image/gif') {
-        processedBuffer = await image
-          .webp({ quality: options.quality })
-          .toBuffer();
-        finalContentType = 'image/webp';
-      } else {
-        // Для GIF сохраняем оригинальный формат
-        processedBuffer = await image.toBuffer();
-      }
-    }
-
-    // Генерируем ключ файла
-    const originalKey = r2Client.generateFileKey(file.name);
-    const fileKey = finalContentType === 'image/webp' 
-      ? originalKey.replace(/\.[^/.]+$/, '.webp')
-      : originalKey;
-
-    // Загружаем основное изображение
-    const uploadResult = await r2Client.uploadFile(
-      fileKey,
-      processedBuffer,
-      finalContentType,
-      {
-        originalName: file.name,
-        originalSize: file.size.toString(),
-        uploadedAt: new Date().toISOString(),
-      }
-    );
-
-    const response: any = {
+    return NextResponse.json({
       success: true,
-      file: {
-        key: uploadResult.key,
-        url: uploadResult.url,
-        filename: file.name,
-        size: processedBuffer.length,
-        contentType: finalContentType,
-        uploadedAt: new Date().toISOString(),
-      },
-    };
-
-    // Генерируем миниатюру если требуется
-    if (options.generateThumbnail && file.type.startsWith('image/')) {
-      try {
-        const thumbnailBuffer = await sharp(buffer)
-          .resize(300, 300, {
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .webp({ quality: 80 })
-          .toBuffer();
-
-        const thumbnailKey = fileKey.replace(/\.[^/.]+$/, '_thumb.webp');
-        const thumbnailResult = await r2Client.uploadFile(
-          thumbnailKey,
-          thumbnailBuffer,
-          'image/webp'
-        );
-
-        response.thumbnail = {
-          key: thumbnailResult.key,
-          url: thumbnailResult.url,
-        };
-      } catch (error) {
-        console.warn('Failed to generate thumbnail:', error);
-      }
-    }
-
-    return NextResponse.json(response);
-
+      uploadUrl,
+      key,
+      publicUrl,
+      maxMb: MAX_UPLOAD_SIZE_MB,
+      expiresIn: 300, // 5 minutes in seconds
+    });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error("Upload API error:", error);
     return NextResponse.json(
-      { 
-        error: 'Failed to upload file', 
-        success: false,
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

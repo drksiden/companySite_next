@@ -1,53 +1,33 @@
-import { Metadata } from 'next';
-import { COMPANY_NAME_SHORT } from '@/data/constants';
-import CatalogClient from '@/features/catalog/components/CatalogClient';
-import { catalogApi } from '@/features/catalog/api';
-import { ProductListParams } from '@/types/catalog';
+import { Metadata } from "next";
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import CatalogShell from "@/features/catalog/components/CatalogShell";
+import LoadingSkeletons from "@/features/catalog/components/LoadingSkeletons";
+import {
+  listProducts,
+  listCategories,
+  listBrands,
+} from "@/lib/services/catalog";
 
 export const metadata: Metadata = {
-  title: `Каталог - ${COMPANY_NAME_SHORT}`,
+  title: "Каталог товаров",
+  description:
+    "Широкий ассортимент качественных товаров с удобными фильтрами и быстрой доставкой",
+  keywords: ["каталог", "товары", "интернет-магазин", "покупки", "доставка"],
 };
 
+// Force dynamic rendering to prevent hydration issues
+export const dynamic = "force-dynamic";
+
 interface CatalogPageProps {
-  searchParams: ProductListParams;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const {
-    page = 1,
-    limit = 20,
-    sortBy = 'name_asc',
-    categories,
-    brands,
-    collections,
-    priceRange,
-    inStockOnly,
-    featured,
-    search
-  } = searchParams;
-
-  const [categoriesRes, brandsRes, productsRes] = await Promise.all([
-    catalogApi.categories.getCategories(),
-    catalogApi.brands.getBrands(),
-    catalogApi.products.getProducts({
-      page,
-      limit,
-      sortBy,
-      categories,
-      brands,
-      collections,
-      priceRange,
-      inStockOnly,
-      featured,
-      search
-    }),
-  ]);
+export default function CatalogPage({ searchParams }: CatalogPageProps) {
 
   return (
-    <CatalogClient
-      initialCategories={categoriesRes.data || []}
-      initialBrands={brandsRes.data || []}
-      initialProducts={productsRes.data || null}
-    />
+    <div className="min-h-screen bg-background">
+      <CatalogShell/>
+    </div>
   );
 }

@@ -1,9 +1,9 @@
-import { createClient } from '@/utils/supabase/server';
-import { BrandManagerClient } from '@/components/admin/BrandManagerClient';
+import { createServerClient } from "@/lib/supabaseServer";
+import { BrandManagerClient } from "@/components/admin/BrandManagerClient";
 
 export default async function BrandsPage() {
-  const supabase = await createClient();
-  const { data: brands } = await supabase.from('brands').select('*');
+  const supabase = await createServerClient();
+  const { data: brands } = await supabase.from("brands").select("*");
 
   if (!brands) {
     return <div>Ошибка загрузки данных.</div>;
@@ -14,4 +14,4 @@ export default async function BrandsPage() {
       <BrandManagerClient initialBrands={brands} />
     </div>
   );
-} 
+}

@@ -1,9 +1,9 @@
 // app/actions/authActions.ts
-'use server';
+"use server";
 
-import { signUpSchema } from '@/lib/schemas';
-import { createClient } from '@/utils/supabase/server';
-import { AuthError } from '@supabase/supabase-js';
+import { signUpSchema } from "@/lib/schemas";
+import { createServerClient } from "@/lib/supabaseServer";
+import { AuthError } from "@supabase/supabase-js";
 
 interface RegisterState {
   errors?: {
@@ -23,7 +23,7 @@ interface RegisterState {
 
 export async function registerUser(
   prevState: RegisterState | undefined,
-  formData: FormData
+  formData: FormData,
 ): Promise<RegisterState> {
   const rawFormData = Object.fromEntries(formData.entries());
   const validatedFields = signUpSchema.safeParse(rawFormData);
@@ -31,14 +31,15 @@ export async function registerUser(
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
-      message: 'Ошибка валидации. Пожалуйста, проверьте введенные данные.',
+      message: "Ошибка валидации. Пожалуйста, проверьте введенные данные.",
     };
   }
 
-  const { firstName, lastName, email, password, company, phone, accountType } = validatedFields.data;
+  const { firstName, lastName, email, password, company, phone, accountType } =
+    validatedFields.data;
 
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
 
     // Step 1: Create the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
@@ -57,21 +58,30 @@ export async function registerUser(
 
     if (error) {
       console.error("Error during supabase.auth.signUp:", error.message);
-      let errorMessage = 'Ошибка при регистрации.';
+      let errorMessage = "Ошибка при регистрации.";
 
-      if (error instanceof AuthError && error.message.includes('Auth user registration disabled')) {
-        errorMessage = 'Регистрация пользователей отключена.';
-      } else if (error.message.includes('email address already registered')) {
-        errorMessage = 'Пользователь с таким email уже зарегистрирован.';
+      if (
+        error instanceof AuthError &&
+        error.message.includes("Auth user registration disabled")
+      ) {
+        errorMessage = "Регистрация пользователей отключена.";
+      } else if (error.message.includes("email address already registered")) {
+        errorMessage = "Пользователь с таким email уже зарегистрирован.";
       }
 
       return { message: errorMessage, errors: { _form: [errorMessage] } };
     }
 
-    return { success: true, registeredEmail: email, message: "Регистрация прошла успешно!" };
-
+    return {
+      success: true,
+      registeredEmail: email,
+      message: "Регистрация прошла успешно!",
+    };
   } catch (error: any) {
     console.error("Unhandled registration error:", error);
-    return { message: "Произошла непредвиденная ошибка при регистрации.", errors: { _form: ["Произошла непредвиденная ошибка при регистрации."] } };
+    return {
+      message: "Произошла непредвиденная ошибка при регистрации.",
+      errors: { _form: ["Произошла непредвиденная ошибка при регистрации."] },
+    };
   }
 }

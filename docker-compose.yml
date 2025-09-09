@@ -1,0 +1,9 @@
+services:
+    asia-ntb:
+        container_name: asia-ntb
+        build: .
+        restart: always
+        env_file:
+            - .env
+        ports:
+            - 22742:3000

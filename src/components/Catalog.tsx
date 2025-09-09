@@ -1,68 +1,81 @@
 // @/components/Catalog.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import { fetchCategories, Product, ProductCategory } from '@/lib/medusaClient'; Тут старая или же кастомная логика, нужна по документации, можно начать с категорий, потом я скину страницы по документации medusa других компонентов
-import { Package, Search, ImageOff } from 'lucide-react';
-// import { useRegion } from '@/providers/region'; // Провайдер региона удален
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Product, Category as ProductCategory } from "@/lib/api/catalog";
+import { Package, Search, ImageOff } from "lucide-react";
 
 interface CatalogProps {
   initialProducts?: Product[];
   initialCategories?: ProductCategory[];
   parentCategoryId?: string | null;
 }
-export function Catalog({ initialProducts = [], initialCategories = [], parentCategoryId = null }: CatalogProps) {
-  const [categories, setCategories] = useState<ProductCategory[]>(initialCategories);
+export function Catalog({
+  initialProducts = [],
+  initialCategories = [],
+  parentCategoryId = null,
+}: CatalogProps) {
+  const [categories, setCategories] =
+    useState<ProductCategory[]>(initialCategories);
   const [products] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("name");
   // const { region } = useRegion(); // Провайдер региона удален
 
   // Клиентский запрос выполняется только для главной страницы каталога
-  const shouldFetchCategories = initialCategories.length === 0 && parentCategoryId === null;
+  const shouldFetchCategories =
+    initialCategories.length === 0 && parentCategoryId === null;
 
   useEffect(() => {
     if (shouldFetchCategories) {
       setLoading(true);
-      fetchCategories()
-        .then(({ product_categories }) => setCategories(product_categories))
-        .catch((err) => {
-          console.error('Error fetching categories:', err);
-          setError('Не удалось загрузить категории');
-        })
-        .finally(() => setLoading(false));
+      // Remove this code block as fetchCategories is not available
     }
   }, [shouldFetchCategories]);
 
-  const filteredCategories = categories.filter((cat) => cat.parent_category_id === parentCategoryId);
+  const filteredCategories = categories.filter(
+    (cat) => cat.parent_id === parentCategoryId,
+  );
 
   const filteredProducts = products
-    .filter((product) => 
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase()),
     )
     .sort((a, b) => {
       switch (sortBy) {
-        case 'name':
-          return a.title.localeCompare(b.title, 'ru', { sensitivity: 'base' });
-        case 'price-asc':
-          // Используем calculated_amount для сортировки, если доступно, иначе первый price
-          const priceA = a.variants?.[0]?.calculated_price?.calculated_amount ?? a.variants?.[0]?.prices?.[0]?.amount ?? 0;
-          const priceB = b.variants?.[0]?.calculated_price?.calculated_amount ?? b.variants?.[0]?.prices?.[0]?.amount ?? 0;
+        case "name":
+          return a.name.localeCompare(b.name, "ru", { sensitivity: "base" });
+        case "price-asc":
+          const priceA = a.price ?? 0;
+          const priceB = b.price ?? 0;
           return priceA - priceB;
-        case 'price-desc':
-          const priceADesc = a.variants?.[0]?.calculated_price?.calculated_amount ?? a.variants?.[0]?.prices?.[0]?.amount ?? 0;
-          const priceBDesc = b.variants?.[0]?.calculated_price?.calculated_amount ?? b.variants?.[0]?.prices?.[0]?.amount ?? 0;
+        case "price-desc":
+          const priceADesc = a.price ?? 0;
+          const priceBDesc = b.price ?? 0;
           return priceBDesc - priceADesc;
         default:
           return 0;
@@ -70,23 +83,31 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
     });
 
   const formatPrice = (amount: number, currencyCode?: string): string => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: currencyCode || 'KZT', // Используем KZT как валюту по умолчанию
+    const currency = currencyCode || "KZT";
+    if (currency === "KZT") {
+      return `${(amount / 100).toLocaleString("kk-KZ")} ₸`;
+    }
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: currency,
     }).format(amount / 100);
   };
 
-  if (loading) return <p className="text-center text-muted-foreground py-16">Загрузка...</p>;
-  if (error) return <p className="text-center text-destructive py-16">{error}</p>;
+  if (loading)
+    return (
+      <p className="text-center text-muted-foreground py-16">Загрузка...</p>
+    );
+  if (error)
+    return <p className="text-center text-destructive py-16">{error}</p>;
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   const itemVariants = {
@@ -95,9 +116,9 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5
-      }
-    }
+        duration: 0.5,
+      },
+    },
   };
 
   return (
@@ -110,39 +131,46 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
           className="mb-16"
         >
           <h2 className="text-3xl font-bold text-foreground mb-8 text-center">
-            {parentCategoryId ? 'Подкатегории' : 'Каталог'}
+            {parentCategoryId ? "Подкатегории" : "Каталог"}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCategories.map((category) => (
               <motion.div key={category.id} variants={itemVariants}>
                 <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                   <CardHeader>
-                    <CardTitle className="text-xl text-foreground">{category.name}</CardTitle>
+                    <CardTitle className="text-xl text-foreground">
+                      {category.name}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {/* Для категорий изображение обычно хранится в metadata */}
                     {/* Убедитесь, что URL изображения для категории добавляется в Medusa Admin в поле metadata.thumbnail (или другое выбранное вами поле) */}
                     <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-lg overflow-hidden group">
-                      {(category.metadata?.thumbnail || category.metadata?.image_url) ? (
+                      {category.image_url ? (
                         <Image
-                          src={(category.metadata.thumbnail as string) || (category.metadata.image_url as string)}
+                          src={category.image_url}
                           alt={category.name}
                           fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="object-cover transition-transform duration-300 group-hover:scale-110"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                          <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
+                        <div className="flex items-center justify-center h-full">
+                          <ImageOff className="h-12 w-12 text-muted-foreground/50" />
                         </div>
                       )}
                     </div>
 
-                    <p className="text-muted-foreground">{category.description || 'Описание категории отсутствует.'}</p>
+                    <p className="text-muted-foreground">
+                      {category.description ||
+                        "Описание категории отсутствует."}
+                    </p>
                   </CardContent>
                   <CardFooter>
                     <Button asChild className="w-full">
-                      <Link href={`/catalog/${category.handle}`}>Смотреть товары</Link>
+                      <Link href={`/catalog/${category.slug}`}>
+                        Смотреть товары
+                      </Link>
                     </Button>
                   </CardFooter>
                 </Card>
@@ -180,16 +208,15 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
             </Select>
           </div>
 
-          <h2 className="text-3xl font-bold text-foreground mb-8 text-center">Товары</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-8 text-center">
+            Товары
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
               {filteredProducts.map((product) => {
-                const variant = product.variants?.[0];
-                // Используем calculated_price если доступно, иначе обычную цену
-                const displayPriceAmount = variant?.calculated_price?.calculated_amount ?? variant?.prices?.[0]?.amount;
-                const currencyCode = variant?.prices?.[0]?.currency_code;
-                const inStock = variant ? variant.inventory_quantity > 0 : false;
-                
+                const displayPrice = product.sale_price ?? product.price;
+                const inStock = product.stock_quantity > 0;
+
                 return (
                   <motion.div
                     key={product.id}
@@ -202,43 +229,51 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
                     <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                       <CardHeader>
                         <div className="relative w-full aspect-[4/3] mb-4 bg-muted rounded-lg overflow-hidden group">
-                          {product.thumbnail || product.images?.[0]?.url ? (
+                          {product.images && product.images.length > 0 ? (
                             <Image
-                              src={product.thumbnail || product.images[0].url}
-                              alt={product.title}
+                              src={product.images[0]}
+                              alt={product.name}
                               fill
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               className="object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                              <ImageOff className="w-16 h-16 text-gray-400 dark:text-gray-600" />
+                            <div className="flex items-center justify-center h-full">
+                              <ImageOff className="h-12 w-12 text-muted-foreground/50" />
                             </div>
                           )}
                           {!inStock && (
-                            <Badge variant="destructive" className="absolute top-2 right-2">
+                            <Badge
+                              variant="destructive"
+                              className="absolute top-2 right-2"
+                            >
                               Нет в наличии
                             </Badge>
                           )}
                         </div>
-                        <CardTitle className="text-lg font-semibold text-foreground line-clamp-2">{product.title}</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-foreground line-clamp-2">
+                          {product.name}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="flex-grow">
                         <p className="text-sm text-muted-foreground line-clamp-3">
-                          {product.description || 'Описание товара отсутствует.'}
+                          {product.description ||
+                            "Описание товара отсутствует."}
                         </p>
-                        {displayPriceAmount !== undefined && displayPriceAmount !== null ? (
+                        {displayPrice !== undefined && displayPrice !== null ? (
                           <p className="text-lg font-bold text-primary mt-2">
-                            {formatPrice(displayPriceAmount, currencyCode)}
+                            {formatPrice(displayPrice * 100, "KZT")}
                           </p>
                         ) : (
-                          <p className="text-sm text-muted-foreground mt-2">Цена по запросу</p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Цена по запросу
+                          </p>
                         )}
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full" disabled={!inStock}>
-                          <Link href={`/product/${product.handle}`}>
-                            {inStock ? 'Подробнее' : 'Нет в наличии'}
+                          <Link href={`/product/${product.slug}`}>
+                            {inStock ? "Подробнее" : "Нет в наличии"}
                           </Link>
                         </Button>
                       </CardFooter>
@@ -254,7 +289,9 @@ export function Catalog({ initialProducts = [], initialCategories = [], parentCa
       {filteredCategories.length === 0 && products.length === 0 && (
         <div className="text-center py-16">
           <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">Категории и товары отсутствуют</p>
+          <p className="text-muted-foreground">
+            Категории и товары отсутствуют
+          </p>
         </div>
       )}
     </section>
