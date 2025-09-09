@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // Проверяем кэш
     const cached = imageCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return new NextResponse(cached.buffer, {
+      return new NextResponse(cached.buffer.toString("latin1"), {
         status: 200,
         headers: {
           "Content-Type": cached.contentType,
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     if (!sourceBuffer) {
       return NextResponse.json(
         { error: "Failed to fetch source image" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Возвращаем оптимизированное изображение
-    return new NextResponse(optimizedBuffer, {
+    return new NextResponse(optimizedBuffer.toString("latin1"), {
       status: 200,
       headers: {
         "Content-Type": contentType,
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
         "X-Optimized-Size": optimizedBuffer.length.toString(),
         "X-Compression-Ratio":
           ((1 - optimizedBuffer.length / sourceBuffer.length) * 100).toFixed(
-            2,
+            2
           ) + "%",
       },
     });
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         error: "Image optimization failed",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -220,7 +220,7 @@ async function fetchSourceImage(src: string): Promise<Buffer | null> {
 
     if (!response.ok) {
       console.error(
-        `Failed to fetch image: ${response.status} ${response.statusText}`,
+        `Failed to fetch image: ${response.status} ${response.statusText}`
       );
       return null;
     }
@@ -249,7 +249,7 @@ async function optimizeImage(
     quality: number;
     format: SupportedFormat;
     fit: "cover" | "contain" | "fill" | "inside" | "outside";
-  },
+  }
 ): Promise<Buffer> {
   const { width, height, quality, format, fit } = options;
 
@@ -342,14 +342,14 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(images)) {
       return NextResponse.json(
         { error: "Images array is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (images.length > 10) {
       return NextResponse.json(
         { error: "Maximum 10 images per batch request" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
         error: "Batch optimization failed",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
