@@ -19,8 +19,7 @@
     "test:api": "node tests/run-tests.js api",
     "test:utils": "node tests/run-tests.js utils",
     "dev:clean": "rm -rf .next && npm run dev",
-    "build:analyze": "ANALYZE=true npm run build",
-    "postinstall": "pnpm run typecheck"
+    "build:analyze": "ANALYZE=true npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.848.0",
