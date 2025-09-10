@@ -12,46 +12,64 @@ export function PartnersCarousel() {
           Наши партнёры
         </h2>
 
-        {/* Desktop version - flex wrap */}
+        {/* Desktop version - flex wrap */} 
         <div className="hidden md:flex justify-center items-center gap-8 flex-wrap">
           {partners.map((partner) => (
             <div
               key={partner.id}
               className="flex-shrink-0 w-[200px] p-6 hover:scale-105 transition-transform duration-300 bg-background rounded-lg shadow-sm hover:shadow-md"
             >
-              <Image
-                src={partner.logo}
-                alt={partner.name}
-                width={200}
-                height={120}
-                className="h-24 w-auto object-contain mx-auto grayscale hover:grayscale-0 transition-all duration-300"
-                style={{
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-              />
+              <div className="h-[60px] w-full flex items-center justify-center">
+                <Image
+                  src={partner.logo}
+                  alt={partner.name}
+                  width={200}
+                  height={120}
+                  className={`object-contain transition-all duration-300 ${
+                    partner.darkLogo ? "hidden dark:block" : ""
+                  }`}
+                />
+                {partner.darkLogo && (
+                  <Image
+                    src={partner.darkLogo}
+                    alt={`${partner.name} Dark Theme`}
+                    width={200}
+                    height={120}
+                    className="object-contain transition-all duration-300 block dark:hidden"
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Mobile version - simple grid */}
+        {/* Mobile version - simple grid */} 
         <div className="md:hidden grid grid-cols-2 gap-4">
           {partners.map((partner) => (
             <div
               key={partner.id}
               className="p-4 bg-background rounded-lg shadow-sm"
             >
-              <Image
-                src={partner.logo}
-                alt={partner.name}
-                width={150}
-                height={90}
-                className="h-16 w-auto object-contain mx-auto grayscale"
-                style={{
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-              />
+              <div className="h-[60px] w-full flex items-center justify-center">
+                <Image
+                  src={partner.logo}
+                  alt={partner.name}
+                  width={150}
+                  height={90}
+                  className={`object-contain transition-all duration-300 ${
+                    partner.darkLogo ? "hidden dark:block" : ""
+                  }`}
+                />
+                {partner.darkLogo && (
+                  <Image
+                    src={partner.darkLogo}
+                    alt={`${partner.name} Dark Theme`}
+                    width={150}
+                    height={90}
+                    className="object-contain transition-all duration-300 block dark:hidden"
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>
