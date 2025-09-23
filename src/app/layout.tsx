@@ -2,12 +2,11 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { COMPANY_NAME_SHORT } from '@/data/constants';
 import { ClientProviders } from './ClientProviders';
-// import { ThemeProvider } from '@/providers/theme'; // Удаляем ThemeProvider отсюда
 import { cn } from '@/lib/utils';
 import { inter } from '@/styles/fonts';
 
 // Рекомендуется определить базовый URL сайта, например, из переменных окружения
-const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ваш-домен.kz';
+const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteBaseUrl),
@@ -30,13 +29,13 @@ export const metadata: Metadata = {
     description: 'Комплексные решения по безопасности, автоматизации и сетевому оборудованию. Официальные дилеры ведущих производителей.',
     url: '/', // OG URL для главной страницы
     siteName: COMPANY_NAME_SHORT,
-    images: [
-      {
-        url: '/images/og-image.jpg', // Убедитесь, что этот файл существует и доступен
-        width: 1200, // Рекомендуемые размеры
-        height: 630,
-      },
-    ],
+    // images: [
+    //   {
+    //     url: '/images/logos/asia-ntb/Asia-NTB-logo-rus-dark.svg', // Убедитесь, что этот файл существует и доступен
+    //     width: 1200, // Рекомендуемые размеры
+    //     height: 630,
+    //   },
+    // ],
     type: 'website',
   },
 };

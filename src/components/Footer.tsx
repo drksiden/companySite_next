@@ -47,28 +47,6 @@ export function Footer() {
           <h4 className="text-lg font-semibold text-foreground mb-4">Контакты</h4>
           <ul className="space-y-4 text-base">
             <li>
-              <span className="font-medium text-foreground block mb-2">Общие контакты</span>
-              <div className="space-y-2 text-muted-foreground">
-                {COMPANY_CITY_PHONE1 && (
-                  <div className="flex items-center">
-                    <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                    <a href={`tel:${COMPANY_CITY_PHONE1.replace(/\D/g, '')}`} className="hover:text-primary transition-all duration-300">
-                      {COMPANY_CITY_PHONE1}
-                    </a>
-                  </div>
-                )}
-                {COMPANY_CITY_PHONE2 && (
-                  <div className="flex items-center">
-                    <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                    <a href={`tel:${COMPANY_CITY_PHONE2.replace(/\D/g, '')}`} className="hover:text-primary transition-all duration-300">
-                      {COMPANY_CITY_PHONE2}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </li>
-            <Separator className="bg-border mb-4" />
-            <li>
               {/* <span className="font-medium text-foreground block mb-2">Алексей</span> */}
               <div className="space-y-2 text-muted-foreground">
                 {ALEXEY_PHONE && (

@@ -53,8 +53,7 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
       AUTO_INTERVAL,
     );
     return () => clearTimeout(timer);
-  }, [currentSlide, isPaused, changeSlide]);
-
+  }, [currentSlide, isPaused, changeSlide, AUTO_INTERVAL]);
   // CSS animation classes will handle transitions
 
   return (
@@ -106,10 +105,8 @@ const Carousel: React.FC<{ slides: SlideData[] }> = ({ slides }) => {
                 currentSlide === index ? "w-full" : "w-0"
               }`}
               style={{
-                transitionDuration:
-                  currentSlide === index && !isPaused
-                    ? `${AUTO_INTERVAL}ms`
-                    : "300ms",
+                width: currentSlide === index ? '100%' : '0%',
+                transitionDuration: !isPaused && currentSlide === index ? `${AUTO_INTERVAL}ms linear` : '300ms ease-in-out',
               }}
             />
           </button>

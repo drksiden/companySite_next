@@ -44,7 +44,7 @@
 }
 
 :root {
-    --radius: 0.75rem;
+    --radius: 0.4rem;
 
     /* Улучшенные основные цвета - светлая тема */
     --background: oklch(0.98 0.005 250);
@@ -63,7 +63,7 @@
     --secondary: oklch(0.9 0.05 250);
     --secondary-foreground: oklch(0.25 0.08 260);
 
-    --accent: oklch(0.75 0.14 220);
+    --accent: oklch(63.207% 0.20187 254.106 / 0.366);
     --accent-foreground: oklch(0.2 0.02 260);
 
     --destructive: oklch(0.7 0.2 30);
@@ -89,7 +89,7 @@
     --sidebar-foreground: oklch(0.2 0.04 260);
     --sidebar-primary: oklch(0.55 0.18 260);
     --sidebar-primary-foreground: oklch(0.98 0.003 240);
-    --sidebar-accent: oklch(0.75 0.14 220);
+    --sidebar-accent: oklch(74.848% 0.13791 221.614 / 0.31);
     --sidebar-accent-foreground: oklch(0.2 0.02 260);
     --sidebar-border: oklch(0.85 0.02 240);
     --sidebar-ring: oklch(0.6 0.15 260);
@@ -120,7 +120,7 @@
     --secondary: oklch(0.3 0.08 250);
     --secondary-foreground: oklch(0.95 0.02 250);
 
-    --accent: oklch(0.6 0.16 220);
+    --accent: oklch(62.293% 0.12227 228.606 / 0.203);
     --accent-foreground: oklch(0.15 0.02 260);
 
     --destructive: oklch(0.65 0.22 30);
@@ -858,15 +858,12 @@
     /* Улучшенные стили для карточек продуктов */
     .product-card {
         transition: all 0.2s ease;
-        border: 1px solid hsl(var(--border));
     }
 
     .product-card:hover {
-        transform: translateY(-2px);
         box-shadow:
             0 4px 12px hsl(var(--primary) / 0.1),
             0 2px 4px hsl(var(--primary) / 0.06);
-        border-color: hsl(var(--primary) / 0.3);
     }
 
     /* Стили для индикаторов загрузки */
@@ -1361,48 +1358,21 @@
         );
     }
 
-    /* Hide alt text for images */
-    img[alt=""]:after,
-    img:not([alt]):after {
-        display: none !important;
-        content: none !important;
-    }
-
-    img[alt=""]:before,
-    img:not([alt]):before {
-        display: none !important;
-        content: none !important;
-    }
-
-    /* Hide broken image icons and alt text */
-    img {
-        text-indent: -9999px;
-        overflow: hidden;
-    }
-
-    img:after {
-        display: none !important;
-    }
-
     /* Fix image sizing in catalog cards */
-    .product-card-image {
+/*    .product-card-image {
         position: relative;
         width: 100%;
         height: 256px;
         overflow: hidden;
         background-color: rgb(243 244 246);
-    }
+    }*/
 
-    .product-card-image img {
+/*    .product-card-image img {
         object-fit: cover;
         transition: transform 0.3s ease;
         width: 100% !important;
         height: 100% !important;
-    }
-
-    .product-card:hover .product-card-image img {
-        transform: scale(1.05);
-    }
+    }*/
 
     /* Ensure proper height for fill images */
     .aspect-square {
@@ -1427,3 +1397,4 @@
         height: auto !important;
     }
 }
+

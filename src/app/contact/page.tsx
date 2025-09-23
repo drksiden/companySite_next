@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 
 const ContactPage = () => {
   const mapState = { center: [43.248150, 76.870680], zoom: 16 };
-  const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY; // Используем NEXT_PUBLIC_ для клиентской переменной
+  const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
 
   return (
     <>
@@ -130,16 +130,16 @@ const ContactPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Общие контакты и адрес */}
+              {/* Адрес */}
               <Card className="shadow-lg border-border">
                 <CardHeader>
                   <CardTitle className="text-xl text-foreground">
-                    Общие контакты
+                    Адрес
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-4 text-muted-foreground">
-                    {(COMPANY_CITY_PHONE1 || COMPANY_CITY_PHONE2) && (
+                    {/* {(COMPANY_CITY_PHONE1 || COMPANY_CITY_PHONE2) && (
                       <li>
                         <div className="space-y-2 text-muted-foreground">
                             {COMPANY_CITY_PHONE1 && (
@@ -160,7 +160,7 @@ const ContactPage = () => {
                             )}
                         </div>
                     </li>
-                    )}
+                    )} */}
                     <li className="flex items-start">
                       <MapPin className="w-5 h-5 mr-3 mt-0.5 text-primary shrink-0" />
                       <span className="text-sm">{COMPANY_ADDRESS}</span>

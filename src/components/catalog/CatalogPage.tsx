@@ -547,7 +547,7 @@ export function CatalogPage() {
                     />
                   </div>
                 </div>
-
+                
                 {/* Дополнительные фильтры */}
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">

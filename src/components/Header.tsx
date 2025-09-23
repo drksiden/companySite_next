@@ -63,17 +63,17 @@ const easeTransition = {
   damping: 20,
 } as const;
 
-const underlineVariants = {
-  initial: { scaleX: 0, opacity: 0 },
-  animate: {
-    scaleX: 1,
-    opacity: 1,
-  },
-  exit: {
-    scaleX: 0,
-    opacity: 0,
-  },
-};
+// const underlineVariants = {
+//   initial: { scaleX: 0, opacity: 0 },
+//   animate: {
+//     scaleX: 1,
+//     opacity: 1,
+//   },
+//   exit: {
+//     scaleX: 0,
+//     opacity: 0,
+//   },
+// };
 
 const dropdownVariants = {
   hidden: { opacity: 0, y: -5 },
@@ -315,11 +315,11 @@ export function Header() {
         <AnimatePresence>
           {(isActive || isHovered) && (
             <motion.div
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full origin-left"
+              className="bg-primary rounded-full origin-left"
               initial="initial"
               animate="animate"
               exit="exit"
-              variants={underlineVariants}
+              // variants={underlineVariants}
               transition={{ duration: 0.2, ease: "easeOut" }}
             />
           )}
@@ -408,7 +408,7 @@ export function Header() {
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="lg:hidden w-full max-w-xs sm:max-w-sm p-0 border-l border-border bg-card"
+                className="lg:hidden w-full max-w-[200px] sm:max-w-[250px] p-0 border-l border-border bg-card"
               >
                 <SheetHeader className="p-4 border-b border-border bg-muted/30">
                   <div className="flex justify-between items-center">
@@ -417,21 +417,7 @@ export function Header() {
                     </SheetTitle>
                   </div>
                 </SheetHeader>
-
-                <div className="p-4 border-b border-border">
-                  <form onSubmit={handleSearchSubmit} className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Поиск товаров..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-lg border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </form>
-                </div>
-
-                <ScrollArea className="h-[calc(100vh-140px)]">
+                <ScrollArea className="h-[calc(100vh-100px)]">
                   <div className="py-4 px-3">
                     <nav className="flex flex-col gap-1">
                       {navItems.map((item) => (
@@ -443,20 +429,6 @@ export function Header() {
                         />
                       ))}
                     </nav>
-
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <Button
-                        variant="ghost"
-                        asChild
-                        className="justify-start text-base w-full mb-1 px-3 py-2 h-auto"
-                        onClick={() => setOpenMobileMenu(false)}
-                      >
-                        <Link href="/wishlist">
-                          <Heart className="mr-2 h-4 w-4" />
-                          Избранное
-                        </Link>
-                      </Button>
-                    </div>
                   </div>
                 </ScrollArea>
               </SheetContent>
@@ -494,22 +466,22 @@ export function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/account">
+                    {/* <Link href="/account">
                       <User className="mr-2 h-4 w-4" />
                       Профиль
-                    </Link>
+                    </Link> */}
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/account/orders">
+                    {/* <Link href="/account/orders">
                       <Package className="mr-2 h-4 w-4" />
                       Мои заказы
-                    </Link>
+                    </Link> */}
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/account/wishlist">
+                    {/* <Link href="/account/wishlist">
                       <Heart className="mr-2 h-4 w-4" />
                       Избранное
-                    </Link>
+                    </Link> */}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -529,12 +501,13 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => router.push("/auth/signin")}
-              >
-                Войти
-              </Button>
+              // <Button
+              //   variant="outline"
+              //   onClick={() => router.push("/auth/signin")}
+              // >
+              //   Войти
+              // </Button>
+              <></>
             )}
           </div>
         </div>
