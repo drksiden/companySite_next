@@ -2,7 +2,7 @@
 
 import { Hero } from "@/components/Hero";
 import { PartnersCarousel } from "@/components/PartnersCarousel";
-import { ProductSections } from "@/components/ProductSections";
+import { ProductSection } from "@/components/ProductSection";
 import { PromoCard } from "@/components/PromoCard";
 import { Services } from "@/components/Services";
 import { SectionWrapper } from "@/components/SectionWrapper";
@@ -16,13 +16,13 @@ export default function HomePage() {
           <PartnersCarousel />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <ProductSections sectionType="teko" />
+          <ProductSection sectionType="teko" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <ProductSections sectionType="flexem" />
+          <ProductSection sectionType="flexem" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
-          <ProductSections sectionType="ant" />
+          <ProductSection sectionType="ant" />
         </SectionWrapper>
         <SectionWrapper className="w-full">
           <PromoCard />

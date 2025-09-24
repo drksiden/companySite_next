@@ -11,8 +11,11 @@ import {
 } from "@/data/constants";
 import Head from 'next/head';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 
 const ContactPage = () => {
   const mapState = { center: [43.248150, 76.870680], zoom: 16 };
@@ -42,130 +45,74 @@ const ContactPage = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
-              {/* Контакт Алексея */}
+              {/* Контактные лица */}
               <Card className="mb-6 shadow-lg border-border">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-xl text-foreground">
+                  <CardTitle className="flex items-center text-2xl text-foreground">
                     <UserCircle className="w-6 h-6 mr-3 text-primary shrink-0" />
-                    {/* Алексей */}
+                    Контактные лица
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-3 text-muted-foreground">
-                    <li className="flex items-center">
-                      <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                      <Button
-                        variant="link"
-                        asChild
-                        className="p-0 h-auto text-muted-foreground hover:text-primary text-sm"
-                      >
-                        <a
-                          href={`tel:${ALEXEY_PHONE.replace(/\D/g, '')}`}
-                          aria-label={`Позвонить Алексею по номеру ${ALEXEY_PHONE}`}
-                        >
-                          {ALEXEY_PHONE}
-                        </a>
-                      </Button>
-                    </li>
-                    <li className="flex items-center">
-                      <Mail className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                      <Button
-                        variant="link"
-                        asChild
-                        className="p-0 h-auto text-muted-foreground hover:text-primary text-sm"
-                      >
-                        <a
-                          href={`mailto:${ALEXEY_EMAIL}`}
-                          aria-label={`Отправить email Алексею на ${ALEXEY_EMAIL}`}
-                        >
-                          {ALEXEY_EMAIL}
-                        </a>
-                      </Button>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Контакт Олега */}
-              <Card className="mb-6 shadow-lg border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl text-foreground">
-                    <UserCircle className="w-6 h-6 mr-3 text-primary shrink-0" />
-                    {/* Олег */}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 text-muted-foreground">
-                    {/* <li className="flex items-center">
-                      <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                      <Button
-                        variant="link"
-                        asChild
-                        className="p-0 h-auto text-muted-foreground hover:text-primary text-sm"
-                      >
-                        <a
-                          href={`tel:${OLEG_PHONE.replace(/\D/g, '')}`}
-                          aria-label={`Позвонить Олегу по номеру ${OLEG_PHONE}`}
-                        >
-                          {OLEG_PHONE}
-                        </a>
-                      </Button>
-                    </li> */}
-                    <li className="flex items-center">
-                      <Mail className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                      <Button
-                        variant="link"
-                        asChild
-                        className="p-0 h-auto text-muted-foreground hover:text-primary text-sm"
-                      >
-                        <a
-                          href={`mailto:${OLEG_EMAIL}`}
-                          aria-label={`Отправить email Олегу на ${OLEG_EMAIL}`}
-                        >
-                          {OLEG_EMAIL}
-                        </a>
-                      </Button>
-                    </li>
-                  </ul>
+                  <div className="space-y-4">
+                    {/* Контакты Алексея */}
+                    <div>
+                      <h4 className="font-semibold text-lg text-foreground mb-2">Алексей</h4>
+                      <ul className="space-y-2 text-muted-foreground">
+                        <li className="flex items-center">
+                          <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
+                          <a
+                            href={`tel:${ALEXEY_PHONE.replace(/\D/g, '')}`}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {ALEXEY_PHONE}
+                          </a>
+                        </li>
+                        <li className="flex items-center">
+                          <Mail className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
+                          <a
+                            href={`mailto:${ALEXEY_EMAIL}`}
+                            className="hover:text-primary transition-colors break-all"
+                          >
+                            {ALEXEY_EMAIL}
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                    <Separator className="bg-border" />
+                    {/* Контакты Олега */}
+                    <div>
+                      <h4 className="font-semibold text-lg text-foreground mb-2">Олег</h4>
+                      <ul className="space-y-2 text-muted-foreground">
+                        <li className="flex items-center">
+                          <Mail className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
+                          <a
+                            href={`mailto:${OLEG_EMAIL}`}
+                            className="hover:text-primary transition-colors break-all"
+                          >
+                            {OLEG_EMAIL}
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Адрес */}
-              <Card className="shadow-lg border-border">
+              <Card className="mb-6 shadow-lg border-border">
                 <CardHeader>
-                  <CardTitle className="text-xl text-foreground">
+                  <CardTitle className="text-2xl text-foreground">
                     Адрес
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-4 text-muted-foreground">
-                    {/* {(COMPANY_CITY_PHONE1 || COMPANY_CITY_PHONE2) && (
-                      <li>
-                        <div className="space-y-2 text-muted-foreground">
-                            {COMPANY_CITY_PHONE1 && (
-                            <div className="flex items-center">
-                                <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                                <a href={`tel:${COMPANY_CITY_PHONE1.replace(/\D/g, '')}`} className="hover:text-primary transition-all duration-300">
-                                {COMPANY_CITY_PHONE1}
-                                </a>
-                            </div>
-                            )}
-                            {COMPANY_CITY_PHONE2 && (
-                            <div className="flex items-center">
-                                <Phone className="w-5 h-5 mr-2 text-muted-foreground shrink-0" />
-                                <a href={`tel:${COMPANY_CITY_PHONE2.replace(/\D/g, '')}`} className="hover:text-primary transition-all duration-300">
-                                {COMPANY_CITY_PHONE2}
-                                </a>
-                            </div>
-                            )}
-                        </div>
-                    </li>
-                    )} */}
-                    <li className="flex items-start">
+                  <div className="space-y-4 text-muted-foreground">
+                    <div className="flex items-start">
                       <MapPin className="w-5 h-5 mr-3 mt-0.5 text-primary shrink-0" />
-                      <span className="text-sm">{COMPANY_ADDRESS}</span>
-                    </li>
-                  </ul>
+                      <span className="text-base">{COMPANY_ADDRESS}</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -175,7 +122,7 @@ const ContactPage = () => {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-              className="w-full h-96 md:h-full rounded-lg overflow-hidden shadow-lg border-border"
+              className="w-full h-full rounded-lg overflow-hidden shadow-lg border-border"
             >
               {apiKey ? (
                 <YMaps query={{ apikey: apiKey, lang: 'ru_RU' }}>
@@ -192,6 +139,36 @@ const ContactPage = () => {
                 </div>
               )}
             </motion.div>
+          </div>
+
+          {/* Контактная форма, расположенная под двумя колонками */}
+          <div className="mt-10 lg:mt-16">
+            <Card className="shadow-lg border-border max-w-xl mx-auto">
+              <CardHeader>
+                <CardTitle className="text-2xl text-foreground">
+                  Отправить сообщение
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Ваше имя</Label>
+                    <Input id="name" type="text" placeholder="Иван Иванов" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" placeholder="example@email.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Сообщение</Label>
+                    <Textarea id="message" placeholder="Ваше сообщение..." required />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Отправить
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

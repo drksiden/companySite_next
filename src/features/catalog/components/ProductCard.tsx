@@ -10,7 +10,6 @@ interface ProductCardProps {
 
 // Server-side function to determine image source consistently
 const getFinalImageSrc = (product: CatalogProduct): string => {
-  // Try thumbnail first
   if (
     product.thumbnail &&
     !product.thumbnail.includes("example.com") &&
@@ -19,7 +18,6 @@ const getFinalImageSrc = (product: CatalogProduct): string => {
     return product.thumbnail;
   }
 
-  // Try first image from array
   if (product.images && product.images.length > 0) {
     const firstImage = product.images[0];
     if (
@@ -43,7 +41,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   );
   const discountPercentage = isOnSale
     ? Math.round(
-        ((product.base_price - product.sale_price!) / product.base_price) * 100,
+        ((product.base_price - product.sale_price!) / product.base_price) * 100
       )
     : 0;
 
@@ -56,54 +54,51 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Card className="group relative bg-white border-0 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden h-full rounded-2xl product-card hover:-translate-y-1">
+    <Card className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-xl transition-all overflow-hidden h-full rounded-xl product-card hover:-translate-y-1">
       <Link href={`/catalog/product/${product.slug}`} className="block h-full">
         <div className="relative h-full flex flex-col">
           {/* Image Section */}
-          <div className="relative w-full h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-2xl">
+          <div className="relative w-full h-72 overflow-hidden bg-[var(--image-bg)] rounded-t-xl">
             <Image
               src={imageSrc}
               alt={product.name}
               width={300}
-              height={256}
-              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
+              height={240}
+              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               quality={85}
               priority={false}
               unoptimized={imageSrc === "/images/placeholder-product.svg"}
             />
 
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-            {/* Badges - Enhanced Design */}
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+            {/* Badges */}
+            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
               {isOnSale && (
-                <Badge className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg backdrop-blur-sm border-0 font-bold px-3 py-1 rounded-full">
+                <Badge className="bg-[var(--sale-bg)] hover:bg-[var(--sale-hover-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-bold px-2.5 py-0.5 rounded-full text-xs">
                   -{discountPercentage}%
                 </Badge>
               )}
               {product.is_featured && (
-                <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg backdrop-blur-sm border-0 font-bold px-3 py-1 rounded-full">
+                <Badge className="bg-[var(--featured-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-bold px-2.5 py-0.5 rounded-full text-xs">
                   ХИТ
                 </Badge>
               )}
               {!isInStock && (
-                <Badge className="bg-gray-800/90 text-white shadow-lg backdrop-blur-sm border-0 font-medium px-3 py-1 rounded-full">
+                <Badge className="bg-[var(--out-of-stock-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-medium px-2.5 py-0.5 rounded-full text-xs">
                   Нет в наличии
                 </Badge>
               )}
             </div>
-
+            
             {/* Quick View Overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
-              <div className="text-center text-white p-6 max-w-[90%]">
+            <div className="absolute inset-0 bg-white/70 dark:bg-black/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm z-20">
+              <div className="text-center text-[var(--overlay-text)] p-4 max-w-[90%]">
                 {product.short_description && (
-                  <p className="text-sm leading-relaxed line-clamp-4 opacity-90">
+                  <p className="text-sm leading-relaxed line-clamp-3 opacity-90 mb-2">
                     {product.short_description}
                   </p>
                 )}
-                <div className="mt-3 inline-flex items-center text-xs font-medium bg-white/20 px-3 py-1 rounded-full">
+                <div className="mt-2 inline-flex items-center text-xs font-medium bg-[var(--overlay-button-bg)] px-3 py-1.5 rounded-full hover:bg-[var(--overlay-button-hover-bg)] transition-colors">
                   Подробнее →
                 </div>
               </div>
@@ -111,38 +106,36 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Content Section */}
-          <CardContent className="p-6 flex-1 flex flex-col justify-between">
-            <div className="space-y-3 flex-1">
+          <CardContent className="p-4 flex-1 flex flex-col justify-between">
+            <div className="space-y-2 flex-1">
               {/* Brand */}
               {product.brands?.name && (
-                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider bg-blue-50 px-2 py-1 rounded-md inline-block">
+                <p className="text-xs text-[var(--brand-text)] font-semibold uppercase tracking-wider bg-[var(--brand-bg)] px-1.5 py-0.5 rounded-md inline-block">
                   {product.brands.name}
                 </p>
               )}
-
               {/* Title */}
-              <h3 className="font-bold text-lg leading-tight text-gray-900 line-clamp-2 min-h-[3.5rem] group-hover:text-blue-600 transition-colors duration-300">
+              <h3 className="font-bold text-base leading-tight text-[var(--title-text)] group-hover:text-[var(--title-hover-text)] transition-colors duration-300">
                 {product.name}
               </h3>
-
               {/* Category */}
               {product.categories?.name && (
-                <p className="text-sm text-gray-500 font-medium">
+                <p className="text-xs text-[var(--category-text)] font-medium">
                   {product.categories.name}
                 </p>
               )}
             </div>
 
             {/* Bottom Section */}
-            <div className="space-y-4 mt-4">
+            <div className="space-y-3">
               {/* Price Section */}
               <div className="flex items-center justify-between">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-bold text-[var(--price-text)]">
                     {formatPrice(finalPrice)}
                   </span>
                   {isOnSale && (
-                    <span className="text-sm text-gray-400 line-through font-medium">
+                    <span className="text-xs text-[var(--price-old-text)] line-through font-medium">
                       {formatPrice(product.base_price)}
                     </span>
                   )}
@@ -151,15 +144,15 @@ export default function ProductCard({ product }: ProductCardProps) {
 
               {/* Stock Information */}
               {product.track_inventory && (
-                <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-1.5 bg-[var(--stock-bg)] px-2.5 py-1.5 rounded-md">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      isInStock ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    className={`w-2 rounded-full ${
+                      isInStock ? "bg-[var(--stock-dot-in)] animate-pulse" : "bg-[var(--stock-dot-out)]"
                     }`}
                   />
                   <span
                     className={`text-xs font-medium ${
-                      isInStock ? "text-green-700" : "text-red-600"
+                      isInStock ? "text-[var(--stock-text-in)]" : "text-[var(--stock-text-out)]"
                     }`}
                   >
                     {isInStock
@@ -168,11 +161,6 @@ export default function ProductCard({ product }: ProductCardProps) {
                   </span>
                 </div>
               )}
-
-              {/* Action Indicator */}
-              <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                <div className="w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
-              </div>
             </div>
           </CardContent>
         </div>

@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { partners } from "@/data/partners";
+import { motion } from "framer-motion";
 
 export function PartnersCarousel() {
   return (
@@ -11,15 +12,16 @@ export function PartnersCarousel() {
         <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-10 text-center">
           Наши партнёры
         </h2>
-
-        {/* Desktop version - flex wrap */} 
-        <div className="hidden md:flex justify-center items-center gap-8 flex-wrap">
+        {/* Статичная сетка логотипов с анимацией при наведении */}
+        <div className="flex justify-center items-center gap-x-8 gap-y-6 flex-wrap">
           {partners.map((partner) => (
-            <div
+            <motion.div
               key={partner.id}
-              className="flex-shrink-0 w-[200px] p-6 hover:scale-105 transition-transform duration-300 bg-background rounded-lg shadow-sm hover:shadow-md"
+              className="flex-shrink-0"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <div className="h-[60px] w-full flex items-center justify-center">
+              <div className="h-[60px] w-[200px] flex items-center justify-center">
                 <Image
                   src={partner.logo}
                   alt={partner.name}
@@ -39,38 +41,7 @@ export function PartnersCarousel() {
                   />
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Mobile version - simple grid */} 
-        <div className="md:hidden grid grid-cols-2 gap-4">
-          {partners.map((partner) => (
-            <div
-              key={partner.id}
-              className="p-4 bg-background rounded-lg shadow-sm"
-            >
-              <div className="h-[60px] w-full flex items-center justify-center">
-                <Image
-                  src={partner.logo}
-                  alt={partner.name}
-                  width={150}
-                  height={90}
-                  className={`object-contain transition-all duration-300 ${
-                    partner.darkLogo ? "hidden dark:block" : ""
-                  }`}
-                />
-                {partner.darkLogo && (
-                  <Image
-                    src={partner.darkLogo}
-                    alt={`${partner.name} Dark Theme`}
-                    width={150}
-                    height={90}
-                    className="object-contain transition-all duration-300 block dark:hidden"
-                  />
-                )}
-              </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
