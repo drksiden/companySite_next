@@ -11,20 +11,23 @@ export default function ProductGrid({
   products,
   loading = false,
 }: ProductGridProps) {
+  // Измененные классы для адаптивного дизайна: 2 колонки на телефонах
   const gridClasses =
-    "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+    "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4";
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className={cn("grid gap-4", gridClasses)}>
+        <div className={cn("grid gap-6", gridClasses)}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="space-y-3">
-              <div className="aspect-square bg-muted animate-pulse rounded-lg" />
-              <div className="space-y-2">
-                <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-                <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
-                <div className="h-5 bg-muted animate-pulse rounded w-1/3" />
+            <div key={i} className="group relative h-full rounded-xl bg-[var(--card-bg)] shadow-sm animate-pulse">
+              {/* Product Image Skeleton */}
+              <div className="relative w-full h-72 rounded-t-xl bg-[var(--image-bg)]" />
+              {/* Product Content Skeleton */}
+              <div className="p-4 space-y-3">
+                <div className="h-4 bg-muted-foreground/30 rounded w-3/4" />
+                <div className="h-3 bg-muted-foreground/30 rounded w-1/2" />
+                <div className="h-5 bg-muted-foreground/30 rounded w-1/3 mt-4" />
               </div>
             </div>
           ))}
@@ -36,7 +39,8 @@ export default function ProductGrid({
   if (products.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground text-lg">Товары не найдены</p>
+        <p className="text-muted-foreground text-2xl font-semibold">Товары не найдены</p>
+        <p className="text-muted-foreground mt-2">Попробуйте изменить параметры поиска или фильтры.</p>
       </div>
     );
   }

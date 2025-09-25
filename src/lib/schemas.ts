@@ -1,4 +1,3 @@
-// src/lib/schemas.ts
 import { z } from "zod";
 
 export const signInSchema = z.object({
@@ -68,18 +67,10 @@ export const CatalogQuerySchema = z.object({
   sort: z
     .enum(["price.asc", "price.desc", "name.asc", "name.desc", "created.desc"])
     .default("name.asc"),
-  categories: z
-    .string()
-    .optional()
-    .transform((val) => (val ? val.split(",").filter(Boolean) : [])),
-  brands: z
-    .string()
-    .optional()
-    .transform((val) => (val ? val.split(",").filter(Boolean) : [])),
-  collections: z
-    .string()
-    .optional()
-    .transform((val) => (val ? val.split(",").filter(Boolean) : [])),
+  // Измененные поля, которые теперь ожидают массивы строк
+  categories: z.array(z.string()).optional().default([]),
+  brands: z.array(z.string()).optional().default([]),
+  collections: z.array(z.string()).optional().default([]),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   inStockOnly: z
