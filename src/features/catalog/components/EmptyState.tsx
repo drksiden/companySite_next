@@ -7,7 +7,7 @@ import { SearchX, Package, RefreshCw } from "lucide-react";
 interface EmptyStateProps {
   title: string;
   description: string;
-  onClearFilters: () => void;
+  onClearFilters?: () => void;
 }
 
 export default function EmptyState({
@@ -28,9 +28,21 @@ export default function EmptyState({
           {description}
         </p>
 
-        <Button asChild>
-          <a href="/">На главную</a>
-        </Button>
+        {onClearFilters ? (
+          <div className="flex gap-3">
+            <Button onClick={onClearFilters} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Сбросить фильтры
+            </Button>
+            <Button asChild>
+              <a href="/">На главную</a>
+            </Button>
+          </div>
+        ) : (
+          <Button asChild>
+            <a href="/">На главную</a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

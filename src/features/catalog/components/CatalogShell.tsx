@@ -1,7 +1,13 @@
-import ProductGrid from "./ProductGrid";
-import EmptyState from "./EmptyState";
 import FilterSidebar from "./FilterSidebar";
-import { CatalogProduct, listProducts, listCategories, listBrands, CategoryItem, BrandItem } from "@/lib/services/catalog";
+import CatalogProducts from "./CatalogProducts";
+import {
+  CatalogProduct,
+  listProducts,
+  listCategories,
+  listBrands,
+  CategoryItem,
+  BrandItem,
+} from "@/lib/services/catalog";
 import { Suspense } from "react";
 import LoadingSkeletons from "./LoadingSkeletons";
 import { createServerClient } from "@/lib/supabaseServer";
@@ -21,16 +27,56 @@ interface CatalogShellProps {
 
 // Static top-level categories with display names and images
 const staticCategories = [
-  { name: "Охранная сигнализация", slug: "security-alarms", image: "/images/teko/teko-main-visual.png" },
-  { name: "Пожарная сигнализация", slug: "fire-alarms", image: "/images/teko/teko-astra-prime.png" },
-  { name: "Видеонаблюдение", slug: "surveillance", image: "/images/mainCategory/videoHik.jpg" },
-  { name: "Сетевое оборудование СКС", slug: "network-equipment", image: "/images/mainCategory/netEquip.png" },
-  { name: "Домофония и устройства связи", slug: "intercoms", image: "/images/mainCategory/domophoniya.png" },
-  { name: "Источники питания", slug: "power-supplies", image: "/images/mainCategory/ibp.webp" },
-  { name: "Системы оповещения и музыкальной трансляции", slug: "notification-systems", image: "/images/mainCategory/notificSystems.jpg" },
-  { name: "СКУД", slug: "access-control", image: "/images/mainCategory/skud.jpg" },
-  { name: "Кабеленесущие системы", slug: "cable-management", image: "/images/mainCategory/cableManagement.jpg" },
-  { name: "Кабельная продукция", slug: "cables", image: "/images/mainCategory/cables.png" },
+  {
+    name: "Охранная сигнализация",
+    slug: "security-alarms",
+    image: "/images/teko/teko-main-visual.png",
+  },
+  {
+    name: "Пожарная сигнализация",
+    slug: "fire-alarms",
+    image: "/images/teko/teko-astra-prime.png",
+  },
+  {
+    name: "Видеонаблюдение",
+    slug: "surveillance",
+    image: "/images/mainCategory/videoHik.jpg",
+  },
+  {
+    name: "Сетевое оборудование СКС",
+    slug: "network-equipment",
+    image: "/images/mainCategory/netEquip.png",
+  },
+  {
+    name: "Домофония и устройства связи",
+    slug: "intercoms",
+    image: "/images/mainCategory/domophoniya.png",
+  },
+  {
+    name: "Источники питания",
+    slug: "power-supplies",
+    image: "/images/mainCategory/ibp.webp",
+  },
+  {
+    name: "Системы оповещения и музыкальной трансляции",
+    slug: "notification-systems",
+    image: "/images/mainCategory/notificSystems.jpg",
+  },
+  {
+    name: "СКУД",
+    slug: "access-control",
+    image: "/images/mainCategory/skud.jpg",
+  },
+  {
+    name: "Кабеленесущие системы",
+    slug: "cable-management",
+    image: "/images/mainCategory/cableManagement.jpg",
+  },
+  {
+    name: "Кабельная продукция",
+    slug: "cables",
+    image: "/images/mainCategory/cables.png",
+  },
 ];
 
 async function fetchData({
@@ -62,7 +108,8 @@ async function fetchData({
   // Map static categories to database categories by slug
   const topLevelCategories = staticCategories.map((staticCat) => {
     const dbCat = categories.find(
-      (cat) => cat.slug === staticCat.slug && (!cat.parent_id || cat.level === 0)
+      (cat) =>
+        cat.slug === staticCat.slug && (!cat.parent_id || cat.level === 0),
     );
     return {
       ...staticCat,
@@ -79,7 +126,9 @@ async function fetchData({
   };
 }
 
-export default async function CatalogShell({ searchParams }: CatalogShellProps) {
+export default async function CatalogShell({
+  searchParams,
+}: CatalogShellProps) {
   const { products, categories, brands, topLevelCategories } = await fetchData({
     query: searchParams?.query,
     category: searchParams?.category,
@@ -144,19 +193,11 @@ export default async function CatalogShell({ searchParams }: CatalogShellProps) 
 
         {/* Main Content */}
         <div className="min-w-0">
-          <Suspense
-            fallback={<LoadingSkeletons />}
-            key={JSON.stringify(searchParams)}
-          >
-            {products.length ? (
-              <ProductGrid products={products} />
-            ) : (
-              <EmptyState
-                title="Товары не найдены"
-                description="Попробуйте изменить поиск или фильтры"
-                onClearFilters={() => {}}
-              />
-            )}
+          <Suspense fallback={<LoadingSkeletons />}>
+            <CatalogProducts
+              initialProducts={products}
+              searchParams={searchParams}
+            />
           </Suspense>
         </div>
       </div>

@@ -2,6 +2,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Smooth animations for catalog */
+.transition-smooth {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Loading state improvements */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted) / 0.3) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -229,1135 +255,1135 @@
 }
 /* Стили для улучшенной боковой панели */
 @layer components {
-    /* Анимации для sidebar */
-    .sidebar-enter {
-        animation: sidebar-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    .sidebar-exit {
-        animation: sidebar-slide-out 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    @keyframes sidebar-slide-in {
-        from {
-            transform: translateX(-100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-
-    @keyframes sidebar-slide-out {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(-100%);
-            opacity: 0;
-        }
-    }
-
-    /* Glassmorphism эффекты */
-    .glass-effect {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .dark .glass-effect {
-        background: rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    /* Hover эффекты для навигации */
-    .nav-item-hover {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .nav-item-hover::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.1),
-            transparent
-        );
-        transition: left 0.6s ease;
-    }
-
-    .nav-item-hover:hover::before {
-        left: 100%;
-    }
-
-    /* Ripple эффект */
-    .ripple {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .ripple::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition:
-            width 0.6s,
-            height 0.6s;
-    }
-
-    .ripple:active::after {
-        width: 300px;
-        height: 300px;
-    }
-
-    /* Улучшенные тени */
-    .enhanced-shadow {
-        box-shadow:
-            0 4px 6px -1px rgba(0, 0, 0, 0.1),
-            0 2px 4px -1px rgba(0, 0, 0, 0.06),
-            0 0 0 1px rgba(0, 0, 0, 0.05);
-    }
-
-    .dark .enhanced-shadow {
-        box-shadow:
-            0 4px 6px -1px rgba(0, 0, 0, 0.3),
-            0 2px 4px -1px rgba(0, 0, 0, 0.2),
-            0 0 0 1px rgba(255, 255, 255, 0.05);
-    }
-
-    /* Gradient borders */
-    .gradient-border {
-        position: relative;
-    }
-
-    .gradient-border::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        padding: 1px;
-        background: linear-gradient(
-            135deg,
-            hsl(var(--primary)),
-            hsl(var(--accent))
-        );
-        border-radius: inherit;
-        mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-        mask-composite: xor;
-    }
-
-    /* Пульсирующий эффект для активных элементов */
-    .pulse-active {
-        animation: pulse-glow 2s ease-in-out infinite alternate;
-    }
-
-    @keyframes pulse-glow {
-        from {
-            box-shadow: 0 0 5px hsl(var(--primary) / 0.3);
-        }
-        to {
-            box-shadow:
-                0 0 20px hsl(var(--primary) / 0.6),
-                0 0 30px hsl(var(--primary) / 0.4);
-        }
-    }
-
-    /* Стили для скроллбара */
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 3px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--border) / 0.8);
-    }
-
-    /* Анимация появления для элементов меню */
-    .menu-item-enter {
-        animation: menu-item-slide-in 0.3s ease-out forwards;
-    }
-
-    @keyframes menu-item-slide-in {
-        from {
-            opacity: 0;
-            transform: translateX(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    /* Эффект loading skeleton */
-    .skeleton {
-        background: linear-gradient(
-            90deg,
-            hsl(var(--muted)) 25%,
-            hsl(var(--muted) / 0.5) 50%,
-            hsl(var(--muted)) 75%
-        );
-        background-size: 200% 100%;
-        animation: skeleton-loading 1.5s ease-in-out infinite;
-    }
-
-    @keyframes skeleton-loading {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-
-    /* Floating animation для декоративных элементов */
-    .float {
-        animation: float 3s ease-in-out infinite;
-    }
-
-    @keyframes float {
-        0%,
-        100% {
-            transform: translateY(0px);
-        }
-        50% {
-            transform: translateY(-10px);
-        }
-    }
-
-    /* Эффект свечения для важных элементов */
-    .glow-primary {
-        box-shadow: 0 0 10px hsl(var(--primary) / 0.3);
-        transition: box-shadow 0.3s ease;
-    }
-
-    .glow-primary:hover {
-        box-shadow:
-            0 0 20px hsl(var(--primary) / 0.5),
-            0 0 40px hsl(var(--primary) / 0.3);
-    }
-
-    /* Плавные центрированные анимации для диалогов */
-    @keyframes dialog-content-show {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.96);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    @keyframes dialog-content-hide {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.96);
-        }
-    }
-
-    @keyframes dialog-overlay-show {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
-
-    @keyframes dialog-overlay-hide {
-        from {
-            opacity: 1;
-        }
-        to {
-            opacity: 0;
-        }
-    }
-
-    /* Кастомные zoom анимации только с центрированием */
-    @keyframes zoom-in-98 {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.96);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    @keyframes zoom-out-98 {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.96);
-        }
-    }
-
-    @keyframes zoom-in-99 {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.97);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    @keyframes zoom-out-99 {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.97);
-        }
-    }
-
-    @keyframes zoom-in-995 {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.98);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    @keyframes zoom-out-995 {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.98);
-        }
-    }
-
-    /* Дополнительные плавные анимации для форм */
-    @keyframes modal-scale-in {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.92) rotateX(10deg);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1) rotateX(0deg);
-        }
-    }
-
-    @keyframes modal-scale-out {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1) rotateX(0deg);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.92) rotateX(-10deg);
-        }
-    }
-
-    /* Стили для улучшенного диалога */
-    .enhanced-dialog-content {
-        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-        perspective: 1000px;
-    }
-
-    .enhanced-dialog-overlay {
-        animation-timing-function: ease-out;
-    }
-
-    /* Скрытая прокрутка для диалогов - убирает скроллбар полностью */
-    .dialog-scroll-area {
-        max-height: calc(100vh - 140px);
-        overflow-y: auto;
-        overflow-x: hidden;
-        /* Скрытие скроллбара в WebKit */
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE и Edge */
-    }
-
-    .dialog-scroll-area::-webkit-scrollbar {
-        display: none; /* WebKit браузеры */
-    }
-
-    /* Стили для диалогов с улучшенной прокруткой */
-    .enhanced-dialog-content {
-        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    /* Скрытие скроллбара в диалогах */
-    .enhanced-dialog-content .overflow-y-auto {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE и Edge */
-    }
-
-    .enhanced-dialog-content .overflow-y-auto::-webkit-scrollbar {
-        display: none; /* WebKit браузеры */
-    }
-
-    /* Альтернатива с минимальным скроллбаром */
-    .dialog-scroll-minimal {
-        max-height: calc(100vh - 140px);
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-right: 4px;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-track {
-        background: hsl(var(--muted) / 0.1);
-        border-radius: 3px;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 3px;
-        opacity: 0.4;
-        transition: all 0.2s ease;
-    }
-
-    .dialog-scroll-minimal:hover::-webkit-scrollbar-thumb {
-        opacity: 0.7;
-        background: hsl(var(--muted-foreground) / 0.5);
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--muted-foreground));
-        opacity: 0.9;
-    }
-
-    /* Firefox */
-    .dialog-scroll-minimal {
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--border)) hsl(var(--muted) / 0.1);
-    }
-
-    /* Стили для форм в диалогах */
-    .form-container {
-        max-height: 70vh;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .form-content {
-        flex: 1;
-        overflow-y: auto;
-        padding-right: 4px;
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--border)) transparent;
-    }
-
-    .form-content::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .form-content::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .form-content::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 3px;
-        opacity: 0.4;
-        transition: all 0.2s ease;
-    }
-
-    .form-content:hover::-webkit-scrollbar-thumb {
-        opacity: 0.7;
-    }
-
-    .form-content::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--muted-foreground));
-        opacity: 0.9;
-    }
-
-    .form-footer {
-        flex-shrink: 0;
-        border-top: 1px solid hsl(var(--border));
-        padding-top: 1rem;
-        margin-top: 1rem;
-        background: hsl(var(--background));
-    }
-
-    /* Simple dialog animations - smooth fade-in only */
-    .dialog-content-custom {
-        transition:
-            opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
-            transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.95);
-    }
-
-    .dialog-content-custom[data-state="open"] {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-        animation: dialog-fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .dialog-content-custom[data-state="closed"] {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.95);
-    }
-
-    @keyframes dialog-fade-in {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.95);
-        }
-        100% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    .dialog-overlay-custom {
-        transition: opacity 300ms ease-out;
-        opacity: 0;
-    }
-
-    .dialog-overlay-custom[data-state="open"] {
-        opacity: 1;
-    }
-
-    .dialog-overlay-custom[data-state="closed"] {
-        opacity: 0;
-    }
-
-    /* Улучшенный стиль для больших диалогов */
-    .large-dialog-content {
-        background: hsl(var(--background));
-        border: 1px solid hsl(var(--border));
-        box-shadow: 0 25px 50px -12px hsl(var(--foreground) / 0.25);
-    }
-
-    /* Стили для правильного отображения липких заголовков в диалогах */
-    .dialog-header-sticky {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: hsl(var(--background));
-        border-bottom: 1px solid hsl(var(--border));
-        margin-bottom: 0;
-    }
-
-    .dialog-footer-sticky {
-        position: sticky;
-        bottom: 0;
-        z-index: 20;
-        background: hsl(var(--background));
-        border-top: 1px solid hsl(var(--border));
-        margin-top: 0;
-    }
-
-    /* Стили для TabsList в диалогах */
-    .tabs-list-sticky {
-        position: sticky;
-        top: 0;
-        z-index: 15;
-        background: hsl(var(--background));
-        margin-bottom: 1rem;
-        border-bottom: 1px solid hsl(var(--border));
-        padding-bottom: 0.5rem;
-    }
-
-    /* Стиль для индикатора прокрутки */
-    .scroll-indicator {
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 2px;
-        height: 60px;
-        background: hsl(var(--muted));
-        border-radius: 1px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .scroll-indicator::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 30%;
-        background: hsl(var(--primary));
-        border-radius: 1px;
-        transition: transform 0.1s ease;
-    }
-
-    .dialog-scroll-area:hover + .scroll-indicator,
-    .dialog-scroll-minimal:hover + .scroll-indicator {
-        opacity: 0.5;
-    }
-
-    /* Улучшенные стили для таблиц в админке */
-    .admin-table {
-        border-spacing: 0;
-    }
-
-    .admin-table th {
-        position: sticky;
-        top: 0;
-        background: hsl(var(--background));
-        z-index: 10;
-        border-bottom: 2px solid hsl(var(--border));
-    }
-
-    .admin-table td {
-        vertical-align: middle;
-        border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .admin-table tr:hover {
-        background: hsl(var(--muted) / 0.5);
-        transition: background-color 0.15s ease;
-    }
-
-    /* Улучшенные стили для карточек продуктов */
-    .product-card {
-        transition: all 0.2s ease;
-    }
-
-    .product-card:hover {
-        box-shadow:
-            0 4px 12px hsl(var(--primary) / 0.1),
-            0 2px 4px hsl(var(--primary) / 0.06);
-    }
-
-    /* Стили для индикаторов загрузки */
-    .loading-shimmer {
-        background: linear-gradient(
-            90deg,
-            hsl(var(--muted)) 25%,
-            hsl(var(--muted) / 0.3) 50%,
-            hsl(var(--muted)) 75%
-        );
-        background-size: 200% 100%;
-        animation: shimmer 1.5s ease-in-out infinite;
-    }
-
-    @keyframes shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-
-    /* Кастомные utilities для админки */
-    .text-overflow-ellipsis {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
+  /* Анимации для sidebar */
+  .sidebar-enter {
+    animation: sidebar-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .sidebar-exit {
+    animation: sidebar-slide-out 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  @keyframes sidebar-slide-in {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes sidebar-slide-out {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+  }
+
+  /* Glassmorphism эффекты */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass-effect {
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Hover эффекты для навигации */
+  .nav-item-hover {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-item-hover::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    transition: left 0.6s ease;
+  }
+
+  .nav-item-hover:hover::before {
+    left: 100%;
+  }
+
+  /* Ripple эффект */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.6s,
+      height 0.6s;
+  }
+
+  .ripple:active::after {
+    width: 300px;
+    height: 300px;
+  }
+
+  /* Улучшенные тени */
+  .enhanced-shadow {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  .dark .enhanced-shadow {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.3),
+      0 2px 4px -1px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Gradient borders */
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary)),
+      hsl(var(--accent))
+    );
+    border-radius: inherit;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: xor;
+  }
+
+  /* Пульсирующий эффект для активных элементов */
+  .pulse-active {
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse-glow {
+    from {
+      box-shadow: 0 0 5px hsl(var(--primary) / 0.3);
+    }
+    to {
+      box-shadow:
+        0 0 20px hsl(var(--primary) / 0.6),
+        0 0 30px hsl(var(--primary) / 0.4);
+    }
+  }
+
+  /* Стили для скроллбара */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border) / 0.8);
+  }
+
+  /* Анимация появления для элементов меню */
+  .menu-item-enter {
+    animation: menu-item-slide-in 0.3s ease-out forwards;
+  }
+
+  @keyframes menu-item-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Эффект loading skeleton */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Floating animation для декоративных элементов */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Эффект свечения для важных элементов */
+  .glow-primary {
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.3);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .glow-primary:hover {
+    box-shadow:
+      0 0 20px hsl(var(--primary) / 0.5),
+      0 0 40px hsl(var(--primary) / 0.3);
+  }
+
+  /* Плавные центрированные анимации для диалогов */
+  @keyframes dialog-content-show {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes dialog-content-hide {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+  }
+
+  @keyframes dialog-overlay-show {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dialog-overlay-hide {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  /* Кастомные zoom анимации только с центрированием */
+  @keyframes zoom-in-98 {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes zoom-out-98 {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+  }
+
+  @keyframes zoom-in-99 {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes zoom-out-99 {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.97);
+    }
+  }
+
+  @keyframes zoom-in-995 {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  @keyframes zoom-out-995 {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.98);
+    }
+  }
+
+  /* Дополнительные плавные анимации для форм */
+  @keyframes modal-scale-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.92) rotateX(10deg);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1) rotateX(0deg);
+    }
+  }
+
+  @keyframes modal-scale-out {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1) rotateX(0deg);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.92) rotateX(-10deg);
+    }
+  }
+
+  /* Стили для улучшенного диалога */
+  .enhanced-dialog-content {
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    perspective: 1000px;
+  }
+
+  .enhanced-dialog-overlay {
+    animation-timing-function: ease-out;
+  }
+
+  /* Скрытая прокрутка для диалогов - убирает скроллбар полностью */
+  .dialog-scroll-area {
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Скрытие скроллбара в WebKit */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE и Edge */
+  }
+
+  .dialog-scroll-area::-webkit-scrollbar {
+    display: none; /* WebKit браузеры */
+  }
+
+  /* Стили для диалогов с улучшенной прокруткой */
+  .enhanced-dialog-content {
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Скрытие скроллбара в диалогах */
+  .enhanced-dialog-content .overflow-y-auto {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE и Edge */
+  }
+
+  .enhanced-dialog-content .overflow-y-auto::-webkit-scrollbar {
+    display: none; /* WebKit браузеры */
+  }
+
+  /* Альтернатива с минимальным скроллбаром */
+  .dialog-scroll-minimal {
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.1);
+    border-radius: 3px;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+    opacity: 0.4;
+    transition: all 0.2s ease;
+  }
+
+  .dialog-scroll-minimal:hover::-webkit-scrollbar-thumb {
+    opacity: 0.7;
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+    opacity: 0.9;
+  }
+
+  /* Firefox */
+  .dialog-scroll-minimal {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) hsl(var(--muted) / 0.1);
+  }
+
+  /* Стили для форм в диалогах */
+  .form-container {
+    max-height: 70vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .form-content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .form-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .form-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+    opacity: 0.4;
+    transition: all 0.2s ease;
+  }
+
+  .form-content:hover::-webkit-scrollbar-thumb {
+    opacity: 0.7;
+  }
+
+  .form-content::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+    opacity: 0.9;
+  }
+
+  .form-footer {
+    flex-shrink: 0;
+    border-top: 1px solid hsl(var(--border));
+    padding-top: 1rem;
+    margin-top: 1rem;
+    background: hsl(var(--background));
+  }
+
+  /* Simple dialog animations - smooth fade-in only */
+  .dialog-content-custom {
+    transition:
+      opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+
+  .dialog-content-custom[data-state="open"] {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    animation: dialog-fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .dialog-content-custom[data-state="closed"] {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+
+  @keyframes dialog-fade-in {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .dialog-overlay-custom {
+    transition: opacity 300ms ease-out;
+    opacity: 0;
+  }
+
+  .dialog-overlay-custom[data-state="open"] {
+    opacity: 1;
+  }
+
+  .dialog-overlay-custom[data-state="closed"] {
+    opacity: 0;
+  }
+
+  /* Улучшенный стиль для больших диалогов */
+  .large-dialog-content {
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 25px 50px -12px hsl(var(--foreground) / 0.25);
+  }
+
+  /* Стили для правильного отображения липких заголовков в диалогах */
+  .dialog-header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
+    margin-bottom: 0;
+  }
+
+  .dialog-footer-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: hsl(var(--background));
+    border-top: 1px solid hsl(var(--border));
+    margin-top: 0;
+  }
+
+  /* Стили для TabsList в диалогах */
+  .tabs-list-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    background: hsl(var(--background));
+    margin-bottom: 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+    padding-bottom: 0.5rem;
+  }
+
+  /* Стиль для индикатора прокрутки */
+  .scroll-indicator {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 60px;
+    background: hsl(var(--muted));
+    border-radius: 1px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .scroll-indicator::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background: hsl(var(--primary));
+    border-radius: 1px;
+    transition: transform 0.1s ease;
+  }
+
+  .dialog-scroll-area:hover + .scroll-indicator,
+  .dialog-scroll-minimal:hover + .scroll-indicator {
+    opacity: 0.5;
+  }
+
+  /* Улучшенные стили для таблиц в админке */
+  .admin-table {
+    border-spacing: 0;
+  }
+
+  .admin-table th {
+    position: sticky;
+    top: 0;
+    background: hsl(var(--background));
+    z-index: 10;
+    border-bottom: 2px solid hsl(var(--border));
+  }
+
+  .admin-table td {
+    vertical-align: middle;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .admin-table tr:hover {
+    background: hsl(var(--muted) / 0.5);
+    transition: background-color 0.15s ease;
+  }
+
+  /* Улучшенные стили для карточек продуктов */
+  .product-card {
+    transition: all 0.2s ease;
+  }
+
+  .product-card:hover {
+    box-shadow:
+      0 4px 12px hsl(var(--primary) / 0.1),
+      0 2px 4px hsl(var(--primary) / 0.06);
+  }
+
+  /* Стили для индикаторов загрузки */
+  .loading-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.3) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Кастомные utilities для админки */
+  .text-overflow-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  @media (min-width: 640px) {
     .admin-grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    }
-
-    @media (min-width: 640px) {
-        .admin-grid {
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        }
-    }
-
-    @media (min-width: 1024px) {
-        .admin-grid {
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        }
-    }
-
-    /* Анимации для форм */
-    .form-fade-in {
-        animation: form-fade-in 0.3s ease-out forwards;
-    }
-
-    @keyframes form-fade-in {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Стили для улучшенной навигации в админке */
-    .admin-nav-item {
-        position: relative;
-        transition: all 0.2s ease;
-    }
-
-    .admin-nav-item::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 3px;
-        background: hsl(var(--primary));
-        transform: scaleY(0);
-        transition: transform 0.2s ease;
-    }
-
-    .admin-nav-item.active::before,
-    .admin-nav-item:hover::before {
-        transform: scaleY(1);
-    }
-
-    /* Дополнительные анимации для улучшенного UX */
-    @keyframes table-row-enter {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes table-row-exit {
-        from {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.95);
-        }
-    }
-
-    .table-row-enter {
-        animation: table-row-enter 0.3s ease-out forwards;
-    }
-
-    .table-row-exit {
-        animation: table-row-exit 0.2s ease-in forwards;
-    }
-
-    /* Анимация обновления контента */
-    @keyframes content-refresh {
-        0% {
-            opacity: 1;
-            transform: scale(1);
-        }
-        50% {
-            opacity: 0.7;
-            transform: scale(0.98);
-        }
-        100% {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-
-    .content-refresh {
-        animation: content-refresh 0.5s ease-in-out;
-    }
-
-    /* Анимация появления тоста/уведомления */
-    @keyframes toast-slide-in {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-
-    .toast-enter {
-        animation: toast-slide-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    /* Пульсация для элементов в процессе загрузки */
-    @keyframes subtle-pulse {
-        0%,
-        100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.8;
-        }
-    }
-
-    .loading-pulse {
-        animation: subtle-pulse 1.5s ease-in-out infinite;
-    }
-
-    /* Эффект волны для кнопок */
-    .wave-effect {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .wave-effect::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        transform: translate(-50%, -50%);
-        transition:
-            width 0.3s ease,
-            height 0.3s ease;
-    }
-
-    .wave-effect:active::before {
-        width: 200px;
-        height: 200px;
-    }
-
-    /* Улучшенные переходы для карточек */
-    .card-hover {
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    .card-hover:hover {
-        transform: translateY(-4px);
-        box-shadow:
-            0 10px 25px rgba(0, 0, 0, 0.1),
-            0 6px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    /* Анимация для модальных окон */
-    @keyframes modal-backdrop-enter {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
-
-    @keyframes modal-content-enter {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-
-    .modal-backdrop-enter {
-        animation: modal-backdrop-enter 0.2s ease-out;
-    }
-
-    .modal-content-enter {
-        animation: modal-content-enter 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    /* Стили для индикаторов состояния */
-    .status-indicator {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .status-indicator::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        margin-right: 8px;
-        animation: status-pulse 2s ease-in-out infinite;
-    }
-
-    .status-indicator.online::before {
-        background-color: #10b981;
-    }
-
-    .status-indicator.offline::before {
-        background-color: #ef4444;
-    }
-
-    .status-indicator.pending::before {
-        background-color: #f59e0b;
-    }
-
-    @keyframes status-pulse {
-        0%,
-        100% {
-            opacity: 1;
-            transform: scale(1);
-        }
-        50% {
-            opacity: 0.7;
-            transform: scale(1.2);
-        }
-    }
-
-    /* Улучшенная анимация для выпадающих меню */
-    .dropdown-enter {
-        animation: dropdown-slide-down 0.2s ease-out;
-    }
-
-    @keyframes dropdown-slide-down {
-        from {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    /* Анимация для прогресс-баров */
-    @keyframes progress-fill {
-        from {
-            width: 0%;
-        }
-        to {
-            width: var(--progress-value, 0%);
-        }
-    }
-
-    .progress-animated {
-        animation: progress-fill 1s ease-out;
-    }
-
-    /* Стили для drag & drop */
-    .drag-over {
-        border: 2px dashed hsl(var(--primary));
-        background-color: hsl(var(--primary) / 0.05);
-        animation: drag-pulse 1s ease-in-out infinite;
-    }
-
-    @keyframes drag-pulse {
-        0%,
-        100% {
-            border-color: hsl(var(--primary));
-        }
-        50% {
-            border-color: hsl(var(--primary) / 0.7);
-        }
-    }
-
-    /* Стили для кастомного скроллбара */
-    .custom-scrollbar {
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--border)) hsl(var(--background));
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: hsl(var(--background));
-        border-radius: 4px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 4px;
-        border: 1px solid hsl(var(--background));
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--muted-foreground) / 0.3);
-    }
-
-    /* Стили для диалогов */
-    .dialog-content-custom {
-        max-height: 90vh;
-        overflow: hidden;
-    }
-
-    .dialog-scroll-minimal {
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--border)) transparent;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 3px;
-    }
-
-    .dialog-scroll-minimal::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--muted-foreground) / 0.4);
-    }
-
-    /* Fade-in animations for hydration fix */
-    @keyframes fade-in {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .animate-fade-in {
-        animation: fade-in 0.6s ease-out forwards;
-    }
-
-    .animate-fade-in[style*="animation-delay"] {
-        opacity: 0;
-    }
-
-    /* Slide transition animations */
-    @keyframes slide-in-right {
-        from {
-            opacity: 0;
-            transform: translateX(100px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes slide-in-left {
-        from {
-            opacity: 0;
-            transform: translateX(-100px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes slide-out-right {
-        from {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateX(100px);
-        }
-    }
-
-    @keyframes slide-out-left {
-        from {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateX(-100px);
-        }
-    }
-
-    .animate-slide-in-right {
-        animation: slide-in-right 0.3s ease-out forwards;
-    }
-
-    .animate-slide-in-left {
-        animation: slide-in-left 0.3s ease-out forwards;
-    }
-
-    .animate-slide-out-right {
-        animation: slide-out-right 0.3s ease-out forwards;
-    }
-
-    .animate-slide-out-left {
-        animation: slide-out-left 0.3s ease-out forwards;
-    }
-
-    /* Horizontal scroll animation for partners carousel */
-    @keyframes scroll-horizontal {
-        0% {
-            transform: translateX(0);
-        }
-        100% {
-            transform: translateX(-50%);
-        }
-    }
-
-    .animate-scroll-infinite {
-        animation: scroll-horizontal 30s linear infinite;
-        will-change: transform;
-    }
-
-    .animate-scroll-infinite:hover {
-        animation-play-state: paused;
-    }
-
-    .mask-edges {
-        mask: linear-gradient(
-            90deg,
-            transparent 0%,
-            black 10%,
-            black 90%,
-            transparent 100%
-        );
-        -webkit-mask: linear-gradient(
-            90deg,
-            transparent 0%,
-            black 10%,
-            black 90%,
-            transparent 100%
-        );
-    }
-
-    /* Fix image sizing in catalog cards */
-/*    .product-card-image {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .admin-grid {
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    }
+  }
+
+  /* Анимации для форм */
+  .form-fade-in {
+    animation: form-fade-in 0.3s ease-out forwards;
+  }
+
+  @keyframes form-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Стили для улучшенной навигации в админке */
+  .admin-nav-item {
+    position: relative;
+    transition: all 0.2s ease;
+  }
+
+  .admin-nav-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: hsl(var(--primary));
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+  }
+
+  .admin-nav-item.active::before,
+  .admin-nav-item:hover::before {
+    transform: scaleY(1);
+  }
+
+  /* Дополнительные анимации для улучшенного UX */
+  @keyframes table-row-enter {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes table-row-exit {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+  }
+
+  .table-row-enter {
+    animation: table-row-enter 0.3s ease-out forwards;
+  }
+
+  .table-row-exit {
+    animation: table-row-exit 0.2s ease-in forwards;
+  }
+
+  /* Анимация обновления контента */
+  @keyframes content-refresh {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .content-refresh {
+    animation: content-refresh 0.5s ease-in-out;
+  }
+
+  /* Анимация появления тоста/уведомления */
+  @keyframes toast-slide-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .toast-enter {
+    animation: toast-slide-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Пульсация для элементов в процессе загрузки */
+  @keyframes subtle-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .loading-pulse {
+    animation: subtle-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Эффект волны для кнопок */
+  .wave-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wave-effect::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.3s ease,
+      height 0.3s ease;
+  }
+
+  .wave-effect:active::before {
+    width: 200px;
+    height: 200px;
+  }
+
+  /* Улучшенные переходы для карточек */
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 10px 25px rgba(0, 0, 0, 0.1),
+      0 6px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Анимация для модальных окон */
+  @keyframes modal-backdrop-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modal-content-enter {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .modal-backdrop-enter {
+    animation: modal-backdrop-enter 0.2s ease-out;
+  }
+
+  .modal-content-enter {
+    animation: modal-content-enter 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Стили для индикаторов состояния */
+  .status-indicator {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .status-indicator::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+
+  .status-indicator.online::before {
+    background-color: #10b981;
+  }
+
+  .status-indicator.offline::before {
+    background-color: #ef4444;
+  }
+
+  .status-indicator.pending::before {
+    background-color: #f59e0b;
+  }
+
+  @keyframes status-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.2);
+    }
+  }
+
+  /* Улучшенная анимация для выпадающих меню */
+  .dropdown-enter {
+    animation: dropdown-slide-down 0.2s ease-out;
+  }
+
+  @keyframes dropdown-slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Анимация для прогресс-баров */
+  @keyframes progress-fill {
+    from {
+      width: 0%;
+    }
+    to {
+      width: var(--progress-value, 0%);
+    }
+  }
+
+  .progress-animated {
+    animation: progress-fill 1s ease-out;
+  }
+
+  /* Стили для drag & drop */
+  .drag-over {
+    border: 2px dashed hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.05);
+    animation: drag-pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes drag-pulse {
+    0%,
+    100% {
+      border-color: hsl(var(--primary));
+    }
+    50% {
+      border-color: hsl(var(--primary) / 0.7);
+    }
+  }
+
+  /* Стили для кастомного скроллбара */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) hsl(var(--background));
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+    border: 1px solid hsl(var(--background));
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* Стили для диалогов */
+  .dialog-content-custom {
+    max-height: 90vh;
+    overflow: hidden;
+  }
+
+  .dialog-scroll-minimal {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  .dialog-scroll-minimal::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Fade-in animations for hydration fix */
+  @keyframes catalog-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .catalog-animate-fade-in {
+    animation: catalog-fade-in 0.6s ease-out forwards;
+  }
+
+  .catalog-animate-fade-in[style*="animation-delay"] {
+    opacity: 0;
+  }
+
+  /* Slide transition animations */
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-100px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-out-right {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(100px);
+    }
+  }
+
+  @keyframes slide-out-left {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-100px);
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s ease-out forwards;
+  }
+
+  .animate-slide-out-right {
+    animation: slide-out-right 0.3s ease-out forwards;
+  }
+
+  .animate-slide-out-left {
+    animation: slide-out-left 0.3s ease-out forwards;
+  }
+
+  /* Horizontal scroll animation for partners carousel */
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-scroll-infinite {
+    animation: scroll-horizontal 30s linear infinite;
+    will-change: transform;
+  }
+
+  .animate-scroll-infinite:hover {
+    animation-play-state: paused;
+  }
+
+  .mask-edges {
+    mask: linear-gradient(
+      90deg,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    );
+    -webkit-mask: linear-gradient(
+      90deg,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    );
+  }
+
+  /* Fix image sizing in catalog cards */
+  /*    .product-card-image {
         position: relative;
         width: 100%;
         height: 256px;
@@ -1365,34 +1391,33 @@
         background-color: rgb(243 244 246);
     }*/
 
-/*    .product-card-image img {
+  /*    .product-card-image img {
         object-fit: cover;
         transition: transform 0.3s ease;
         width: 100% !important;
         height: 100% !important;
     }*/
 
-    /* Ensure proper height for fill images */
-    .aspect-square {
-        aspect-ratio: 1 / 1;
-        min-height: 200px;
-    }
+  /* Ensure proper height for fill images */
+  .aspect-square {
+    aspect-ratio: 1 / 1;
+    min-height: 200px;
+  }
 
-    .relative[class*="aspect-"] {
-        position: relative;
-        min-height: 200px;
-    }
+  .relative[class*="aspect-"] {
+    position: relative;
+    min-height: 200px;
+  }
 
-    /* Fix Next.js Image component warnings */
-    .next-image-container {
-        position: relative;
-        width: 100%;
-        height: 100%;
-    }
+  /* Fix Next.js Image component warnings */
+  .next-image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
 
-    .next-image-container img {
-        width: auto !important;
-        height: auto !important;
-    }
+  .next-image-container img {
+    width: auto !important;
+    height: auto !important;
+  }
 }
-

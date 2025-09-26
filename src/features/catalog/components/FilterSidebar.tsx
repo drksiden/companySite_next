@@ -2,7 +2,12 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -61,75 +66,138 @@ interface CategoryTreeProps {
   level?: number;
 }
 
-const CategoryTree: React.FC<CategoryTreeProps> = ({ nodes, selectedCategories, onChange, level = 0 }) => {
+const CategoryTree: React.FC<CategoryTreeProps> = ({
+  nodes,
+  selectedCategories,
+  onChange,
+  level = 0,
+}) => {
   return (
     <>
       {nodes.map((node) => {
         const hasChildren = node.children.length > 0;
-        const row = (
-          <div className="flex items-center justify-between group py-2">
-            <div className="flex items-center gap-2 flex-1" style={{ paddingLeft: `${level * 1.5}rem` }}>
-              <Checkbox
-                id={`category-${node.category.id}`}
-                checked={selectedCategories.includes(node.category.id)}
-                onCheckedChange={(checked) => onChange(node.category.id, !!checked)}
-                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
-              />
-              <label
-                htmlFor={`category-${node.category.id}`}
-                className={cn(
-                  "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
-                  selectedCategories.includes(node.category.id) && "text-primary font-semibold"
-                )}
-              >
-                {node.category.name}
-              </label>
-            </div>
-            {node.category.product_count != null && (
-              <Badge variant="secondary" className="text-xs">
-                {node.category.product_count}
-              </Badge>
-            )}
-          </div>
-        );
 
         if (hasChildren) {
           return (
-            <AccordionItem key={node.category.id} value={node.category.id} className="border-none">
+            <AccordionItem
+              key={node.category.id}
+              value={node.category.id}
+              className="border-none"
+            >
               <AccordionTrigger className="py-0 hover:no-underline">
-                {row}
+                <div className="flex items-center justify-between group py-2 w-full">
+                  <div
+                    className="flex items-center gap-2 flex-1"
+                    style={{ paddingLeft: `${level * 1.5}rem` }}
+                  >
+                    <span
+                      className={cn(
+                        "text-sm font-medium text-foreground transition-colors duration-200",
+                      )}
+                    >
+                      {node.category.name}
+                    </span>
+                  </div>
+                  {node.category.product_count != null && (
+                    <Badge variant="secondary" className="text-xs">
+                      {node.category.product_count}
+                    </Badge>
+                  )}
+                </div>
               </AccordionTrigger>
               <AccordionContent className="pb-0">
-                <CategoryTree
-                  nodes={node.children}
-                  selectedCategories={selectedCategories}
-                  onChange={onChange}
-                  level={level + 1}
-                />
+                <div className="ml-4">
+                  <div className="flex items-center gap-2 py-2">
+                    <Checkbox
+                      id={`category-${node.category.id}`}
+                      checked={selectedCategories.includes(node.category.id)}
+                      onCheckedChange={(checked) =>
+                        onChange(node.category.id, !!checked)
+                      }
+                      className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    />
+                    <label
+                      htmlFor={`category-${node.category.id}`}
+                      className={cn(
+                        "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
+                        selectedCategories.includes(node.category.id) &&
+                          "text-primary font-semibold",
+                      )}
+                    >
+                      Все в категории
+                    </label>
+                  </div>
+                  <CategoryTree
+                    nodes={node.children}
+                    selectedCategories={selectedCategories}
+                    onChange={onChange}
+                    level={level + 1}
+                  />
+                </div>
               </AccordionContent>
             </AccordionItem>
           );
         } else {
-          return <div key={node.category.id}>{row}</div>;
+          return (
+            <div
+              key={node.category.id}
+              className="flex items-center justify-between group py-2"
+            >
+              <div
+                className="flex items-center gap-2 flex-1"
+                style={{ paddingLeft: `${level * 1.5}rem` }}
+              >
+                <Checkbox
+                  id={`category-${node.category.id}`}
+                  checked={selectedCategories.includes(node.category.id)}
+                  onCheckedChange={(checked) =>
+                    onChange(node.category.id, !!checked)
+                  }
+                  className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
+                />
+                <label
+                  htmlFor={`category-${node.category.id}`}
+                  className={cn(
+                    "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
+                    selectedCategories.includes(node.category.id) &&
+                      "text-primary font-semibold",
+                  )}
+                >
+                  {node.category.name}
+                </label>
+              </div>
+              {node.category.product_count != null && (
+                <Badge variant="secondary" className="text-xs">
+                  {node.category.product_count}
+                </Badge>
+              )}
+            </div>
+          );
         }
       })}
     </>
   );
 };
 
-export default function FilterSidebar({ searchParams, categories, brands }: FilterSidebarProps) {
+export default function FilterSidebar({
+  searchParams,
+  categories,
+  brands,
+}: FilterSidebarProps) {
   const router = useRouter();
   const params = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams?.query || "");
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    searchParams?.category?.split(",").filter(Boolean) || []
+    searchParams?.category?.split(",").filter(Boolean) || [],
   );
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
-    searchParams?.brand?.split(",").filter(Boolean) || []
+    searchParams?.brand?.split(",").filter(Boolean) || [],
   );
 
   useEffect(() => {
-    setSelectedCategories(searchParams?.category?.split(",").filter(Boolean) || []);
+    setSelectedCategories(
+      searchParams?.category?.split(",").filter(Boolean) || [],
+    );
     setSelectedBrands(searchParams?.brand?.split(",").filter(Boolean) || []);
     setSearchQuery(searchParams?.query || "");
   }, [searchParams]);
@@ -143,14 +211,15 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
     } else {
       newParams.delete("query");
     }
-    router.push(`/catalog?${newParams.toString()}`);
+    router.push(`/catalog?${newParams.toString()}`, { scroll: false });
   }, [searchQuery, params, router]);
 
   const handleFilterChange = useCallback(
     (type: "category" | "brand", id: string, checked: boolean) => {
       const newParams = new URLSearchParams(params);
-      const currentFilters = newParams.get(type)?.split(",").filter(Boolean) || [];
-      
+      const currentFilters =
+        newParams.get(type)?.split(",").filter(Boolean) || [];
+
       const updatedFilters = checked
         ? [...currentFilters, id]
         : currentFilters.filter((item) => item !== id);
@@ -166,13 +235,16 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
       } else {
         newParams.delete(type);
       }
-      router.push(`/catalog?${newParams.toString()}`);
+      router.push(`/catalog?${newParams.toString()}`, { scroll: false });
     },
-    [params, router]
+    [params, router],
   );
 
   const clearFilters = useCallback(() => {
-    router.push("/catalog");
+    setSearchQuery("");
+    setSelectedCategories([]);
+    setSelectedBrands([]);
+    router.push("/catalog", { scroll: false });
   }, [router]);
 
   const hasFilters =
@@ -213,7 +285,9 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
           <CategoryTree
             nodes={categoryTree}
             selectedCategories={selectedCategories}
-            onChange={(id, checked) => handleFilterChange("category", id, checked)}
+            onChange={(id, checked) =>
+              handleFilterChange("category", id, checked)
+            }
           />
         </Accordion>
       </div>
@@ -249,7 +323,8 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
                         htmlFor={`brand-${brand.id}`}
                         className={cn(
                           "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
-                          selectedBrands.includes(brand.id) && "text-primary font-semibold"
+                          selectedBrands.includes(brand.id) &&
+                            "text-primary font-semibold",
                         )}
                       >
                         {brand.name}

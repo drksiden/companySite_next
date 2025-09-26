@@ -23,11 +23,12 @@ interface CatalogPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default function CatalogPage({ searchParams }: CatalogPageProps) {
+export default async function CatalogPage({ searchParams }: CatalogPageProps) {
+  const resolvedSearchParams = await searchParams;
 
   return (
     <div className="min-h-screen bg-background">
-      <CatalogShell/>
+      <CatalogShell searchParams={resolvedSearchParams} />
     </div>
   );
 }
