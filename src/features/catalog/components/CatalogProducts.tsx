@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ProductGrid from "./ProductGrid";
 import EmptyState from "./EmptyState";
 import LoadingSkeletons from "./LoadingSkeletons";
+import SimpleLoadingIndicator from "./SimpleLoadingIndicator";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -16,11 +17,13 @@ interface CatalogProductsProps {
     category?: string;
     brand?: string;
   };
+  useSimpleLoader?: boolean;
 }
 
 export default function CatalogProducts({
   initialProducts,
   searchParams,
+  useSimpleLoader = false,
 }: CatalogProductsProps) {
   const router = useRouter();
   const params = useSearchParams();
@@ -43,7 +46,6 @@ export default function CatalogProducts({
 
   // Fetch products function
   const fetchProducts = useCallback(async (filters: typeof currentFilters) => {
-    console.log("🔍 Fetching products with filters:", filters);
     setLoading(true);
     setError(null);
 
@@ -59,7 +61,6 @@ export default function CatalogProducts({
       if (filters.brand) queryParams.set("brand", filters.brand);
 
       const apiUrl = `/api/catalog?${queryParams.toString()}`;
-      console.log("🌐 API URL:", apiUrl);
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
@@ -67,10 +68,8 @@ export default function CatalogProducts({
       }
 
       const result = await response.json();
-      console.log("📦 API Response:", result);
 
       if (result.success) {
-        console.log("✅ Products loaded:", result.data?.length || 0);
         setProducts(result.data || []);
       } else {
         throw new Error(result.error || "Failed to fetch products");
@@ -85,10 +84,7 @@ export default function CatalogProducts({
 
   // Effect to fetch products when filters change
   useEffect(() => {
-    console.log("🔄 Effect triggered:", { currentFilters, isInitialLoad });
-
     if (isInitialLoad) {
-      console.log("⚡ Initial load, skipping fetch");
       setIsInitialLoad(false);
       return;
     }
@@ -97,13 +93,10 @@ export default function CatalogProducts({
     const hasActiveFilters =
       currentFilters.query || currentFilters.category || currentFilters.brand;
 
-    console.log("🎯 Has active filters:", hasActiveFilters);
-
     if (hasActiveFilters) {
       fetchProducts(currentFilters);
     } else {
       // No filters, show initial products
-      console.log("🏠 Showing initial products:", initialProducts.length);
       setProducts(initialProducts);
     }
   }, [currentFilters, fetchProducts, initialProducts, isInitialLoad]);
@@ -121,6 +114,10 @@ export default function CatalogProducts({
 
   // Show loading state
   if (loading) {
+    if (useSimpleLoader) {
+      return <SimpleLoadingIndicator message="Загрузка товаров..." />;
+    }
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-center py-4">
@@ -129,7 +126,7 @@ export default function CatalogProducts({
             <span>Загрузка товаров...</span>
           </div>
         </div>
-        <LoadingSkeletons />
+        <LoadingSkeletons count={products.length || 8} />
       </div>
     );
   }

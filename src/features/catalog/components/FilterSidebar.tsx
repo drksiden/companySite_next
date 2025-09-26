@@ -98,11 +98,12 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                       {node.category.name}
                     </span>
                   </div>
-                  {node.category.product_count != null && (
-                    <Badge variant="secondary" className="text-xs">
-                      {node.category.product_count}
-                    </Badge>
-                  )}
+                  {node.category.product_count != null &&
+                    node.category.product_count > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {node.category.product_count}
+                      </Badge>
+                    )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-0">
@@ -166,11 +167,12 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                   {node.category.name}
                 </label>
               </div>
-              {node.category.product_count != null && (
-                <Badge variant="secondary" className="text-xs">
-                  {node.category.product_count}
-                </Badge>
-              )}
+              {node.category.product_count != null &&
+                node.category.product_count > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {node.category.product_count}
+                  </Badge>
+                )}
             </div>
           );
         }
@@ -330,7 +332,7 @@ export default function FilterSidebar({
                         {brand.name}
                       </label>
                     </div>
-                    {brand.product_count != null && (
+                    {brand.product_count != null && brand.product_count > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {brand.product_count}
                       </Badge>

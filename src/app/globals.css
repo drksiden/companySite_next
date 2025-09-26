@@ -2,7 +2,47 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Smooth animations for catalog */
+/* Main page animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-from-left 0.3s ease-out;
+}
+
+/* Catalog-specific animations to avoid conflicts */
+.catalog-animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.catalog-animate-fade-in[style*="animation-delay"] {
+  opacity: 0;
+}
+
+/* Smooth transitions for interactive elements */
 .transition-smooth {
   transition: all 0.2s ease-in-out;
 }
@@ -33,6 +73,30 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Component custom properties */
+  --card-bg: var(--background);
+  --image-bg: var(--muted);
+  --overlay-bg: var(--background);
+  --overlay-text: var(--foreground);
+  --overlay-button-bg: var(--primary);
+  --overlay-button-hover-bg: var(--primary);
+  --title-hover-text: var(--primary);
+  --brand-bg: var(--muted);
+  --sale-bg: var(--destructive);
+  --sale-hover-bg: var(--destructive);
+  --featured-bg: var(--primary);
+  --out-of-stock-bg: var(--secondary);
+  --badge-text: var(--primary-foreground);
+  --price-old-text: var(--muted-foreground);
+  --stock-bg: var(--muted);
+  --stock-dot-in: var(--primary);
+  --stock-dot-out: var(--secondary);
+  --stock-text-in: var(--foreground);
+  --stock-text-out: var(--muted-foreground);
+  --primary-bg: var(--primary);
+  --primary-text: var(--primary-foreground);
+  --card-border: var(--border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -1266,7 +1330,7 @@
   }
 
   /* Fade-in animations for hydration fix */
-  @keyframes catalog-fade-in {
+  @keyframes main-fade-in {
     from {
       opacity: 0;
       transform: translateY(10px);
@@ -1275,14 +1339,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .catalog-animate-fade-in {
-    animation: catalog-fade-in 0.6s ease-out forwards;
-  }
-
-  .catalog-animate-fade-in[style*="animation-delay"] {
-    opacity: 0;
   }
 
   /* Slide transition animations */
