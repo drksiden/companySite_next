@@ -8,6 +8,8 @@ import { createServerClient } from "@/lib/supabaseServer";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface CatalogShellProps {
   searchParams?: {
@@ -86,52 +88,51 @@ export default async function CatalogShell({ searchParams }: CatalogShellProps) 
 
   return (
     <div className="container mx-auto px-4 py-8" id="catalog-top">
-
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold text-[var(--title-text)]">
+        <h1 className="text-3xl font-bold text-black dark:text-white">
           Каталог товаров
         </h1>
       </div>
       {/* Top-Level Category Selection */}
-      <section className="mb-8">
-        {/* <h2 className="text-2xl font-bold text-[var(--title-text)] mb-4">
-          Выберите направление
-        </h2> */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <section className="mb-12">
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {topLevelCategories.map((category) => (
-            <Link
+            <Card
               key={category.id}
-              href={`/catalog?category=${category.id}`}
-              className="group relative bg-[var(--card-bg)] border-[var(--card-border)] rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+              className="group relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
             >
-              <div className="relative w-full h-32 sm:h-40">
-                <Image
-                  src={category.image || "/images/placeholder-category.jpg"}
-                  alt={category.name}
-                  fill
-                  className="object-cover transition-all duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                  quality={75}
-                />
-                <div className="absolute inset-0 bg-[var(--overlay-bg)] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[var(--title-text)] group-hover:text-[var(--title-hover-text)] transition-colors duration-200 line-clamp-2">
-                    {category.name}
-                  </span>
-                  {category.product_count > 0 && (
-                    <Badge className="bg-[var(--primary-bg)] text-[var(--primary-text)]">
-                      {category.product_count}
-                    </Badge>
-                  )}
+              <Link href={`/catalog?category=${category.id}`}>
+                <div className="relative w-full aspect-[4/3] xs:h-24 sm:h-32">
+                  <Image
+                    src={category.image || "/images/placeholder-category.jpg"}
+                    alt={category.name}
+                    fill
+                    className="object-cover transition-all duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1200px) 25vw, 20vw"
+                    quality={75}
+                  />
+                  <div className="absolute inset-0 bg-[var(--overlay-bg)] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
                 </div>
-              </div>
-            </Link>
+                <div className="p-2 xs:p-2 sm:p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-medium text-black dark:text-white group-hover:text-[var(--title-hover-text)] transition-colors duration-200 line-clamp-2">
+                      {category.name}
+                    </span>
+                    {category.product_count > 0 && (
+                      <Badge className="bg-[var(--primary-bg)] text-[var(--primary-text)] text-xs">
+                        {category.product_count}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            </Card>
           ))}
         </div>
       </section>
+
+      <Separator className="my-6 bg-[var(--card-border)]" />
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 lg:gap-8">
         {/* Sidebar */}

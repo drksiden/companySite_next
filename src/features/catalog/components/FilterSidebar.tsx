@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Search, ChevronRight, Filter } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryItem, BrandItem } from "@/lib/services/catalog";
 
@@ -64,43 +64,55 @@ interface CategoryTreeProps {
 const CategoryTree: React.FC<CategoryTreeProps> = ({ nodes, selectedCategories, onChange, level = 0 }) => {
   return (
     <>
-      {nodes.map((node) => (
-        <AccordionItem key={node.category.id} value={node.category.id} className="border-none">
-          <AccordionTrigger className="py-2 px-0 hover:no-underline group">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 flex-1">
-                <div style={{ paddingLeft: `${level * 1.5}rem` }}>
-                  <Checkbox
-                    id={`category-${node.category.id}`}
-                    checked={selectedCategories.includes(node.category.id)}
-                    onCheckedChange={(checked) => onChange(node.category.id, !!checked)}
-                    className="group-hover:border-primary"
-                  />
-                </div>
-                <label
-                  htmlFor={`category-${node.category.id}`}
-                  className="text-sm text-foreground hover:text-primary cursor-pointer transition-colors duration-200 flex-1"
-                >
-                  {node.category.name}
-                </label>
-              </div>
-              {node.category.product_count != null && (
-                <Badge variant="secondary" className="text-xs ml-2">
-                  {node.category.product_count}
-                </Badge>
-              )}
+      {nodes.map((node) => {
+        const hasChildren = node.children.length > 0;
+        const row = (
+          <div className="flex items-center justify-between group py-2">
+            <div className="flex items-center gap-2 flex-1" style={{ paddingLeft: `${level * 1.5}rem` }}>
+              <Checkbox
+                id={`category-${node.category.id}`}
+                checked={selectedCategories.includes(node.category.id)}
+                onCheckedChange={(checked) => onChange(node.category.id, !!checked)}
+                className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
+              />
+              <label
+                htmlFor={`category-${node.category.id}`}
+                className={cn(
+                  "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
+                  selectedCategories.includes(node.category.id) && "text-primary font-semibold"
+                )}
+              >
+                {node.category.name}
+              </label>
             </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-0">
-            <CategoryTree
-              nodes={node.children}
-              selectedCategories={selectedCategories}
-              onChange={onChange}
-              level={level + 1}
-            />
-          </AccordionContent>
-        </AccordionItem>
-      ))}
+            {node.category.product_count != null && (
+              <Badge variant="secondary" className="text-xs">
+                {node.category.product_count}
+              </Badge>
+            )}
+          </div>
+        );
+
+        if (hasChildren) {
+          return (
+            <AccordionItem key={node.category.id} value={node.category.id} className="border-none">
+              <AccordionTrigger className="py-0 hover:no-underline">
+                {row}
+              </AccordionTrigger>
+              <AccordionContent className="pb-0">
+                <CategoryTree
+                  nodes={node.children}
+                  selectedCategories={selectedCategories}
+                  onChange={onChange}
+                  level={level + 1}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          );
+        } else {
+          return <div key={node.category.id}>{row}</div>;
+        }
+      })}
     </>
   );
 };
@@ -143,6 +155,12 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
         ? [...currentFilters, id]
         : currentFilters.filter((item) => item !== id);
 
+      if (type === "category") {
+        setSelectedCategories(updatedFilters);
+      } else {
+        setSelectedBrands(updatedFilters);
+      }
+
       if (updatedFilters.length) {
         newParams.set(type, updatedFilters.join(","));
       } else {
@@ -161,7 +179,7 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
     searchQuery || selectedCategories.length || selectedBrands.length;
 
   return (
-    <div className="bg-card border-r border-border p-6 space-y-6 w-80 h-full">
+    <div className="bg-background p-6 space-y-6 w-80 h-full">
       {/* Search */}
       <div className="space-y-2">
         <h3 className="text-lg flex items-center gap-2 font-semibold text-foreground">
@@ -174,7 +192,7 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="w-full"
+            className="w-full border-input focus:border-primary"
           />
           <Button
             onClick={handleSearch}
@@ -225,10 +243,14 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
                         onCheckedChange={(checked) =>
                           handleFilterChange("brand", brand.id, !!checked)
                         }
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
                       />
                       <label
                         htmlFor={`brand-${brand.id}`}
-                        className="text-sm text-foreground hover:text-primary cursor-pointer transition-colors duration-200"
+                        className={cn(
+                          "text-sm font-medium text-foreground cursor-pointer transition-colors duration-200",
+                          selectedBrands.includes(brand.id) && "text-primary font-semibold"
+                        )}
                       >
                         {brand.name}
                       </label>
@@ -260,7 +282,7 @@ export default function FilterSidebar({ searchParams, categories, brands }: Filt
         <Button
           variant="outline"
           onClick={clearFilters}
-          className="w-full"
+          className="w-full border-border hover:bg-muted"
         >
           Сбросить фильтры
         </Button>
