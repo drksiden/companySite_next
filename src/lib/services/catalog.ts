@@ -193,9 +193,29 @@ export async function listProducts(
   // Apply status filter (only active products)
   query = query.eq("status", "active");
 
-  // Apply filters
+  // Apply filters - include child categories
   if (categories.length > 0) {
-    query = query.in("category_id", categories);
+    // Get all categories including children
+    const { data: allCategories } = await supabase
+      .from("categories")
+      .select("id, parent_id, path");
+
+    const expandedCategories = new Set(categories);
+
+    // For each selected category, find all its children
+    categories.forEach((categoryId) => {
+      const findChildren = (parentId: string) => {
+        allCategories?.forEach((cat) => {
+          if (cat.parent_id === parentId) {
+            expandedCategories.add(cat.id);
+            findChildren(cat.id); // Recursively find children
+          }
+        });
+      };
+      findChildren(categoryId);
+    });
+
+    query = query.in("category_id", Array.from(expandedCategories));
   }
 
   if (brands.length > 0) {

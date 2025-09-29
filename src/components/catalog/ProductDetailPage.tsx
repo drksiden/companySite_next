@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { SimpleImageGallery } from "./SimpleImageGallery";
+import { ProductImageGallery } from "../product/ProductImageGallery";
 import { ProductCard } from "./ProductCard";
+import { ProductBadges, ProductStatusBadge } from "./ProductBadges";
+import { ProductPrice } from "./ProductPrice";
 import { Loading, ProductCardSkeleton } from "@/components/ui/loading";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { toast } from "sonner";
@@ -24,6 +26,7 @@ import {
   Clock,
   Heart,
   Share2,
+  ShoppingCart,
   Zap,
 } from "@/components/icons/SimpleIcons";
 import type { Product, SearchProductsResult } from "@/types/catalog";
@@ -47,10 +50,11 @@ export function ProductDetailPage({
     : true;
   const hasDiscount =
     product.is_on_sale && (product.discount_percentage || 0) > 0;
-  const isNew =
+  const isNew = Boolean(
     product.created_at &&
-    new Date(product.created_at) >
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      new Date(product.created_at) >
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+  );
 
   const handleAddToWishlist = async () => {
     setIsLoading(true);
@@ -89,78 +93,83 @@ export function ProductDetailPage({
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 mb-6 sm:mb-8">
         {/* Image Gallery */}
         <div className="relative">
-          <SimpleImageGallery
+          <ProductImageGallery
             images={images}
             productName={product.name}
-            className="max-w-md mx-auto lg:max-w-lg"
+            className="w-full max-w-full sm:max-w-md mx-auto lg:max-w-lg"
           />
 
           {/* Product Badges Overlay */}
-          <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-            {hasDiscount && (
-              <Badge variant="destructive" className="font-bold">
-                -{product.discount_percentage}%
-              </Badge>
-            )}
-            {isNew && <Badge variant="secondary">Новинка</Badge>}
-            {product.is_featured && <Badge variant="default">Хит</Badge>}
+          <div className="absolute top-4 left-4 z-20">
+            <ProductBadges
+              isNew={isNew}
+              isFeatured={Boolean(product.is_featured)}
+              isOnSale={hasDiscount}
+              discountPercentage={
+                product.discount_percentage
+                  ? Number(product.discount_percentage)
+                  : undefined
+              }
+              isInStock={isInStock}
+            />
           </div>
         </div>
 
         {/* Product Info */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              {product.name}
-            </h1>
-            {product.brand?.name && (
-              <p className="text-lg text-muted-foreground">
-                {product.brand.name}
-              </p>
-            )}
+          <div className="space-y-2 sm:space-y-3">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 leading-tight">
+                {product.name}
+              </h1>
+              {product.brand?.name && (
+                <p className="text-base sm:text-lg text-muted-foreground font-medium">
+                  {product.brand.name}
+                </p>
+              )}
+            </div>
             {product.sku && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Артикул: {product.sku}
-              </p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-sm text-muted-foreground">
+                <span className="text-xs font-medium">Артикул:</span>
+                <span className="font-mono">{product.sku}</span>
+              </div>
             )}
           </div>
 
           {/* Price */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              {hasDiscount && product.base_price && (
-                <span className="text-xl text-muted-foreground line-through">
-                  {product.base_price.toLocaleString("ru-RU")} ₸
-                </span>
-              )}
-              <span className="text-3xl font-bold text-foreground">
-                {product.formatted_price ||
-                  `${(product.final_price || 0).toLocaleString("ru-RU")} ₸`}
-              </span>
-            </div>
+          <div className="p-4 sm:p-6 bg-gradient-to-br from-background to-muted/30 rounded-xl border shadow-sm">
+            <div className="space-y-3 sm:space-y-4">
+              <ProductPrice
+                finalPrice={product.final_price || 0}
+                basePrice={product.base_price}
+                isOnSale={hasDiscount}
+                discountPercentage={product.discount_percentage}
+                formattedPrice={product.formatted_price}
+                size="xl"
+                showSavings={true}
+              />
 
-            {/* Stock Status */}
-            <div className="flex items-center gap-3">
-              {!isInStock && (
-                <Badge
-                  variant="secondary"
-                  className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
-                >
-                  Под заказ
-                </Badge>
-              )}
+              {/* Stock Status */}
+              <div className="flex items-center gap-3">
+                <ProductStatusBadge
+                  isInStock={isInStock}
+                  trackInventory={product.track_inventory}
+                  inventoryQuantity={product.inventory_quantity}
+                />
+              </div>
             </div>
           </div>
 
           {/* Short Description */}
           {product.short_description && (
-            <div className="bg-muted/30 rounded-lg p-4 border">
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+            <div className="bg-gradient-to-br from-muted/20 to-muted/40 rounded-xl p-4 sm:p-6 border shadow-sm">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2 sm:mb-3 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-primary" />
                 Краткое описание
               </h3>
               <MarkdownContent
@@ -171,26 +180,29 @@ export function ProductDetailPage({
           )}
 
           {/* Action Buttons */}
-          <div className="space-y-3">
-            <div className="flex gap-3">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex gap-2 sm:gap-3">
               <Button
                 variant="outline"
                 onClick={handleAddToWishlist}
                 size="lg"
-                className="px-4"
+                className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <Loading size="sm" variant="spinner" />
                 ) : (
-                  <Heart
-                    className={cn(
-                      "h-4 w-4",
-                      isInWishlist
-                        ? "fill-red-500 text-red-500"
-                        : "text-muted-foreground",
-                    )}
-                  />
+                  <>
+                    <Heart
+                      className={cn(
+                        "h-5 w-5 mr-2 transition-colors",
+                        isInWishlist
+                          ? "fill-red-500 text-red-500"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    {isInWishlist ? "В избранном" : "В избранное"}
+                  </>
                 )}
               </Button>
 
@@ -198,71 +210,110 @@ export function ProductDetailPage({
                 variant="outline"
                 onClick={handleShare}
                 size="lg"
-                className="px-4"
+                className="h-10 sm:h-12 px-4 sm:px-6 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Share2 className="h-4 w-4" />
+                <Share2 className="h-5 w-5 mr-2" />
+                Поделиться
               </Button>
             </div>
+
+            {/* Call to Action Button */}
+            <Button
+              size="lg"
+              className="w-full h-10 sm:h-12 text-sm sm:text-base font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <ShoppingCart className="h-5 w-5 mr-2" />
+              {isInStock ? "Добавить в корзину" : "Заказать"}
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Product Details Tabs */}
-      <Card className="mb-8">
+      <Card className="mb-6 sm:mb-8 shadow-sm mx-2 sm:mx-0">
         <Tabs defaultValue="description" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="description">Описание</TabsTrigger>
-            <TabsTrigger value="specifications">Характеристики</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-10 sm:h-12 p-1 bg-muted/50">
+            <TabsTrigger
+              value="description"
+              className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Описание
+            </TabsTrigger>
+            <TabsTrigger
+              value="specifications"
+              className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Характеристики
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="description" className="p-6">
-            <div className="space-y-6">
-              {product.description ? (
+          <TabsContent
+            value="description"
+            className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+          >
+            {product.description ? (
+              <div className="prose prose-neutral dark:prose-invert max-w-none">
                 <MarkdownContent
                   content={product.description}
                   variant="product"
                 />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Описание не указано</p>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📄</span>
                 </div>
-              )}
+                <p className="text-muted-foreground text-lg">
+                  Описание не указано
+                </p>
+              </div>
+            )}
 
-              {product.technical_description && (
-                <div className="mt-8">
-                  <div className="border-t pt-6">
-                    <h3 className="text-xl font-bold text-foreground mb-4">
-                      Техническое описание
-                    </h3>
-                    <MarkdownContent
-                      content={product.technical_description}
-                      variant="product"
-                    />
-                  </div>
+            {product.technical_description && (
+              <div className="mt-8 pt-8 border-t">
+                <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-primary" />
+                  Техническое описание
+                </h3>
+                <div className="prose prose-neutral dark:prose-invert max-w-none">
+                  <MarkdownContent
+                    content={product.technical_description}
+                    variant="product"
+                  />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="specifications" className="p-6">
-            <div className="space-y-4">
-              {product.specifications &&
-              Object.keys(product.specifications).length > 0 ? (
+          <TabsContent
+            value="specifications"
+            className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+          >
+            {product.specifications &&
+            Object.keys(product.specifications).length > 0 ? (
+              <div className="rounded-lg border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-1/3">Характеристика</TableHead>
-                      <TableHead>Значение</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-1/3 font-semibold">
+                        Характеристика
+                      </TableHead>
+                      <TableHead className="font-semibold">Значение</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {Object.entries(product.specifications).map(
-                      ([key, value]) => (
-                        <TableRow key={key}>
-                          <TableCell className="font-medium text-foreground">
+                      ([key, value], index) => (
+                        <TableRow
+                          key={key}
+                          className={
+                            index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                          }
+                        >
+                          <TableCell className="font-medium text-foreground py-4">
                             {key}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground py-4">
                             {String(value)}
                           </TableCell>
                         </TableRow>
@@ -270,26 +321,34 @@ export function ProductDetailPage({
                     )}
                   </TableBody>
                 </Table>
-              ) : (
-                <p className="text-muted-foreground">
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📋</span>
+                </div>
+                <p className="text-muted-foreground text-lg">
                   Характеристики не указаны
                 </p>
-              )}
+              </div>
+            )}
 
-              {/* Physical characteristics */}
-              {(product.weight || product.dimensions) && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-3">
-                    Физические характеристики
-                  </h3>
+            {/* Physical characteristics */}
+            {(product.weight || product.dimensions) && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-xl">📐</span>
+                  Физические характеристики
+                </h3>
+                <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableBody>
                       {product.weight && (
-                        <TableRow>
-                          <TableCell className="font-medium text-foreground w-1/3">
+                        <TableRow className="bg-muted/20">
+                          <TableCell className="font-medium text-foreground w-1/3 py-4">
                             Вес
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground py-4">
                             {product.weight} кг
                           </TableCell>
                         </TableRow>
@@ -297,31 +356,31 @@ export function ProductDetailPage({
                       {product.dimensions && (
                         <>
                           {product.dimensions.length && (
-                            <TableRow>
-                              <TableCell className="font-medium text-foreground">
+                            <TableRow className="bg-background">
+                              <TableCell className="font-medium text-foreground py-4">
                                 Длина
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
+                              <TableCell className="text-muted-foreground py-4">
                                 {product.dimensions.length} см
                               </TableCell>
                             </TableRow>
                           )}
                           {product.dimensions.width && (
-                            <TableRow>
-                              <TableCell className="font-medium text-foreground">
+                            <TableRow className="bg-muted/20">
+                              <TableCell className="font-medium text-foreground py-4">
                                 Ширина
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
+                              <TableCell className="text-muted-foreground py-4">
                                 {product.dimensions.width} см
                               </TableCell>
                             </TableRow>
                           )}
                           {product.dimensions.height && (
-                            <TableRow>
-                              <TableCell className="font-medium text-foreground">
+                            <TableRow className="bg-background">
+                              <TableCell className="font-medium text-foreground py-4">
                                 Высота
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
+                              <TableCell className="text-muted-foreground py-4">
                                 {product.dimensions.height} см
                               </TableCell>
                             </TableRow>
@@ -331,28 +390,27 @@ export function ProductDetailPage({
                     </TableBody>
                   </Table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </Card>
 
       {/* Related Products */}
       {relatedProducts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl text-foreground">
+        <Card className="shadow-sm mx-2 sm:mx-0">
+          <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl text-foreground flex items-center gap-2 sm:gap-3">
+              <span className="text-3xl">🔗</span>
               Похожие товары
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <CardContent className="px-4 sm:px-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
               {relatedProducts.length > 0
-                ? relatedProducts
-                    .slice(0, 4)
-                    .map((relatedProduct) => (
+                ? relatedProducts.slice(0, 4).map((relatedProduct) => (
+                    <div key={relatedProduct.id} className="group">
                       <ProductCard
-                        key={relatedProduct.id}
                         product={relatedProduct}
                         variant="grid"
                         showQuickView={false}
@@ -360,8 +418,10 @@ export function ProductDetailPage({
                         onQuickView={() => {}}
                         onAddToWishlist={() => {}}
                         onAddToCart={() => {}}
+                        className="transition-all duration-200 group-hover:scale-[1.02] group-hover:shadow-md"
                       />
-                    ))
+                    </div>
+                  ))
                 : // Показываем скелетоны пока загружаются связанные товары
                   Array.from({ length: 4 }).map((_, index) => (
                     <ProductCardSkeleton key={index} />

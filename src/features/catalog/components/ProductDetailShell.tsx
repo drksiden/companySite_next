@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Heart, Share2, ArrowLeft } from "lucide-react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { formatPrice } from "@/lib/utils";
-import ProductImageGallery from "./ProductImageGallery";
+import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 
 interface ProductDetailShellProps {
   product: CatalogProduct;
@@ -83,12 +83,7 @@ export default function ProductDetailShell({
 
       <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Images */}
-        <ProductImageGallery
-          images={images}
-          productName={product.name}
-          isOnSale={isOnSale}
-          discountPercentage={discountPercentage}
-        />
+        <ProductImageGallery images={images} productName={product.name} />
 
         {/* Product Details */}
         <div className="space-y-6">

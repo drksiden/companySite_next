@@ -126,7 +126,9 @@ export default function CatalogProducts({
             <span>Загрузка товаров...</span>
           </div>
         </div>
-        <LoadingSkeletons count={products.length || 8} />
+        <LoadingSkeletons
+          count={products.length > 0 ? Math.min(products.length, 12) : 8}
+        />
       </div>
     );
   }

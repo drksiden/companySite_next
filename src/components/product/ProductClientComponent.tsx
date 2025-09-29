@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2, ShoppingCart, Check, Heart } from "lucide-react";
-import { ProductGallery } from "@/components/product/ProductGallery";
+import { ProductImageGallery } from "@/components/catalog/ProductImageGallery";
 import ProductSeo from "@/components/product/ProductSeo";
 import ProductTabs from "@/components/product/ProductTabs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -175,7 +175,10 @@ export default function ProductClientComponent({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
         {/* Галерея изображений */}
         <div className="w-full lg:sticky lg:top-24 self-start">
-          <ProductGallery images={galleryImages} productName={productName} />
+          <ProductImageGallery
+            images={galleryImages}
+            productName={productName}
+          />
         </div>
 
         {/* Информация о товаре */}

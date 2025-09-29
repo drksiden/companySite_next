@@ -54,7 +54,7 @@ const navItems = [
   },
   { href: "/services", label: "Услуги" },
   { href: "/about", label: "О нас" },
-  { href: "/contact", label: "Контакты" },
+  { href: "/contacts", label: "Контакты" },
 ];
 
 const easeTransition = {

@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { ProductImageCarousel } from "./ProductImageCarousel";
+import { ProductImageGallery } from "./ProductImageGallery";
 import { ProductCard } from "./ProductCard";
 import { Loading, ProductCardSkeleton } from "@/components/ui/loading";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -116,7 +116,7 @@ export function EnhancedProductDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
         {/* Image Gallery */}
         <div className="relative">
-          <ProductImageCarousel
+          <ProductImageGallery
             images={images}
             productName={product.name}
             className="sticky top-4"

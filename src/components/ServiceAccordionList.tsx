@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 
 import { FC, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,12 +10,6 @@ const ServiceAccordionList: FC = () => {
 
   return (
     <section className="max-w-3xl mx-auto my-12 px-4">
-      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-4 text-center">
-        Наши услуги
-      </h1>
-      <p className="text-center text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-        Мы предлагаем полный спектр услуг по обеспечению безопасности, автоматизации и инфраструктуре объектов любой сложности. Наш опыт и профессионализм — гарантия качества и надёжности.
-      </p>
       <div className="space-y-5">
         {services.map((service, idx) => {
           const isOpen = openIndex === idx;
@@ -56,7 +50,7 @@ const ServiceAccordionList: FC = () => {
                     exit="collapsed"
                     variants={{
                       open: { height: "auto", opacity: 1 },
-                      collapsed: { height: 0, opacity: 0 }
+                      collapsed: { height: 0, opacity: 0 },
                     }}
                     transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="overflow-hidden px-6"

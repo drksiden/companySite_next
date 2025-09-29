@@ -84,8 +84,8 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
               value={node.category.id}
               className="border-none"
             >
-              <AccordionTrigger className="py-0 hover:no-underline">
-                <div className="flex items-center justify-between group py-2 w-full">
+              <AccordionTrigger className="py-0 hover:no-underline transition-all duration-200">
+                <div className="flex items-center justify-between group py-2 w-full transition-all duration-200 hover:bg-accent/30 rounded px-2">
                   <div
                     className="flex items-center gap-2 flex-1"
                     style={{ paddingLeft: `${level * 1.5}rem` }}
@@ -100,7 +100,10 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                   </div>
                   {node.category.product_count != null &&
                     node.category.product_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs transition-all duration-200"
+                      >
                         {node.category.product_count}
                       </Badge>
                     )}
@@ -108,14 +111,14 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
               </AccordionTrigger>
               <AccordionContent className="pb-0">
                 <div className="ml-4">
-                  <div className="flex items-center gap-2 py-2">
+                  <div className="flex items-center gap-2 py-2 transition-all duration-200 hover:bg-accent/30 rounded px-2">
                     <Checkbox
                       id={`category-${node.category.id}`}
                       checked={selectedCategories.includes(node.category.id)}
                       onCheckedChange={(checked) =>
                         onChange(node.category.id, !!checked)
                       }
-                      className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all duration-200"
                     />
                     <label
                       htmlFor={`category-${node.category.id}`}
@@ -142,7 +145,7 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
           return (
             <div
               key={node.category.id}
-              className="flex items-center justify-between group py-2"
+              className="flex items-center justify-between group py-2 transition-all duration-200 hover:bg-accent/30 rounded px-2"
             >
               <div
                 className="flex items-center gap-2 flex-1"
@@ -154,7 +157,7 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                   onCheckedChange={(checked) =>
                     onChange(node.category.id, !!checked)
                   }
-                  className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
+                  className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary transition-all duration-200"
                 />
                 <label
                   htmlFor={`category-${node.category.id}`}
@@ -169,7 +172,10 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
               </div>
               {node.category.product_count != null &&
                 node.category.product_count > 0 && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs transition-all duration-200"
+                  >
                     {node.category.product_count}
                   </Badge>
                 )}
@@ -250,10 +256,10 @@ export default function FilterSidebar({
   }, [router]);
 
   const hasFilters =
-    searchQuery || selectedCategories.length || selectedBrands.length;
+    !!searchQuery || selectedCategories.length > 0 || selectedBrands.length > 0;
 
   return (
-    <div className="bg-background p-6 space-y-6 w-80 h-full">
+    <div className="bg-background p-6 space-y-6 w-80 h-full custom-scrollbar">
       {/* Search */}
       <div className="space-y-2">
         <h3 className="text-lg flex items-center gap-2 font-semibold text-foreground">
@@ -266,11 +272,11 @@ export default function FilterSidebar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="w-full border-input focus:border-primary"
+            className="w-full border-input focus:border-primary transition-all duration-200"
           />
           <Button
             onClick={handleSearch}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 hover:scale-105"
           >
             <Search size={16} />
           </Button>
@@ -302,15 +308,15 @@ export default function FilterSidebar({
         </h3>
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="brands" className="border-none">
-            <AccordionTrigger className="py-2 hover:no-underline">
+            <AccordionTrigger className="py-2 hover:no-underline transition-all duration-200">
               Выбрать бренды
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-3">
-                {brands.slice(0, 10).map((brand) => (
+              <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                {brands.slice(0, 10).map((brand, index) => (
                   <div
                     key={brand.id}
-                    className="flex items-center justify-between group"
+                    className="flex items-center justify-between group transition-all duration-200 hover:bg-accent/50 rounded px-2 py-1"
                   >
                     <div className="flex items-center gap-2">
                       <Checkbox
@@ -319,7 +325,7 @@ export default function FilterSidebar({
                         onCheckedChange={(checked) =>
                           handleFilterChange("brand", brand.id, !!checked)
                         }
-                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary"
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary group-hover:border-primary transition-all duration-200"
                       />
                       <label
                         htmlFor={`brand-${brand.id}`}
@@ -333,7 +339,10 @@ export default function FilterSidebar({
                       </label>
                     </div>
                     {brand.product_count != null && brand.product_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs transition-all duration-200"
+                      >
                         {brand.product_count}
                       </Badge>
                     )}
@@ -342,7 +351,7 @@ export default function FilterSidebar({
                 {brands.length > 10 && (
                   <Button
                     variant="link"
-                    className="text-primary hover:text-primary/80 text-sm p-0"
+                    className="text-primary hover:text-primary/80 text-sm p-0 transition-all duration-200"
                     onClick={() => router.push("/brands")}
                   >
                     Показать все бренды
@@ -359,7 +368,7 @@ export default function FilterSidebar({
         <Button
           variant="outline"
           onClick={clearFilters}
-          className="w-full border-border hover:bg-muted"
+          className="w-full border-border hover:bg-muted transition-all duration-200 hover:scale-105"
         >
           Сбросить фильтры
         </Button>

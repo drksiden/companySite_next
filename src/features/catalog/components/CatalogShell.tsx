@@ -1,4 +1,5 @@
 import FilterSidebar from "./FilterSidebar";
+import ResponsiveFilterPanel from "./ResponsiveFilterPanel";
 import CatalogProducts from "./CatalogProducts";
 import {
   CatalogProduct,
@@ -145,14 +146,14 @@ export default async function CatalogShell({
       </div>
       {/* Top-Level Category Selection */}
       <section className="mb-12">
-        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {topLevelCategories.map((category) => (
             <Card
               key={category.id}
               className="group relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
             >
               <Link href={`/catalog?category=${category.id}`}>
-                <div className="relative w-full aspect-[4/3] xs:h-24 sm:h-32">
+                <div className="relative w-full aspect-[4/3] sm:h-32">
                   <Image
                     src={category.image || "/images/placeholder-category.jpg"}
                     alt={category.name}
@@ -163,7 +164,7 @@ export default async function CatalogShell({
                   />
                   <div className="absolute inset-0 bg-[var(--overlay-bg)] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
                 </div>
-                <div className="p-2 xs:p-2 sm:p-3">
+                <div className="p-2 sm:p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-medium text-black dark:text-white group-hover:text-[var(--title-hover-text)] transition-colors duration-200 line-clamp-2">
                       {category.name}
@@ -183,13 +184,24 @@ export default async function CatalogShell({
 
       <Separator className="my-6 bg-[var(--card-border)]" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 lg:gap-8">
-        {/* Sidebar */}
-        <FilterSidebar
+      {/* Mobile Filter Button */}
+      <div className="lg:hidden mb-4">
+        <ResponsiveFilterPanel
           searchParams={searchParams}
           categories={categories}
           brands={brands}
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 lg:gap-8">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
+          <FilterSidebar
+            searchParams={searchParams}
+            categories={categories}
+            brands={brands}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="min-w-0">
