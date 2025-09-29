@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +31,11 @@ export function ProductImageGallery({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mainApi, setMainApi] = useState<any>(null);
   const [thumbsApi, setThumbsApi] = useState<any>(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
+  const imageRef = useRef<HTMLDivElement>(null);
 
   // Фильтруем валидные изображения
   const validImages = images.filter((img) => img && img.trim() !== "");
@@ -52,6 +57,107 @@ export function ProductImageGallery({
       mainApi.off("select", onSelect);
     };
   }, [mainApi, thumbsApi]);
+
+  // Сброс зума при смене изображения
+  React.useEffect(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }, [selectedImage, isFullscreen]);
+
+  // Функции для зума и панорамирования
+  const handleZoomIn = () => {
+    setScale((prev) => Math.min(prev * 1.5, 4));
+  };
+
+  const handleZoomOut = () => {
+    setScale((prev) => {
+      const newScale = prev / 1.5;
+      if (newScale <= 1) {
+        setPosition({ x: 0, y: 0 });
+        return 1;
+      }
+      return newScale;
+    });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    setIsDragging(true);
+    setLastPanPoint({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || scale <= 1) return;
+
+    const deltaX = e.clientX - lastPanPoint.x;
+    const deltaY = e.clientY - lastPanPoint.y;
+
+    setPosition((prev) => ({
+      x: prev.x + deltaX,
+      y: prev.y + deltaY,
+    }));
+
+    setLastPanPoint({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (scale <= 1) return;
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setLastPanPoint({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || scale <= 1) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - lastPanPoint.x;
+    const deltaY = touch.clientY - lastPanPoint.y;
+
+    setPosition((prev) => ({
+      x: prev.x + deltaX,
+      y: prev.y + deltaY,
+    }));
+
+    setLastPanPoint({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = () => {
+    if (scale === 1) {
+      setScale(2);
+    } else {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const zoomFactor = 1.2;
+
+    if (delta > 0 && scale < 4) {
+      setScale((prev) => Math.min(prev * zoomFactor, 4));
+    } else if (delta < 0) {
+      setScale((prev) => {
+        const newScale = prev / zoomFactor;
+        if (newScale <= 1) {
+          setPosition({ x: 0, y: 0 });
+          return 1;
+        }
+        return newScale;
+      });
+    }
+  };
 
   if (validImages.length === 0) {
     return (
@@ -109,21 +215,11 @@ export function ProductImageGallery({
 
           {validImages.length > 1 && (
             <>
-              <CarouselPrevious className="left-2 sm:left-2 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:-translate-x-12" />
-              <CarouselNext className="right-2 sm:right-2 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:translate-x-12" />
+              <CarouselPrevious className="left-2 sm:left-0 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:-translate-x-12" />
+              <CarouselNext className="right-2 sm:right-0 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:translate-x-12" />
             </>
           )}
         </Carousel>
-
-        {/* Кнопка увеличения */}
-        <Button
-          variant="secondary"
-          size="sm"
-          className="absolute top-2 right-2 sm:top-4 sm:right-4 h-8 w-8 sm:h-10 sm:w-10 p-0 opacity-80 hover:opacity-100 backdrop-blur-sm"
-          onClick={() => setIsFullscreen(true)}
-        >
-          <ZoomIn className="h-4 w-4 sm:h-5 sm:w-5" />
-        </Button>
 
         {/* Индикатор количества изображений */}
         {validImages.length > 1 && (
@@ -176,42 +272,103 @@ export function ProductImageGallery({
 
       {/* Полноэкранное модальное окно */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-screen w-screen max-h-screen h-screen p-0 m-0 [&>button]:hidden bg-black border-0 rounded-none overflow-hidden">
+        <DialogContent
+          className="
+            max-w-screen w-screen max-h-screen h-dvh p-0 m-0
+            [&>button]:hidden
+            border-0
+            rounded-none
+            overflow-hidden
+            bg-black/5 backdrop-blur-xl 
+          "
+        >
           <VisuallyHidden>
             <DialogTitle>Просмотр изображения {productName}</DialogTitle>
           </VisuallyHidden>
 
-          <div className="relative w-full h-full flex items-center justify-center bg-black touch-pan-y">
+          <div className="relative w-full h-full flex items-center justify-center">
             {/* Основное изображение */}
-            <div className="relative max-w-[85vw] sm:max-w-[85vw] max-h-[75vh] sm:max-h-[85vh] w-full h-full flex items-center justify-center px-1 sm:px-0">
-              <Image
-                src={validImages[selectedImage]}
-                alt={`${productName} - полный размер ${selectedImage + 1}`}
-                width={1200}
-                height={1200}
-                className="max-w-full max-h-full object-contain transition-opacity duration-300"
-                sizes="(max-width: 640px) 95vw, 90vw"
-                unoptimized={validImages[selectedImage]?.includes("r2.dev")}
-              />
+            <div
+              ref={imageRef}
+              className="relative w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onDoubleClick={handleDoubleClick}
+              onWheel={handleWheel}
+              style={{
+                touchAction: scale > 1 ? "none" : "auto",
+              }}
+            >
+              <div
+                className="transition-transform duration-200 ease-out"
+                style={{
+                  transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                  transformOrigin: "center center",
+                }}
+              >
+                <Image
+                  src={validImages[selectedImage]}
+                  alt={`${productName} - полный размер ${selectedImage + 1}`}
+                  width={1200}
+                  height={1200}
+                  className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain select-none"
+                  sizes="100vw"
+                  unoptimized={validImages[selectedImage]?.includes("r2.dev")}
+                  draggable={false}
+                />
+              </div>
             </div>
 
-            {/* Кнопка закрытия */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 sm:top-4 sm:right-4 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white z-20 border border-white/20 touch-manipulation"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <X className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Button>
+            {/* Панель управления вверху */}
+            <div className="absolute top-0 left-0 right-0 h-12 sm:h-16 bg-gradient-to-b from-black/80 to-transparent z-30 flex items-center justify-between px-4 safe-area-inset-top">
+              <div className="flex items-center gap-2">
+                {/* Кнопки зума */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-black/5 hover:bg-white/30 backdrop-blur-sm text-white border border-white/30"
+                  onClick={handleZoomOut}
+                  disabled={scale <= 1}
+                >
+                  <span className="text-lg font-bold">-</span>
+                </Button>
+                <span className="text-white text-sm font-medium min-w-[3rem] text-center">
+                  {Math.round(scale * 100)}%
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-black/5 hover:bg-white/30 backdrop-blur-sm text-white border border-white/30"
+                  onClick={handleZoomIn}
+                  disabled={scale >= 4}
+                >
+                  <span className="text-lg font-bold">+</span>
+                </Button>
+              </div>
+
+              {/* Кнопка закрытия */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-black/5 hover:bg-white/30 backdrop-blur-sm text-white border border-white/30"
+                onClick={() => setIsFullscreen(false)}
+              >
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+            </div>
 
             {/* Навигационные кнопки */}
-            {validImages.length > 1 && (
+            {validImages.length > 1 && scale === 1 && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-4 sm:left-4 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white z-20 border border-white/20 touch-manipulation"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/5 hover:bg-white/30 backdrop-blur-sm text-white z-20 border border-white/30"
                   onClick={() => {
                     const prevIndex =
                       selectedImage === 0
@@ -225,7 +382,7 @@ export function ProductImageGallery({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-4 sm:right-4 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white z-20 border border-white/20 touch-manipulation"
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/5 hover:bg-white/30 backdrop-blur-sm text-white z-20 border border-white/30"
                   onClick={() => {
                     const nextIndex =
                       selectedImage === validImages.length - 1
@@ -239,21 +396,37 @@ export function ProductImageGallery({
               </>
             )}
 
-            {/* Индикатор в полноэкранном режиме */}
-            {validImages.length > 1 && (
-              <div className="absolute bottom-6 sm:bottom-8 left-1/2 transform -translate-x-1/2 bg-white/10 backdrop-blur-sm text-white px-3 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm z-10 border border-white/20">
-                {selectedImage + 1} / {validImages.length}
-              </div>
-            )}
+            {/* Нижняя панель с индикатором и подсказками */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent z-30 safe-area-inset-bottom">
+              <div className="flex flex-col items-center justify-center py-3 sm:py-4 px-4">
+                {/* Индикатор количества изображений */}
+                {validImages.length > 1 && (
+                  <div className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm border border-white/30 mb-2">
+                    {selectedImage + 1} / {validImages.length}
+                  </div>
+                )}
 
-            {/* Миниатюры в полноэкранном режиме - скрыть на мобильных */}
-            {validImages.length > 1 && (
-              <div className="absolute bottom-18 sm:bottom-20 left-1/2 transform -translate-x-1/2 hidden sm:flex gap-2 z-10 bg-white/5 backdrop-blur-sm rounded-full p-2 sm:p-3 border border-white/10 max-w-[85vw] overflow-x-auto">
+                {/* Подсказки по управлению */}
+                {/* <div className="text-white/70 text-xs text-center">
+                  <div className="sm:hidden">
+                    Двойное нажатие - зум
+                  </div>
+                  <div className="hidden sm:block">
+                    Двойной клик - зум • Колесо мыши - зум • Перетаскивание при
+                    увеличении
+                  </div>
+                </div> */}
+              </div>
+            </div>
+
+            {/* Миниатюры в полноэкранном режиме - только для десктопа */}
+            {validImages.length > 1 && scale === 1 && (
+              <div className="absolute bottom-20 sm:bottom-24 left-1/2 transform -translate-x-1/2 hidden sm:flex gap-2 z-20 bg-black/40 backdrop-blur-sm rounded-full p-3 border border-white/20 max-w-[85vw] overflow-x-auto">
                 {validImages.map((image, index) => (
                   <button
                     key={index}
                     className={cn(
-                      "relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg border-2 overflow-hidden transition-all hover:scale-105 flex-shrink-0 touch-manipulation",
+                      "relative w-12 h-12 rounded-lg border-2 overflow-hidden transition-all hover:scale-105 flex-shrink-0",
                       index === selectedImage
                         ? "border-white shadow-lg shadow-white/25"
                         : "border-white/30 hover:border-white/60 opacity-70 hover:opacity-100",
@@ -265,7 +438,7 @@ export function ProductImageGallery({
                       alt={`${productName} миниатюра ${index + 1}`}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 640px) 40px, 48px"
+                      sizes="48px"
                       unoptimized={image.includes("r2.dev")}
                     />
                   </button>

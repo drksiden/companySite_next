@@ -9,6 +9,7 @@ import { ShoppingCart, Heart, Share2, ArrowLeft } from "lucide-react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { formatPrice } from "@/lib/utils";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
+import { toast } from "sonner";
 
 interface ProductDetailShellProps {
   product: CatalogProduct;
@@ -44,19 +45,52 @@ export default function ProductDetailShell({
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
+    const shareData = {
+      title: product.name,
+      text: product.short_description || `Посмотрите на ${product.name}`,
+      url: window.location.href,
+    };
+
+    // Проверяем поддержку Web Share API
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare(shareData)
+    ) {
       try {
-        await navigator.share({
-          title: product.name,
-          text: product.short_description,
-          url: window.location.href,
-        });
+        await navigator.share(shareData);
+        // Не показываем toast для успешного sharing через нативный интерфейс
       } catch (error) {
-        console.log("Error sharing:", error);
+        // Если пользователь отменил sharing, не показываем ошибку
+        if ((error as Error).name !== "AbortError") {
+          toast.error("Не удалось поделиться контентом");
+        }
       }
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      // TODO: Show success toast
+      // Fallback: копируем ссылку в буфер обмена
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Ссылка скопирована в буфер обмена!");
+      } catch (error) {
+        // Fallback для старых браузеров
+        const textArea = document.createElement("textarea");
+        textArea.value = window.location.href;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+          document.execCommand("copy");
+          toast.success("Ссылка скопирована в буфер обмена!");
+        } catch (err) {
+          toast.error("Не удалось скопировать ссылку");
+        }
+
+        document.body.removeChild(textArea);
+      }
     }
   };
 
@@ -143,7 +177,7 @@ export default function ProductDetailShell({
           </div>
 
           {/* Stock Status */}
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <div
               className={`w-3 h-3 rounded-full ${isInStock ? "bg-green-500" : "bg-red-500"}`}
             />
@@ -154,7 +188,7 @@ export default function ProductDetailShell({
                 ? `В наличии (${product.inventory_quantity} шт.)`
                 : "Нет в наличии"}
             </span>
-          </div>
+          </div> */}
 
           {/* Short Description */}
           {product.short_description && (
@@ -165,43 +199,6 @@ export default function ProductDetailShell({
                 </p>
               </CardContent>
             </Card>
-          )}
-
-          {/* Quantity & Add to Cart */}
-          {isInStock && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="font-medium">Количество:</label>
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1}
-                  >
-                    -
-                  </Button>
-                  <span className="px-4 py-2 font-medium">{quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setQuantity(
-                        Math.min(product.inventory_quantity, quantity + 1),
-                      )
-                    }
-                    disabled={quantity >= product.inventory_quantity}
-                  >
-                    +
-                  </Button>
-                </div>
-              </div>
-
-              <Button size="lg" className="w-full" onClick={handleAddToCart}>
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                Добавить в корзину
-              </Button>
-            </div>
           )}
         </div>
       </div>

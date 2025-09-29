@@ -12,7 +12,7 @@ import {
   flexemSlides,
   antSlides,
   ProductSlide,
-} from "@/data/productSlides"
+} from "@/data/productSlides";
 
 interface ProductSectionProps {
   sectionType: "teko" | "flexem" | "ant";
@@ -139,6 +139,8 @@ const Carousel = ({ slides }: { slides: ProductSlide[] }) => {
 };
 
 export function ProductSection({ sectionType }: ProductSectionProps) {
+  const [logoVisible, setLogoVisible] = useState(true);
+
   let slides,
     brandName,
     brandLogoUrl,
@@ -189,8 +191,6 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
     default:
       return null;
   }
-
-  const [logoVisible, setLogoVisible] = useState(true);
 
   const renderBrandLogo = () => {
     if (!brandLogoUrl || !logoVisible) return null;

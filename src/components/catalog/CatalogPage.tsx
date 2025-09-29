@@ -376,7 +376,7 @@ export function CatalogPage() {
           <div className="flex flex-wrap gap-2">
             {filters.search && (
               <Badge variant="secondary" className="flex items-center gap-1">
-                Поиск: "{filters.search}"
+                Поиск: &ldquo;{filters.search}&rdquo;
                 <X
                   className="h-3 w-3 cursor-pointer"
                   onClick={() => handleFilterChange({ search: "" })}
@@ -547,7 +547,7 @@ export function CatalogPage() {
                     />
                   </div>
                 </div>
-                
+
                 {/* Дополнительные фильтры */}
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">

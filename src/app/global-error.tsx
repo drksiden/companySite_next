@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -127,12 +128,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                         asChild
                         size="lg"
                         className="min-w-[160px] border-primary/20 hover:bg-primary/5"
-                        onClick={() => window.location.href = "/"}
                       >
-                        <a href="/">
+                        <Link href="/">
                           <Home className="h-4 w-4 mr-2" />
                           Перезагрузить сайт
-                        </a>
+                        </Link>
                       </Button>
                     </motion.div>
                   </CardContent>

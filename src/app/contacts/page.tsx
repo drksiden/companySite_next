@@ -122,7 +122,7 @@ const ContactPage = () => {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-              className="w-full h-full rounded-lg overflow-hidden shadow-lg border-border"
+              className="w-full h-80 md:h-full rounded-lg overflow-hidden shadow-lg border-border"
             >
               {apiKey ? (
                 <YMaps query={{ apikey: apiKey, lang: 'ru_RU' }}>
@@ -141,8 +141,8 @@ const ContactPage = () => {
             </motion.div>
           </div>
 
-          {/* Контактная форма, расположенная под двумя колонками */}
-          <div className="mt-10 lg:mt-16">
+          {/* Контактная форма, расположенная под двумя колонками !!! на потом */}
+          {/* <div className="mt-10 lg:mt-16">
             <Card className="shadow-lg border-border max-w-xl mx-auto">
               <CardHeader>
                 <CardTitle className="text-2xl text-foreground">
@@ -169,7 +169,7 @@ const ContactPage = () => {
                 </form>
               </CardContent>
             </Card>
-          </div>
+          </div> */}
         </div>
       </section>
     </>

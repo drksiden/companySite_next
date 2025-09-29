@@ -419,7 +419,7 @@ export default function ResponsiveFilterPanel({
   }, []);
 
   const hasFilters =
-    searchQuery || selectedCategories.length || selectedBrands.length;
+    !!searchQuery || selectedCategories.length > 0 || selectedBrands.length > 0;
 
   const activeFiltersCount =
     selectedCategories.length + selectedBrands.length + (searchQuery ? 1 : 0);

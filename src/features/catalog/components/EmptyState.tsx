@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchX, Package, RefreshCw } from "lucide-react";
@@ -35,12 +36,12 @@ export default function EmptyState({
               Сбросить фильтры
             </Button>
             <Button asChild>
-              <a href="/">На главную</a>
+              <Link href="/">На главную</Link>
             </Button>
           </div>
         ) : (
           <Button asChild>
-            <a href="/">На главную</a>
+            <Link href="/">На главную</Link>
           </Button>
         )}
       </CardContent>
