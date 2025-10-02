@@ -48,12 +48,10 @@ import { ScrollArea } from "./ui/scroll-area";
 import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
-  {
-    href: "/catalog",
-    label: "Каталог",
-  },
+  { href: "/catalog", label: "Каталог" },
   { href: "/services", label: "Услуги" },
   { href: "/about", label: "О нас" },
+  { href: "/news", label: "Новости" },
   { href: "/contacts", label: "Контакты" },
 ];
 

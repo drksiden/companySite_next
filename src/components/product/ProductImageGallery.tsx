@@ -179,10 +179,11 @@ export function ProductImageGallery({
 
   return (
     <div
-      className={cn("space-y-3 md:space-y-4 w-full overflow-hidden", className)}
+      // Убрано "sm:max-w-md mx-auto" для максимальной ширины
+      className={cn("space-y-3 md:space-y-4 w-full overflow-hidden", className)} 
     >
       {/* Основная карусель */}
-      <div className="relative w-full max-w-full px-2 sm:px-0 sm:max-w-md mx-auto">
+      <div className="relative w-full px-2 sm:px-0 mx-auto"> 
         <Carousel
           opts={{
             align: "center",
@@ -199,8 +200,11 @@ export function ProductImageGallery({
                     src={image}
                     alt={`${productName} - изображение ${index + 1}`}
                     fill
-                    className="object-contain sm:object-cover transition-transform duration-300 hover:scale-105 cursor-zoom-in"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 600px"
+                    // Оставлено sm:object-cover для страницы товара, если нужно. 
+                    // Для новости можно оставить object-contain.
+                    className="object-contain  transition-transform duration-300 hover:scale-105 cursor-zoom-in" 
+                    // Sizes обновлены для учета полной ширины на больших экранах
+                    sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 100vw"
                     priority={index === 0}
                     onClick={() => {
                       setSelectedImage(index);
@@ -215,8 +219,9 @@ export function ProductImageGallery({
 
           {validImages.length > 1 && (
             <>
-              <CarouselPrevious className="left-2 sm:left-0 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:-translate-x-12" />
-              <CarouselNext className="right-2 sm:right-0 h-8 w-8 sm:h-10 sm:w-10 -translate-x-0 sm:translate-x-12" />
+              {/* Навигация смещена ближе к краям контейнера */}
+              <CarouselPrevious className="left-2 sm:left-4 h-8 w-8 sm:h-10 sm:w-10 translate-x-0" />
+              <CarouselNext className="right-2 sm:right-4 h-8 w-8 sm:h-10 sm:w-10 translate-x-0" />
             </>
           )}
         </Carousel>
@@ -237,7 +242,8 @@ export function ProductImageGallery({
             containScroll: "keepSnaps",
             dragFree: true,
           }}
-          className="w-full max-w-full px-2 sm:max-w-md mx-auto sm:px-0"
+          // Убрано "sm:max-w-md" для максимальной ширины
+          className="w-full px-2 mx-auto sm:px-0" 
           setApi={setThumbsApi}
         >
           <CarouselContent className="-ml-1 px-1">
@@ -270,7 +276,7 @@ export function ProductImageGallery({
         </Carousel>
       )}
 
-      {/* Полноэкранное модальное окно */}
+      {/* Полноэкранное модальное окно (без изменений, так как оно уже full screen) */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
         <DialogContent
           className="
@@ -405,17 +411,6 @@ export function ProductImageGallery({
                     {selectedImage + 1} / {validImages.length}
                   </div>
                 )}
-
-                {/* Подсказки по управлению */}
-                {/* <div className="text-white/70 text-xs text-center">
-                  <div className="sm:hidden">
-                    Двойное нажатие - зум
-                  </div>
-                  <div className="hidden sm:block">
-                    Двойной клик - зум • Колесо мыши - зум • Перетаскивание при
-                    увеличении
-                  </div>
-                </div> */}
               </div>
             </div>
 
