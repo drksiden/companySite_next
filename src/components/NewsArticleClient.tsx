@@ -13,20 +13,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { SectionWrapper } from "@/components/SectionWrapper";
 import Link from "next/link";
-import Image from "next/image";
 import { useRef } from "react";
-import Autoplay from "embla-carousel-autoplay";
 import { ProductImageGallery } from "./product/ProductImageGallery";
 import { toast } from "sonner";
+import Autoplay from "embla-carousel-autoplay";
 
 // Интерфейс NewsItem, соответствующий Supabase
 interface NewsItem {
@@ -79,17 +71,17 @@ const itemVariants = {
 const getCategoryColor = (category: string) => {
   switch (category) {
     case "Продукция":
-      return "bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+      return "bg-blue-500/20 text-blue-300 border-blue-800";
     case "Сертификация":
-      return "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-800";
     case "Компания":
-      return "bg-purple-500/10 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border-purple-200 dark:border-purple-800";
+      return "bg-purple-500/20 text-purple-300 border-purple-800";
     case "События":
-      return "bg-orange-500/10 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-orange-200 dark:border-orange-800";
+      return "bg-orange-500/20 text-orange-300 border-orange-800";
     case "Партнерство":
-      return "bg-pink-500/10 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300 border-pink-200 dark:border-pink-800";
+      return "bg-pink-500/20 text-pink-300 border-pink-800";
     default:
-      return "bg-gray-500/10 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300 border-gray-200 dark:border-gray-800";
+      return "bg-gray-500/20 text-gray-300 border-gray-800";
   }
 };
 
@@ -103,8 +95,10 @@ const formatDate = (dateString: string) => {
   });
 };
 
-
-export default function NewsArticleClient({ article, relatedNews }: NewsArticleClientProps) {
+export default function NewsArticleClient({
+  article,
+  relatedNews,
+}: NewsArticleClientProps) {
   const autoplayPlugin = useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true })
   );
@@ -116,9 +110,11 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
       url: window.location.href,
     };
 
-    if (navigator.share &&
+    if (
+      navigator.share &&
       navigator.canShare &&
-      navigator.canShare(shareData)) {
+      navigator.canShare(shareData)
+    ) {
       try {
         await navigator.share(shareData);
       } catch (err) {
@@ -127,12 +123,10 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
         }
       }
     } else {
-      // Fallback: копируем ссылку в буфер обмена
       try {
         await navigator.clipboard.writeText(window.location.href);
         toast.success("Ссылка скопирована в буфер обмена!");
       } catch (error) {
-        // Fallback для старых браузеров
         const textArea = document.createElement("textarea");
         textArea.value = window.location.href;
         textArea.style.position = "fixed";
@@ -164,7 +158,7 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
           <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -175,7 +169,7 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
                 asChild
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/10 backdrop-blur-sm border border-white/20"
+                className="text-white hover:bg-white/10 backdrop-blur-sm border border-white/30 bg-white/5"
               >
                 <Link href="/news">
                   <ArrowLeft className="h-4 w-4 mr-2" />
@@ -188,7 +182,9 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
               variants={itemVariants}
               className="flex flex-wrap items-center gap-4 mb-6"
             >
-              <Badge className={`${getCategoryColor(article.category)} border backdrop-blur-sm`}>
+              <Badge
+                className={`${getCategoryColor(article.category)} border backdrop-blur-sm font-medium`}
+              >
                 {article.category}
               </Badge>
               <div className="flex items-center gap-4 text-sm text-blue-100">
@@ -207,7 +203,7 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
 
             <motion.h1
               variants={itemVariants}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight"
+              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent"
             >
               {article.title}
             </motion.h1>
@@ -231,7 +227,7 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
                       <Badge
                         key={index}
                         variant="outline"
-                        className="text-white border-white/30 bg-white/5 backdrop-blur-sm"
+                        className="text-white border-white/30 bg-white/5 backdrop-blur-sm font-medium"
                       >
                         {tag}
                       </Badge>
@@ -243,7 +239,7 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
                 onClick={handleShare}
                 variant="outline"
                 size="sm"
-                className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm"
+                className="text-white border-white/30 dark:border-white/30 bg-white/5 dark:bg-white/5 hover:bg-white/10 hover:text-white backdrop-blur-sm font-medium"
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Поделиться
@@ -255,35 +251,19 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
 
       {/* Article Images Carousel */}
       {article.images && article.images.length > 0 && (
-  <section className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12">
-    {/* Внешний контейнер для центрирования и адаптивности */}
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-      
-      {/* Контейнер для ProductImageGallery:
-          1. w-full: Полная ширина.
-          2. max-h-[75vh]: Ограничиваем максимальную высоту 75% высоты экрана (vh).
-          3. aspect-video: Устанавливаем соотношение сторон 16:9 для горизонтального вида.
-      */}
-      <div className="w-full  mx-auto">
-        <ProductImageGallery
-          images={article.images}
-          productName={article.title}
-          // Класс 'h-full' заставит галерею занять всю высоту родителя
-          className="h-full" 
-        />
-      </div>
-
-      {/* Убираем старый индикатор количества, так как он есть в галерее */}
-      {/*
-      {article.images.length > 1 && (
-        <p className="text-center mt-4 text-sm text-gray-600 dark:text-gray-400">
-          Изображение {1} из {article.images.length}
-        </p>
+        <section className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="w-full">
+              <ProductImageGallery
+                images={article.images}
+                productName={article.title}
+                className="h-full"
+              />
+            </div>
+          </div>
+        </section>
       )}
-      */}
-    </div>
-  </section>
-)}
+
       {/* Article Content */}
       <SectionWrapper>
         <motion.div
@@ -291,15 +271,15 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={containerVariants}
-          className="py-16"
+          className="py-16 px-4 sm:px-6 lg:px-8"
         >
           <div className="max-w-4xl mx-auto">
             <motion.div variants={itemVariants}>
               <Card className="border border-gray-200/50 dark:border-gray-800/50 shadow-lg">
                 <CardContent className="p-8 md:p-12 lg:p-16">
                   <div
-                    className="prose prose-lg dark:prose-invert max-w-none 
-                    prose-headings:text-gray-900 dark:prose-headings:text-white 
+                    className="prose prose-lg dark:prose-invert max-w-none
+                    prose-headings:text-gray-900 dark:prose-headings:text-white
                     prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6
                     prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-4
                     prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-6
@@ -325,7 +305,9 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
                   <Link key={news.id} href={`/news/${news.id}`}>
                     <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200/50 dark:border-gray-800/50">
                       <CardContent className="p-6">
-                        <Badge className={`${getCategoryColor(news.category)} border mb-4`}>
+                        <Badge
+                          className={`${getCategoryColor(news.category)} border mb-4 font-medium`}
+                        >
                           {news.category}
                         </Badge>
                         <h4 className="font-semibold text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
@@ -344,7 +326,11 @@ export default function NewsArticleClient({ article, relatedNews }: NewsArticleC
 
             {/* Navigation */}
             <motion.div variants={itemVariants} className="mt-16 text-center">
-              <Button asChild size="lg" className="shadow-md hover:shadow-xl transition-all duration-300">
+              <Button
+                asChild
+                size="lg"
+                className="shadow-md hover:shadow-xl transition-all duration-300"
+              >
                 <Link href="/news">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Вернуться к списку новостей

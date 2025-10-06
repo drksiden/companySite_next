@@ -24,11 +24,19 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { SectionWrapper } from "@/components/SectionWrapper";
-import Link from "next/link";
-import Image from "next/image";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+import { useRef } from "react";
+import Image from "next/image"; // Explicitly import from next/image
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -59,7 +67,11 @@ const products = [
     fullName: "Шкаф управления вентиляторами",
     description:
       "Автоматизированные шкафы для управления системами дымоудаления и подачи воздуха",
-    image: "/images/products/shuv-cabinet.jpg",
+    images: [
+      "/images/products/shuv-cabinet.jpg",
+      "/images/products/shuv-cabinet-2.jpg",
+      "/images/products/shuv-cabinet-3.jpg",
+    ],
     features: [
       "Автоматическое управление вентиляторами",
       "Контроль температурного режима",
@@ -81,7 +93,11 @@ const products = [
     fullName: "Шкаф управления задвижками",
     description:
       "Системы автоматического управления противопожарными и дымовыми клапанами",
-    image: "/images/products/shuz-cabinet.jpg",
+    images: [
+      "/images/products/shuz-cabinet.jpg",
+      "/images/products/shuz-cabinet-2.jpg",
+      "/images/products/shuz-cabinet-3.jpg",
+    ],
     features: [
       "Управление электроприводами клапанов",
       "Контроль положения задвижек",
@@ -143,11 +159,17 @@ const advantages = [
 ];
 
 export default function FireCabinetsPage() {
+  const autoplayPlugin = useRef(Autoplay({ delay: 4000, stopOnInteraction: true }));
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-red-900 via-red-800 to-orange-800 text-white py-24">
-        <div className="absolute inset-0 bg-black/20" />
+      <section className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -157,7 +179,7 @@ export default function FireCabinetsPage() {
           >
             <motion.div
               variants={itemVariants}
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6"
+              className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-500/50 dark:border-blue-800 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6"
             >
               <Shield className="h-4 w-4" />
               Пожарная безопасность
@@ -165,16 +187,16 @@ export default function FireCabinetsPage() {
 
             <motion.h1
               variants={itemVariants}
-              className="text-5xl md:text-6xl font-bold mb-6"
+              className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent"
             >
               Шкафы управления
               <br />
-              <span className="text-orange-300">ШУВ и ШУЗ</span>
+              <span className="text-blue-300">ШУВ и ШУЗ</span>
             </motion.h1>
 
             <motion.p
               variants={itemVariants}
-              className="text-xl md:text-2xl text-red-100 max-w-4xl mx-auto mb-8 leading-relaxed"
+              className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto mb-8 leading-relaxed"
             >
               Профессиональные системы автоматического управления вентиляторами
               и противопожарными клапанами для обеспечения безопасности зданий
@@ -186,7 +208,7 @@ export default function FireCabinetsPage() {
             >
               <Button
                 size="lg"
-                className="bg-white text-red-800 hover:bg-red-50"
+                className="bg-white text-blue-700 dark:text-blue-800 hover:bg-blue-50 font-medium"
               >
                 <Download className="mr-2 h-5 w-5" />
                 Скачать каталог
@@ -194,7 +216,7 @@ export default function FireCabinetsPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white hover:text-red-800"
+                className="text-blue-700 dark:text-white border-blue-500/50 dark:border-white/30 bg-blue-500/10 dark:bg-white/5 hover:bg-blue-500/20 dark:hover:bg-white/10 backdrop-blur-sm font-medium"
               >
                 Получить консультацию
               </Button>
@@ -210,7 +232,7 @@ export default function FireCabinetsPage() {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={containerVariants}
-          className="py-16"
+          className="py-16 px-4 sm:px-6 lg:px-8"
         >
           <div className="text-center mb-16">
             <motion.h2
@@ -236,16 +258,38 @@ export default function FireCabinetsPage() {
                 custom={index}
               >
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 h-full">
-                  <div className="relative h-64">
-                    <Image
-                      src={product.image}
-                      alt={product.fullName}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-4 left-4">
-                      <Badge className="bg-red-600 text-white text-lg px-3 py-1 font-bold">
+                  <div className="relative">
+                    <Carousel
+                      plugins={[autoplayPlugin.current]}
+                      className="w-full"
+                      onMouseEnter={() => autoplayPlugin.current.stop()}
+                      onMouseLeave={() => autoplayPlugin.current.play()}
+                    >
+                      <CarouselContent>
+                        {product.images.map((image, idx) => (
+                          <CarouselItem key={idx}>
+                            <div className="relative h-64 w-full">
+                              <Image
+                                src={image}
+                                alt={`${product.fullName} - изображение ${idx + 1}`}
+                                fill
+                                className="object-contain p-6 group-hover:scale-105 transition-transform duration-700 ease-out"
+                                sizes="(max-width: 1024px) 100vw, 50vw"
+                                priority={idx === 0}
+                              />
+                            </div>
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      {product.images.length > 1 && (
+                        <>
+                          <CarouselPrevious className="left-4 z-20 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-500/50 dark:border-blue-800 backdrop-blur-sm hover:bg-blue-500/20 dark:hover:bg-blue-500/30" />
+                          <CarouselNext className="right-4 z-20 bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-500/50 dark:border-blue-800 backdrop-blur-sm hover:bg-blue-500/20 dark:hover:bg-blue-500/30" />
+                        </>
+                      )}
+                    </Carousel>
+                    <div className="absolute bottom-4 left-4 z-30">
+                      <Badge className="bg-blue-600 text-white text-lg px-3 py-1 font-medium">
                         {product.name}
                       </Badge>
                     </div>
@@ -345,8 +389,8 @@ export default function FireCabinetsPage() {
                   >
                     <Card className="text-center h-full border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
                       <CardHeader>
-                        <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
-                          <IconComponent className="h-8 w-8 text-red-600 dark:text-red-400" />
+                        <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                          <IconComponent className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                         </div>
                         <CardTitle className="text-xl">
                           {advantage.title}
@@ -373,7 +417,7 @@ export default function FireCabinetsPage() {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={containerVariants}
-          className="py-16"
+          className="py-16 px-4 sm:px-6 lg:px-8"
         >
           <div className="text-center mb-16">
             <motion.h2
@@ -562,10 +606,10 @@ export default function FireCabinetsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {certifications.map((cert, index) => (
                 <motion.div key={index} variants={itemVariants} custom={index}>
-                  <Card className="text-center h-full">
+                  <Card className="text-center h-full border-0 shadow-md hover:shadow-lg transition-shadow duration-300">
                     <CardHeader>
-                      <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                        <Star className="h-8 w-8 text-green-600 dark:text-green-400" />
+                      <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                        <Star className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                       </div>
                       <CardTitle className="text-xl">{cert.name}</CardTitle>
                     </CardHeader>
@@ -583,7 +627,7 @@ export default function FireCabinetsPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-red-600 to-orange-600 text-white">
+      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
@@ -593,13 +637,13 @@ export default function FireCabinetsPage() {
           >
             <motion.h2
               variants={itemVariants}
-              className="text-4xl font-bold mb-6"
+              className="text-4xl font-bold mb-6 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent"
             >
               Нужна консультация по выбору оборудования?
             </motion.h2>
             <motion.p
               variants={itemVariants}
-              className="text-xl mb-8 text-red-100"
+              className="text-xl mb-8 text-blue-100"
             >
               Наши специалисты помогут подобрать оптимальное решение для вашего
               объекта
@@ -610,14 +654,14 @@ export default function FireCabinetsPage() {
             >
               <Button
                 size="lg"
-                className="bg-white text-red-600 hover:bg-red-50"
+                className="bg-white text-blue-700 dark:text-blue-800 hover:bg-blue-50 font-medium"
               >
                 Связаться с нами
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white hover:text-red-600"
+                className="text-blue-700 dark:text-white border-blue-500/50 dark:border-white/30 bg-blue-500/10 dark:bg-white/5 hover:bg-blue-500/20 dark:hover:bg-white/10 backdrop-blur-sm font-medium"
               >
                 <Download className="mr-2 h-5 w-5" />
                 Скачать техдокументацию

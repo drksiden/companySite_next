@@ -102,7 +102,7 @@ const getCategoryColor = (category: string) => {
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   // Добавьте проверку на валидность даты, т.к. Supabase может вернуть просто строку
-  if (isNaN(date.getTime())) return dateString; 
+  if (isNaN(date.getTime())) return dateString;
   return date.toLocaleDateString("ru-RU", {
     year: "numeric",
     month: "long",
@@ -110,25 +110,30 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export function NewsPageClient({ initialNews, categories }: NewsPageClientProps) {
+export function NewsPageClient({
+  initialNews,
+  categories,
+}: NewsPageClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Все");
   const autoplayPlugin = useRef(
-    Autoplay({ delay: 4000, stopOnInteraction: true })
+    Autoplay({ delay: 4000, stopOnInteraction: true }),
   );
+
+  const searchLower = searchTerm.toLowerCase().trim();
 
   const filteredNews = initialNews.filter((item) => {
     // Безопасная проверка на null для tags
     const tagsText = item.tags ? item.tags.join(" ").toLowerCase() : "";
-    
+
     const matchesSearch =
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tagsText.includes(searchTerm.toLowerCase()); // Добавлено: поиск по тегам
+      item.title.toLowerCase().includes(searchLower) ||
+      item.description.toLowerCase().includes(searchLower) ||
+      tagsText.includes(searchLower); // Добавлено: поиск по тегам
 
     const matchesCategory =
       selectedCategory === "Все" || item.category === selectedCategory;
-      
+
     return matchesSearch && matchesCategory;
   });
 
@@ -146,7 +151,7 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
           <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl" />
         </div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -156,18 +161,11 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
           >
             <motion.div
               variants={itemVariants}
-              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/20 text-sm font-semibold mb-6"
+              className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-10 py-5 rounded-full border border-white/20 text-m font-semibold mb-6"
             >
-              <Newspaper className="h-4 w-4" />
+              <Newspaper className="h-5 w-5" />
               Новости и события
             </motion.div>
-
-            <motion.h1
-              variants={itemVariants}
-              className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent"
-            >
-              Новости компании
-            </motion.h1>
 
             <motion.p
               variants={itemVariants}
@@ -183,10 +181,9 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
       <SectionWrapper>
         <motion.div
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          animate="visible"
           variants={containerVariants}
-          className="py-16"
+          className="py-16 px-4 sm:px-6 lg:px-8"
         >
           {/* Filters */}
           <motion.div
@@ -211,7 +208,6 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {/* Использование категорий, переданных через пропсы */}
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
@@ -223,7 +219,11 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
 
           {/* Featured News */}
           {featuredNews && (
-            <motion.div variants={itemVariants} className="mb-16">
+            <motion.div 
+              key={`featured-${featuredNews.id}`}
+              variants={itemVariants} 
+              className="mb-16"
+            >
               <Card className="group relative overflow-hidden border border-gray-200/50 dark:border-gray-800/50 shadow-lg hover:shadow-2xl transition-all duration-500 bg-white dark:bg-gray-900">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                   {/* Image Carousel */}
@@ -322,12 +322,15 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
 
           {/* News Grid */}
           {regularNews.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
-              {regularNews.map((news, index) => (
+            <motion.div 
+              key={`${selectedCategory}-${searchTerm}`}
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8"
+              variants={containerVariants}
+            >
+              {regularNews.map((news) => (
                 <motion.div
                   key={news.id}
                   variants={itemVariants}
-                  custom={index}
                 >
                   <Card className="group h-full overflow-hidden border border-gray-200/50 dark:border-gray-800/50 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white dark:bg-gray-900">
                     {/* Gradient overlay on hover */}
@@ -395,7 +398,10 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
                         size="sm"
                         className="group/btn p-0 h-auto font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-transparent self-start"
                       >
-                        <Link href={`/news/${news.id}`} className="inline-flex items-center">
+                        <Link
+                          href={`/news/${news.id}`}
+                          className="inline-flex items-center"
+                        >
                           Подробнее
                           <ArrowRight className="ml-1 h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform duration-300" />
                         </Link>
@@ -404,8 +410,8 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
                   </Card>
                 </motion.div>
               ))}
-            </div>
-          ) : (
+            </motion.div>
+          ) : filteredNews.length === 0 ? (
             <motion.div variants={itemVariants} className="text-center py-20">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 mb-6">
                 <Newspaper className="h-10 w-10 text-gray-400" />
@@ -414,10 +420,11 @@ export function NewsPageClient({ initialNews, categories }: NewsPageClientProps)
                 Новости не найдены
               </h3>
               <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                Попробуйте изменить параметры поиска или выбрать другую категорию
+                Попробуйте изменить параметры поиска или выбрать другую
+                категорию
               </p>
             </motion.div>
-          )}
+          ) : null}
         </motion.div>
       </SectionWrapper>
     </div>

@@ -131,9 +131,9 @@ export default function ProductDetailShell({
                 <Button variant="ghost" size="sm" onClick={handleShare}>
                   <Share2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                {/* <Button variant="ghost" size="sm">
                   <Heart className="h-4 w-4" />
-                </Button>
+                </Button> */}
               </div>
             </div>
 
@@ -259,7 +259,7 @@ export default function ProductDetailShell({
                   <h3 className="font-semibold">{product.categories.name}</h3>
                 </div>
                 <Button variant="outline" asChild>
-                  <Link href={`/catalog?categories=${product.categories.id}`}>
+                  <Link href={`/catalog?category=${product.categories.id}`}>
                     Смотреть все товары
                   </Link>
                 </Button>

@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabaseServer";
-import NewsArticleClient from "@/components/NewsArticleClient"; // Импорт Client Component
+import NewsArticleClient from "@/components/NewsArticleClient";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -24,7 +24,7 @@ interface RelatedNewsItem {
 }
 
 interface NewsPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>; // Update to reflect that params is a Promise
 }
 
 const getBaseUrl = () => {
@@ -42,7 +42,9 @@ async function fetchNewsArticle(id: string): Promise<NewsItem | null> {
 
   const { data, error } = await supabase
     .from("news")
-    .select("id, title, description, content, date, category, images, tags, author")
+    .select(
+      "id, title, description, content, date, category, images, tags, author",
+    )
     .eq("id", id)
     .single();
 
@@ -51,13 +53,15 @@ async function fetchNewsArticle(id: string): Promise<NewsItem | null> {
     return null;
   }
 
-  return data as unknown as NewsItem;
+  return data as NewsItem;
 }
 
 // 2. Функция получения похожих статей
-async function fetchRelatedNews(currentArticle: NewsItem): Promise<RelatedNewsItem[]> {
+async function fetchRelatedNews(
+  currentArticle: NewsItem,
+): Promise<RelatedNewsItem[]> {
   const supabase = await createServerClient();
-  
+
   const { data, error } = await supabase
     .from("news")
     .select("id, title, date, category")
@@ -71,74 +75,68 @@ async function fetchRelatedNews(currentArticle: NewsItem): Promise<RelatedNewsIt
     return [];
   }
 
-  return (data as unknown as RelatedNewsItem[]) || [];
+  return (data as RelatedNewsItem[]) || [];
 }
 
 // 3. Генерация метаданных (SEO)
-export async function generateMetadata({ params }: NewsPageProps): Promise<Metadata> {
-    const id = params.id;
-    const article = await fetchNewsArticle(id);
+export async function generateMetadata({
+  params,
+}: NewsPageProps): Promise<Metadata> {
+  const { id } = await params; // Await params to resolve the Promise
+  const article = await fetchNewsArticle(id);
 
-    if (!article) {
-        return {
-            title: "Новость не найдена",
-        };
-    }
-    
-    // Формируем абсолютный URL для Open Graph изображения
-    const imageUrl = (article.images && article.images.length > 0)
-        ? `${BASE_URL}${article.images[0]}` // Предполагаем, что images[0] - это относительный путь: /images/...
-        : undefined;
-
+  if (!article) {
     return {
-        title: article.title,
-        description: article.description,
-        keywords: article.tags?.join(", ") || article.category,
-        
-        // Open Graph для социальных сетей
-        openGraph: {
-            title: article.title,
-            description: article.description,
-            url: `${BASE_URL}/news/${article.id}`, // Используем абсолютный URL для страницы
-            
-            // Добавляем изображение с абсолютным URL и рекомендованными размерами
-            images: imageUrl ? [{ 
-                url: imageUrl, 
-                width: 1200, 
-                height: 630, 
-                alt: article.title 
-            }] : [],
-            
-            type: 'article',
-            publishedTime: article.date,
-            authors: article.author ? [article.author] : undefined,
-        },
-        
-        // Twitter Card для лучшего отображения в Twitter/X
-        twitter: {
-            card: imageUrl ? 'summary_large_image' : 'summary',
-            title: article.title,
-            description: article.description,
-            images: imageUrl ? [imageUrl] : [],
-        }
+      title: "Новость не найдена",
     };
+  }
+
+  // Формируем абсолютный URL для Open Graph изображения
+  const imageUrl =
+    article.images && article.images.length > 0
+      ? `${BASE_URL}${article.images[0]}`
+      : undefined;
+
+  return {
+    title: article.title,
+    description: article.description,
+    keywords: article.tags?.join(", ") || article.category,
+    openGraph: {
+      title: article.title,
+      description: article.description,
+      url: `${BASE_URL}/news/${article.id}`,
+      images: imageUrl
+        ? [
+            {
+              url: imageUrl,
+              width: 1200,
+              height: 630,
+              alt: article.title,
+            },
+          ]
+        : [],
+      type: "article",
+      publishedTime: article.date,
+      authors: article.author ? [article.author] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: article.title,
+      description: article.description,
+      images: imageUrl ? [imageUrl] : [],
+    },
+  };
 }
 
 export default async function NewsArticlePage({ params }: NewsPageProps) {
-  const id = params.id;
-  
+  const { id } = await params; // Await params to resolve the Promise
   const article = await fetchNewsArticle(id);
 
   if (!article) {
     notFound();
   }
-  
+
   const relatedNews = await fetchRelatedNews(article);
 
-  return (
-    <NewsArticleClient
-      article={article}
-      relatedNews={relatedNews}
-    />
-  );
+  return <NewsArticleClient article={article} relatedNews={relatedNews} />;
 }
