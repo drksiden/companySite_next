@@ -7,6 +7,7 @@ export interface Category {
   parent_id?: string | null;
   image_url?: string;
   rank?: number | null;
+  is_active: boolean;
 }
 
 export interface Brand {
@@ -16,6 +17,7 @@ export interface Brand {
   handle?: string | null;
   logo_url?: string | null;
   description?: string | null;
+  is_active: boolean;
 }
 
 export interface Product {
@@ -37,6 +39,7 @@ export interface Product {
   stock_quantity?: number | null;
   allow_backorder?: boolean | null;
   metadata?: Record<string, any> | null;
+  is_active: boolean;
 }
 
 // Вспомогательные типы для работы с продуктами

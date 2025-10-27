@@ -338,6 +338,7 @@ export async function listCategories(): Promise<CategoryItem[]> {
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, description, parent_id, level, path, image_url")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -357,6 +358,7 @@ export async function listBrands(): Promise<BrandItem[]> {
   const { data, error } = await supabase
     .from("brands")
     .select("id, name, slug, description, logo_url, website")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -376,6 +378,7 @@ export async function listCollections(): Promise<CollectionItem[]> {
   const { data, error } = await supabase
     .from("collections")
     .select("id, name, slug, description, image_url")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -409,6 +412,7 @@ export async function getProduct(
       inventory_quantity,
       track_inventory,
       is_featured,
+      is_active,
       status,
       created_at,
       view_count,
@@ -497,9 +501,9 @@ export async function getCategory(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
   ) {
-    query = query.eq("id", idOrSlug);
+    query = query.eq("id", idOrSlug).eq("is_active", true);
   } else {
-    query = query.eq("slug", idOrSlug);
+    query = query.eq("slug", idOrSlug).eq("is_active", true);
   }
 
   const { data, error } = await query.single();
@@ -526,9 +530,9 @@ export async function getBrand(idOrSlug: string): Promise<BrandItem | null> {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
   ) {
-    query = query.eq("id", idOrSlug);
+    query = query.eq("id", idOrSlug).eq("is_active", true);
   } else {
-    query = query.eq("slug", idOrSlug);
+    query = query.eq("slug", idOrSlug).eq("is_active", true);
   }
 
   const { data, error } = await query.single();

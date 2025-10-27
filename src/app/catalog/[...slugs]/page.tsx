@@ -53,6 +53,7 @@ async function getCategoryData(handle: string): Promise<CategoryPageData> {
       .from("categories")
       .select("*")
       .eq("slug", handle)
+      .eq("is_active", true)
       .maybeSingle(); // Use maybeSingle to handle null without error
 
     if (categoryError) {
@@ -76,6 +77,7 @@ async function getCategoryData(handle: string): Promise<CategoryPageData> {
         .from("categories")
         .select("*")
         .eq("parent_id", currentCategory.id)
+        .eq("is_active", true)
         .order("rank", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -96,6 +98,7 @@ async function getCategoryData(handle: string): Promise<CategoryPageData> {
       `,
         )
         .eq("category_id", currentCategory.id)
+        .eq("is_active", true)
         // TODO: Add ordering for products if needed, e.g., by name or a rank field
         .order("name", { ascending: true });
 
@@ -131,6 +134,7 @@ async function getBreadcrumbData(slugs: string[]): Promise<BreadcrumbInfo[]> {
         .from("categories")
         .select("name, handle")
         .eq("handle", slug)
+        .eq("is_active", true)
         .single();
 
       if (error || !category) {

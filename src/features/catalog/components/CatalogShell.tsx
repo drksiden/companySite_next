@@ -18,6 +18,19 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+import {
+  Shield,
+  Flame,
+  Camera,
+  Network,
+  Phone,
+  BatteryFull,
+  Radio,
+  KeyRound,
+  Cable,
+  Plug,
+} from "lucide-react";
+
 interface CatalogShellProps {
   searchParams?: {
     query?: string;
@@ -31,52 +44,62 @@ const staticCategories = [
   {
     name: "Охранная сигнализация",
     slug: "security-alarms",
-    image: "/images/teko/teko-main-visual.png",
+    Icon: Shield,
+    color: "bg-blue-100 text-blue-600",
   },
   {
     name: "Пожарная сигнализация",
     slug: "fire-alarms",
-    image: "/images/teko/teko-astra-prime.png",
+    Icon: Flame,
+    color: "bg-red-100 text-red-600",
   },
   {
     name: "Видеонаблюдение",
     slug: "surveillance",
-    image: "/images/mainCategory/videoHik.jpg",
+    Icon: Camera,
+    color: "bg-indigo-100 text-indigo-600",
   },
   {
     name: "Сетевое оборудование СКС",
     slug: "network-equipment",
-    image: "/images/mainCategory/netEquip.png",
+    Icon: Network,
+    color: "bg-green-100 text-green-600",
   },
   {
-    name: "Домофония и устройства связи",
+    name: "Домофония и связь",
     slug: "intercoms",
-    image: "/images/mainCategory/domophoniya.png",
+    Icon: Phone,
+    color: "bg-amber-100 text-amber-600",
   },
   {
     name: "Источники питания",
     slug: "power-supplies",
-    image: "/images/mainCategory/ibp.webp",
+    Icon: BatteryFull,
+    color: "bg-purple-100 text-purple-600",
   },
   {
-    name: "Системы оповещения и музыкальной трансляции",
+    name: "Оповещение и трансляция",
     slug: "notification-systems",
-    image: "/images/mainCategory/notificSystems.jpg",
+    Icon: Radio,
+    color: "bg-pink-100 text-pink-600",
   },
   {
     name: "СКУД",
     slug: "access-control",
-    image: "/images/mainCategory/skud.jpg",
+    Icon: KeyRound,
+    color: "bg-gray-100 text-gray-600",
   },
   {
     name: "Кабеленесущие системы",
     slug: "cable-management",
-    image: "/images/mainCategory/cableManagement.jpg",
+    Icon: Cable,
+    color: "bg-cyan-100 text-cyan-600",
   },
   {
     name: "Кабельная продукция",
     slug: "cables",
-    image: "/images/mainCategory/cables.png",
+    Icon: Plug,
+    color: "bg-fuchsia-100 text-fuchsia-600",
   },
 ];
 
@@ -145,42 +168,33 @@ export default async function CatalogShell({
         </h1>
       </div>
       {/* Top-Level Category Selection */}
-      <section className="mb-12">
+      <section className="mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {topLevelCategories.map((category) => (
             <Card
               key={category.id}
-              className="group relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+              className="group relative p-2 sm:p-3 flex flex-col items-center justify-center gap-3 border hover:border-primary hover:shadow transition-all duration-200 cursor-pointer min-h-[120px]"
             >
-              <Link href={`/catalog?category=${category.id}`}>
-                <div className="relative w-full aspect-[4/3] sm:h-32">
-                  <Image
-                    src={category.image || "/images/placeholder-category.jpg"}
-                    alt={category.name}
-                    fill
-                    className="object-cover transition-all duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1200px) 25vw, 20vw"
-                    quality={75}
-                  />
-                  <div className="absolute inset-0 bg-[var(--overlay-bg)] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
+              <Link href={`/catalog?category=${category.id}`} className="flex flex-col items-center w-full h-full">
+                <div
+                  className={`rounded-full flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 text-2xl sm:text-3xl shadow ${category.color} group-hover:bg-opacity-50 group-hover:scale-105 transition-transform`}
+                >
+                  {category.Icon && <category.Icon className="w-7 h-7" />}
                 </div>
-                <div className="p-2 sm:p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-medium text-black dark:text-white group-hover:text-[var(--title-hover-text)] transition-colors duration-200 line-clamp-2">
-                      {category.name}
-                    </span>
-                    {category.product_count > 0 && (
-                      <Badge className="bg-[var(--primary-bg)] text-[var(--primary-text)] text-xs">
-                        {category.product_count}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+                <span className="mt-2 text-xs sm:text-sm text-center font-medium text-black dark:text-white group-hover:text-primary transition-colors duration-150 line-clamp-2">
+                  {category.name}
+                </span>
+                {category.product_count > 0 && (
+                  <Badge className="mt-1 bg-primary/10 text-primary text-[10px] px-2 py-0 font-medium">
+                    {category.product_count}
+                  </Badge>
+                )}
               </Link>
             </Card>
           ))}
         </div>
       </section>
+
 
       <Separator className="my-6 bg-[var(--card-border)]" />
 

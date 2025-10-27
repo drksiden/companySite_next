@@ -27,6 +27,7 @@ export const productService = {
       .from('products')
       .select('*')
       .eq('id', id)
+      .eq('is_active', true)
       .single();
 
     if (error) {
@@ -41,6 +42,7 @@ export const productService = {
       .from('product_variants')
       .select('*')
       .eq('id', id)
+      .eq('is_active', true)
       .single();
 
     if (error) {
