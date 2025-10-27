@@ -31,6 +31,7 @@ interface NewsItem {
   images: string[] | null;
   tags: string[] | null;
   author: string | null;
+  is_active: boolean;
 }
 
 interface RelatedNewsItem {
@@ -38,6 +39,7 @@ interface RelatedNewsItem {
   title: string;
   category: string;
   date: string;
+  is_active: boolean;
 }
 
 interface NewsArticleClientProps {
@@ -171,9 +173,9 @@ export default function NewsArticleClient({
                 size="sm"
                 className="text-white hover:bg-white/10 backdrop-blur-sm border border-white/30 bg-white/5"
               >
-                <Link href="/news">
+                <Link href="..">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Назад к новостям
+                  Назад
                 </Link>
               </Button>
             </motion.div>
@@ -293,39 +295,42 @@ export default function NewsArticleClient({
               </Card>
             </motion.div>
 
-            <Separator className="my-16" />
+            {relatedNews && relatedNews.length > 0 && (
+              <>
+                <Separator className="my-16" />
 
-            {/* Related News */}
-            <motion.div variants={itemVariants}>
-              <h3 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
-                Похожие новости
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {relatedNews.map((news) => (
-                  <Link key={news.id} href={`/news/${news.id}`}>
-                    <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200/50 dark:border-gray-800/50">
-                      <CardContent className="p-6">
-                        <Badge
-                          className={`${getCategoryColor(news.category)} border mb-4 font-medium`}
-                        >
-                          {news.category}
-                        </Badge>
-                        <h4 className="font-semibold text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
-                          {news.title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatDate(news.date)}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </motion.div>
-
+                <motion.div variants={itemVariants}>
+                  <h3 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+                    Похожие новости
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {relatedNews.map((news) => (
+                      <Link key={news.id} href={`/news/${news.id}`}>
+                        <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200/50 dark:border-gray-800/50">
+                          <CardContent className="p-6">
+                            <Badge
+                              className={`${getCategoryColor(news.category)} border mb-4 font-medium`}
+                            >
+                              {news.category}
+                            </Badge>
+                            <h4 className="font-semibold text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
+                              {news.title}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                              <Calendar className="h-3 w-3" />
+                              <span>{formatDate(news.date)}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                </motion.div>
+              </>
+            )}
+            
             {/* Navigation */}
-            <motion.div variants={itemVariants} className="mt-16 text-center">
+            {/* <motion.div variants={itemVariants} className="mt-16 text-center">
               <Button
                 asChild
                 size="lg"
@@ -336,7 +341,7 @@ export default function NewsArticleClient({
                   Вернуться к списку новостей
                 </Link>
               </Button>
-            </motion.div>
+            </motion.div> */}
           </div>
         </motion.div>
       </SectionWrapper>

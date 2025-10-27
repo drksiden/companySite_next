@@ -11,6 +11,7 @@ interface NewsItem {
   category: string;
   images: string[] | null;
   tags: string[] | null;
+  is_active: boolean;
 }
 
 async function fetchAllNews(): Promise<NewsItem[]> {
@@ -18,7 +19,8 @@ async function fetchAllNews(): Promise<NewsItem[]> {
 
   const { data, error } = await supabase
     .from("news")
-    .select("id, title, description, date, category, images, tags")
+    .select("id, title, description, date, category, images, tags, is_active")
+    .eq("is_active", true)
     .order("date", { ascending: false });
 
   if (error) {
