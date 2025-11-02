@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const category = searchParams.get("category");
     const brand = searchParams.get("brand");
+    const featured = searchParams.get("featured");
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
     const search = searchParams.get("search");
@@ -25,12 +26,16 @@ export async function GET(request: NextRequest) {
       query = query.eq("status", status);
     }
 
-    if (category) {
+    if (category && category !== "all") {
       query = query.eq("category_id", category);
     }
 
-    if (brand) {
+    if (brand && brand !== "all") {
       query = query.eq("brand_id", brand);
+    }
+
+    if (featured && featured !== "all") {
+      query = query.eq("is_featured", featured === "true");
     }
 
     if (search) {
@@ -60,11 +65,14 @@ export async function GET(request: NextRequest) {
     if (status && status !== "all") {
       countQuery = countQuery.eq("status", status);
     }
-    if (category) {
+    if (category && category !== "all") {
       countQuery = countQuery.eq("category_id", category);
     }
-    if (brand) {
+    if (brand && brand !== "all") {
       countQuery = countQuery.eq("brand_id", brand);
+    }
+    if (featured && featured !== "all") {
+      countQuery = countQuery.eq("is_featured", featured === "true");
     }
     if (search) {
       countQuery = countQuery.or(
@@ -73,15 +81,13 @@ export async function GET(request: NextRequest) {
     }
 
     const { count } = await countQuery;
+    const total = count || 0;
+    const hasMore = total > offset + limit;
 
     return NextResponse.json({
       products: products || [],
-      pagination: {
-        limit,
-        offset,
-        total: count || 0,
-        hasMore: (count || 0) > offset + limit,
-      },
+      total,
+      hasMore,
     });
   } catch (error) {
     console.error("Error in products GET API:", error);
@@ -129,8 +135,10 @@ export async function POST(req: NextRequest) {
 
     // --- Обработка документов ---
     const documentFiles = formData.getAll("documentFiles") as File[];
-    const newDocuments = [];
-
+    const documentsStructureStr = formData.get("documentsStructure") as string;
+    
+    // Загружаем файлы документов
+    const uploadedFileUrls: string[] = [];
     for (const file of documentFiles) {
       if (file.size > 0) {
         try {
@@ -146,7 +154,7 @@ export async function POST(req: NextRequest) {
           }
 
           const url = await uploadFileToR2(file, "documents/products");
-          newDocuments.push({ url, name: file.name, type: file.type });
+          uploadedFileUrls.push(url);
           console.log(`Successfully uploaded document: ${file.name} -> ${url}`);
         } catch (error) {
           const errorMessage = `Failed to upload document ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -154,6 +162,58 @@ export async function POST(req: NextRequest) {
           uploadErrors.push(errorMessage);
         }
       }
+    }
+
+    // Обрабатываем структуру документов с группами
+    let finalDocuments = [];
+    if (documentsStructureStr) {
+      try {
+        const documentsStructure = JSON.parse(documentsStructureStr);
+        let fileIndex = 0;
+
+        // Преобразуем структуру: проходим по группам и документам, добавляем URL для новых файлов
+        finalDocuments = documentsStructure.map((group: any) => ({
+          title: group.title,
+          documents: group.documents.map((doc: any) => {
+            if (doc.url) {
+              // Существующий документ
+              return {
+                title: doc.title,
+                url: doc.url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              };
+            } else if (fileIndex < uploadedFileUrls.length) {
+              // Новый документ - берем URL из загруженных файлов
+              const url = uploadedFileUrls[fileIndex++];
+              return {
+                title: doc.title,
+                url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              };
+            }
+            return null;
+          }).filter(Boolean), // Убираем null
+        }));
+      } catch (error) {
+        console.error("Error parsing documents structure:", error);
+        // Fallback к старому формату, если парсинг не удался
+        finalDocuments = uploadedFileUrls.map((url, index) => ({
+          name: documentFiles[index]?.name || `Document ${index + 1}`,
+          url,
+          type: documentFiles[index]?.type,
+        }));
+      }
+    } else {
+      // Старый формат - простая обработка без групп
+      finalDocuments = uploadedFileUrls.map((url, index) => ({
+        name: documentFiles[index]?.name || `Document ${index + 1}`,
+        url,
+        type: documentFiles[index]?.type,
+      }));
     }
 
     // Если есть ошибки загрузки, логируем их но продолжаем создание товара
@@ -179,6 +239,7 @@ export async function POST(req: NextRequest) {
           "documentFiles",
           "existingImages",
           "existingDocuments",
+          "documentsStructure",
         ].includes(key)
       )
         continue;
@@ -237,7 +298,7 @@ export async function POST(req: NextRequest) {
 
     // Добавляем обновленные массивы
     insertData.images = newImageUrls;
-    insertData.documents = newDocuments;
+    insertData.documents = finalDocuments;
 
     // Устанавливаем валюту по умолчанию, если не указана
     if (!insertData.currency_id && defaultCurrency) {
@@ -303,7 +364,7 @@ export async function POST(req: NextRequest) {
       ...data,
       uploadInfo: {
         imagesUploaded: newImageUrls.length,
-        documentsUploaded: newDocuments.length,
+        documentsUploaded: uploadedFileUrls.length,
         errors: uploadErrors.length > 0 ? uploadErrors : undefined,
       },
     };
@@ -367,11 +428,10 @@ export async function PUT(req: NextRequest) {
 
     // --- Обработка документов ---
     const documentFiles = formData.getAll("documentFiles") as File[];
-    const existingDocuments = JSON.parse(
-      (formData.get("existingDocuments") as string) || "[]",
-    );
-    const newDocuments = [];
-
+    const documentsStructureStr = formData.get("documentsStructure") as string;
+    
+    // Загружаем файлы документов
+    const uploadedFileUrls: string[] = [];
     for (const file of documentFiles) {
       if (file.size > 0) {
         try {
@@ -389,7 +449,7 @@ export async function PUT(req: NextRequest) {
           }
 
           const url = await uploadFileToR2(file, "documents/products");
-          newDocuments.push({ url, name: file.name, type: file.type });
+          uploadedFileUrls.push(url);
           console.log(`Successfully uploaded document: ${file.name} -> ${url}`);
         } catch (error) {
           const errorMessage = `Failed to upload document ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -397,6 +457,70 @@ export async function PUT(req: NextRequest) {
           updateUploadErrors.push(errorMessage);
         }
       }
+    }
+
+    // Обрабатываем структуру документов с группами
+    let finalDocuments = [];
+    if (documentsStructureStr) {
+      try {
+        const documentsStructure = JSON.parse(documentsStructureStr);
+        let fileIndex = 0;
+
+        // Преобразуем структуру: проходим по группам и документам, добавляем URL для новых файлов
+        finalDocuments = documentsStructure.map((group: any) => ({
+          title: group.title,
+          documents: group.documents.map((doc: any) => {
+            if (doc.url) {
+              // Существующий документ
+              return {
+                title: doc.title,
+                url: doc.url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              };
+            } else if (fileIndex < uploadedFileUrls.length) {
+              // Новый документ - берем URL из загруженных файлов
+              const url = uploadedFileUrls[fileIndex++];
+              return {
+                title: doc.title,
+                url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              };
+            }
+            return null;
+          }).filter(Boolean), // Убираем null
+        }));
+      } catch (error) {
+        console.error("Error parsing documents structure:", error);
+        // Fallback к старому формату
+        const existingDocuments = JSON.parse(
+          (formData.get("existingDocuments") as string) || "[]",
+        );
+        finalDocuments = [
+          ...existingDocuments,
+          ...uploadedFileUrls.map((url, index) => ({
+            name: documentFiles[index]?.name || `Document ${index + 1}`,
+            url,
+            type: documentFiles[index]?.type,
+          })),
+        ];
+      }
+    } else {
+      // Старый формат
+      const existingDocuments = JSON.parse(
+        (formData.get("existingDocuments") as string) || "[]",
+      );
+      finalDocuments = [
+        ...existingDocuments,
+        ...uploadedFileUrls.map((url, index) => ({
+          name: documentFiles[index]?.name || `Document ${index + 1}`,
+          url,
+          type: documentFiles[index]?.type,
+        })),
+      ];
     }
 
     // Если есть ошибки загрузки, логируем их но продолжаем обновление товара
@@ -423,6 +547,7 @@ export async function PUT(req: NextRequest) {
           "documentFiles",
           "existingImages",
           "existingDocuments",
+          "documentsStructure",
         ].includes(key)
       )
         continue;
@@ -482,8 +607,8 @@ export async function PUT(req: NextRequest) {
     // Объединяем существующие и новые изображения
     updateData.images = [...existingImages, ...newImageUrls];
 
-    // Объединяем существующие и новые документы
-    updateData.documents = [...existingDocuments, ...newDocuments];
+    // Используем структурированные документы
+    updateData.documents = finalDocuments;
 
     // Валидация обязательных полей при обновлении
     if (
@@ -527,7 +652,7 @@ export async function PUT(req: NextRequest) {
       ...data,
       uploadInfo: {
         imagesUploaded: newImageUrls.length,
-        documentsUploaded: newDocuments.length,
+        documentsUploaded: uploadedFileUrls.length,
         errors: updateUploadErrors.length > 0 ? updateUploadErrors : undefined,
       },
     };

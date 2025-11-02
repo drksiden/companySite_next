@@ -1,7 +1,7 @@
 // src/app/api/admin/companies/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabaseServer";
-import { Company } from "@/lib/services/user"; // Assuming Company type is defined or imported
+import { Company } from "@/lib/services/admin/user"; // Assuming Company type is defined or imported
 
 // GET /api/admin/companies - List all companies
 export async function GET(req: NextRequest) {

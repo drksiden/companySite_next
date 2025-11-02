@@ -19,7 +19,7 @@ import { ProductCard } from "./ProductCard";
 import { ProductBadges, ProductStatusBadge } from "./ProductBadges";
 import { ProductPrice } from "./ProductPrice";
 import { Loading, ProductCardSkeleton } from "@/components/ui/loading";
-import { MarkdownContent } from "@/components/ui/markdown-content";
+import { HtmlContent } from "@/components/ui/html-content";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -28,7 +28,10 @@ import {
   Share2,
   ShoppingCart,
   Zap,
-} from "@/components/icons/SimpleIcons";
+  FileText,
+  Download,
+  ExternalLink,
+} from "lucide-react";
 import type { Product, SearchProductsResult } from "@/types/catalog";
 
 interface ProductDetailPageProps {
@@ -172,10 +175,9 @@ export function ProductDetailPage({
                 <Zap className="h-5 w-5 text-primary" />
                 Краткое описание
               </h3>
-              <MarkdownContent
-                content={product.short_description}
-                variant="compact"
-              />
+              <div className="text-muted-foreground leading-relaxed">
+                {product.short_description}
+              </div>
             </div>
           )}
 
@@ -232,7 +234,7 @@ export function ProductDetailPage({
       {/* Product Details Tabs */}
       <Card className="mb-6 sm:mb-8 shadow-sm mx-2 sm:mx-0">
         <Tabs defaultValue="description" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-10 sm:h-12 p-1 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 p-1 bg-muted/50">
             <TabsTrigger
               value="description"
               className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
@@ -245,15 +247,21 @@ export function ProductDetailPage({
             >
               Характеристики
             </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              Документы
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent
             value="description"
-            className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+            className="p-4 sm:p-6 space-y-6 sm:space-y-8"
           >
             {product.description ? (
-              <div className="prose prose-neutral dark:prose-invert max-w-none">
-                <MarkdownContent
+              <div>
+                <HtmlContent
                   content={product.description}
                   variant="product"
                 />
@@ -273,14 +281,12 @@ export function ProductDetailPage({
               <div className="mt-8 pt-8 border-t">
                 <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
                   <Zap className="h-5 w-5 text-primary" />
-                  Техническое описание
+                  Дополнительная информация
                 </h3>
-                <div className="prose prose-neutral dark:prose-invert max-w-none">
-                  <MarkdownContent
-                    content={product.technical_description}
-                    variant="product"
-                  />
-                </div>
+                <HtmlContent
+                  content={product.technical_description}
+                  variant="product"
+                />
               </div>
             )}
           </TabsContent>
@@ -289,8 +295,78 @@ export function ProductDetailPage({
             value="specifications"
             className="p-4 sm:p-6 space-y-4 sm:space-y-6"
           >
-            {product.specifications &&
-            Object.keys(product.specifications).length > 0 ? (
+            {/* Новый формат specifications (массив) */}
+            {Array.isArray(product.specifications) && product.specifications.length > 0 ? (
+              <div className="space-y-6">
+                <div className="rounded-lg border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-1/2 font-semibold">
+                          Параметр
+                        </TableHead>
+                        <TableHead className="w-1/2 font-semibold">Значение</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {product.specifications.map((spec: any, index: number) => {
+                        if (spec.type === "separator") {
+                          return (
+                            <TableRow key={spec.id || index} className="border-t-2 border-border">
+                              <TableCell colSpan={2} className="p-4">
+                                <div className="flex-1 border-t"></div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        if (spec.type === "header") {
+                          return (
+                            <TableRow
+                              key={spec.id || index}
+                              className="bg-muted/30 border-t-2 border-primary/20"
+                            >
+                              <TableCell
+                                colSpan={2}
+                                className="font-bold text-base text-foreground py-4 px-4"
+                              >
+                                {spec.key || "Заголовок"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        if (spec.type === "row" && spec.key && spec.value) {
+                          return (
+                            <TableRow
+                              key={spec.id || index}
+                              className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}
+                            >
+                              <TableCell className="font-medium text-foreground py-4 px-4">
+                                {spec.key}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground py-4 px-4">
+                                <HtmlContent
+                                  content={String(spec.value)}
+                                  variant="compact"
+                                  className="[&_*]:text-muted-foreground [&_strong]:text-foreground"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        return null;
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : product.specifications &&
+              typeof product.specifications === "object" &&
+              !Array.isArray(product.specifications) &&
+              Object.keys(product.specifications).length > 0 ? (
+              // Старый формат (объект)
               <div className="rounded-lg border overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -335,7 +411,7 @@ export function ProductDetailPage({
 
             {/* Physical characteristics */}
             {(product.weight || product.dimensions) && (
-              <div className="space-y-4">
+              <div className="space-y-4 mt-8 pt-8 border-t">
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <span className="text-xl">📐</span>
                   Физические характеристики
@@ -349,7 +425,7 @@ export function ProductDetailPage({
                             Вес
                           </TableCell>
                           <TableCell className="text-muted-foreground py-4">
-                            {product.weight} кг
+                            {product.weight} г
                           </TableCell>
                         </TableRow>
                       )}
@@ -361,7 +437,7 @@ export function ProductDetailPage({
                                 Длина
                               </TableCell>
                               <TableCell className="text-muted-foreground py-4">
-                                {product.dimensions.length} см
+                                {product.dimensions.length} мм
                               </TableCell>
                             </TableRow>
                           )}
@@ -371,7 +447,7 @@ export function ProductDetailPage({
                                 Ширина
                               </TableCell>
                               <TableCell className="text-muted-foreground py-4">
-                                {product.dimensions.width} см
+                                {product.dimensions.width} мм
                               </TableCell>
                             </TableRow>
                           )}
@@ -381,7 +457,7 @@ export function ProductDetailPage({
                                 Высота
                               </TableCell>
                               <TableCell className="text-muted-foreground py-4">
-                                {product.dimensions.height} см
+                                {product.dimensions.height} мм
                               </TableCell>
                             </TableRow>
                           )}
@@ -390,6 +466,163 @@ export function ProductDetailPage({
                     </TableBody>
                   </Table>
                 </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent
+            value="documents"
+            className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+          >
+            {product.documents && Array.isArray(product.documents) && product.documents.length > 0 ? (
+              <div className="space-y-6">
+                {product.documents.map((docGroup: any, groupIndex: number) => {
+                  // Проверяем, это новый формат с группами или старый
+                  const isGroupFormat = docGroup && typeof docGroup === 'object' && 'title' in docGroup && 'documents' in docGroup;
+                  
+                  if (isGroupFormat) {
+                    // Новый формат с группами
+                    const groupTitle = docGroup.title || "Документы";
+                    const groupDocs = Array.isArray(docGroup.documents) ? docGroup.documents : [];
+                    
+                    if (groupDocs.length === 0) return null;
+                    
+                    return (
+                      <Card key={groupIndex} className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg font-bold">
+                            {groupTitle}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {groupDocs.map((doc: any, docIndex: number) => (
+                              <div
+                                key={docIndex}
+                                className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                              >
+                                <FileText className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <a
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
+                                    >
+                                      {doc.title || doc.name || "Документ"}
+                                      <ExternalLink className="h-4 w-4 opacity-70" />
+                                    </a>
+                                  </div>
+                                  {doc.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      {doc.description}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                    {doc.type && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {doc.type.split("/")[1]?.toUpperCase() || "FILE"}
+                                      </Badge>
+                                    )}
+                                    {doc.size && (
+                                      <span>{(doc.size / 1024).toFixed(1)} KB</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  asChild
+                                  className="flex-shrink-0"
+                                >
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  } else {
+                    // Старый формат - простой массив документов
+                    return (
+                      <Card key={groupIndex} className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg font-bold">
+                            Документы
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div
+                              key={groupIndex}
+                              className="flex items-start gap-3 p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                            >
+                              <FileText className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <a
+                                    href={docGroup.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
+                                  >
+                                    {docGroup.name || docGroup.title || "Документ"}
+                                    <ExternalLink className="h-4 w-4 opacity-70" />
+                                  </a>
+                                </div>
+                                {docGroup.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {docGroup.description}
+                                  </p>
+                                )}
+                                {docGroup.type && (
+                                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                    <Badge variant="outline" className="text-xs">
+                                      {docGroup.type.split("/")[1]?.toUpperCase() || "FILE"}
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                className="flex-shrink-0"
+                              >
+                                <a
+                                  href={docGroup.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                >
+                                  <Download className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-lg">
+                  Документы не загружены
+                </p>
               </div>
             )}
           </TabsContent>

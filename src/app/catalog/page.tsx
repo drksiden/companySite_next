@@ -1,13 +1,5 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
-import { notFound } from "next/navigation";
 import CatalogShell from "@/features/catalog/components/CatalogShell";
-import LoadingSkeletons from "@/features/catalog/components/LoadingSkeletons";
-import {
-  listProducts,
-  listCategories,
-  listBrands,
-} from "@/lib/services/catalog";
 
 export const metadata: Metadata = {
   title: "Каталог товаров",

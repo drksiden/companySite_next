@@ -4,7 +4,7 @@ import React from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Collection } from "@/lib/services/collection";
+import { Collection } from "@/lib/services/admin/collection";
 import { Brand } from "@/types/catalog";
 import { Category } from "@/types/catalog";
 import { Button } from "@/components/ui/button";

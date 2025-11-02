@@ -35,6 +35,7 @@ import {
   DataTableSkeleton,
 } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Types
 interface User {
@@ -593,7 +594,8 @@ export default function UsersPage() {
   }
 
   return (
-    <motion.div
+    <ContentLayout title="Пользователи">
+      <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -673,5 +675,6 @@ export default function UsersPage() {
         </Card>
       </motion.div>
     </motion.div>
+    </ContentLayout>
   );
 }

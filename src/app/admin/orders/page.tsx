@@ -40,6 +40,7 @@ import {
   DataTableSkeleton,
 } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Status utilities
 const getStatusColor = (status: Order["status"]) => {
@@ -428,7 +429,8 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <ContentLayout title="Заказы">
+      <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -492,5 +494,6 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
     </div>
+    </ContentLayout>
   );
 }

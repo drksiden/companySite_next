@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProductGrid from "./ProductGrid";
 import EmptyState from "./EmptyState";
@@ -9,6 +9,8 @@ import SimpleLoadingIndicator from "./SimpleLoadingIndicator";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
+import { useProducts } from "@/lib/hooks/useCatalog";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CatalogProductsProps {
   initialProducts: CatalogProduct[];
@@ -27,90 +29,69 @@ export default function CatalogProducts({
 }: CatalogProductsProps) {
   const router = useRouter();
   const params = useSearchParams();
-  const [products, setProducts] = useState<CatalogProduct[]>(initialProducts);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Memoize current filter values to prevent unnecessary re-renders
   const currentFilters = useMemo(
     () => ({
-      query: params.get("query") || "",
-      category: params.get("category") || "",
-      brand: params.get("brand") || "",
+      query: params.get("query") || searchParams?.query || "",
+      category: params.get("category") || searchParams?.category || "",
+      brand: params.get("brand") || searchParams?.brand || "",
     }),
-    [params],
+    [params, searchParams],
   );
 
-  // Track if this is the first load
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  // Подготовка параметров для запроса
+  const queryParams = useMemo(() => {
+    const categories = currentFilters.category
+      ? currentFilters.category.split(",").filter(Boolean)
+      : [];
+    const brands = currentFilters.brand
+      ? currentFilters.brand.split(",").filter(Boolean)
+      : [];
 
-  // Fetch products function
-  const fetchProducts = useCallback(async (filters: typeof currentFilters) => {
-    setLoading(true);
-    setError(null);
+    return {
+      page: 1,
+      limit: 50,
+      sort: "name.asc",
+      search: currentFilters.query || undefined,
+      categories: categories.length > 0 ? categories : undefined,
+      brands: brands.length > 0 ? brands : undefined,
+    };
+  }, [currentFilters]);
 
-    try {
-      const queryParams = new URLSearchParams();
-      queryParams.set("type", "products");
-      queryParams.set("page", "1");
-      queryParams.set("limit", "50");
-      queryParams.set("sort", "name.asc");
+  // Используем React Query для загрузки товаров
+  const {
+    data: productsData,
+    isLoading,
+    error: queryError,
+    refetch,
+    isFetching,
+  } = useProducts(queryParams);
 
-      if (filters.query) queryParams.set("search", filters.query);
-      if (filters.category) queryParams.set("category", filters.category);
-      if (filters.brand) queryParams.set("brand", filters.brand);
-
-      const apiUrl = `/api/catalog?${queryParams.toString()}`;
-      const response = await fetch(apiUrl);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        setProducts(result.data || []);
-      } else {
-        throw new Error(result.error || "Failed to fetch products");
-      }
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
+  // Устанавливаем initialData в кэш при первой загрузке
+  React.useEffect(() => {
+    if (initialProducts.length > 0 && !productsData) {
+      queryClient.setQueryData(
+        ["catalog", "products", queryParams],
+        { data: initialProducts, meta: { total: initialProducts.length, page: 1, limit: 50, totalPages: 1, hasNext: false, hasPrev: false } }
+      );
     }
-  }, []);
+  }, [initialProducts.length, productsData, queryParams, queryClient]); // Только при монтировании или если нет данных
 
-  // Effect to fetch products when filters change
-  useEffect(() => {
-    if (isInitialLoad) {
-      setIsInitialLoad(false);
-      return;
-    }
-
-    // Check if we have any active filters
-    const hasActiveFilters =
-      currentFilters.query || currentFilters.category || currentFilters.brand;
-
-    if (hasActiveFilters) {
-      fetchProducts(currentFilters);
-    } else {
-      // No filters, show initial products
-      setProducts(initialProducts);
-    }
-  }, [currentFilters, fetchProducts, initialProducts, isInitialLoad]);
+  const products = productsData?.data || initialProducts;
+  const loading = isLoading || isFetching;
+  const error = queryError ? (queryError instanceof Error ? queryError.message : "Unknown error") : null;
 
   // Clear filters function
-  const clearFilters = useCallback(() => {
-    setProducts(initialProducts);
+  const clearFilters = () => {
     router.push("/catalog", { scroll: false });
-  }, [router, initialProducts]);
+  };
 
   // Retry function
-  const retryFetch = useCallback(() => {
-    fetchProducts(currentFilters);
-  }, [fetchProducts, currentFilters]);
+  const retryFetch = () => {
+    refetch();
+  };
 
   // Show loading state
   if (loading) {

@@ -6,6 +6,7 @@ import { CatalogProduct } from "@/lib/services/catalog";
 
 interface ProductCardProps {
   product: CatalogProduct;
+  priority?: boolean;
 }
 
 // Server-side function to determine image source consistently
@@ -32,7 +33,7 @@ const getFinalImageSrc = (product: CatalogProduct): string => {
   return "/images/placeholder-product.svg";
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, priority = false }: ProductCardProps) {
   const imageSrc = getFinalImageSrc(product);
 
   const finalPrice = product.sale_price || product.base_price;
@@ -65,9 +66,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               width={300}
               height={192}
               className="w-full h-full object-contain transition-all duration-300 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               quality={85}
-              priority={false}
+              priority={priority}
               unoptimized={imageSrc === "/images/placeholder-product.svg"}
             />
 

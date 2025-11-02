@@ -1,4 +1,4 @@
-import { Brand } from '@/lib/services/brand';
+import { Brand } from '@/lib/services/admin/brand';
 
 interface BrandListProps {
   brands: Brand[];

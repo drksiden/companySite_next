@@ -1,7 +1,7 @@
 // src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
-import { UserProfile, UserUpdatePayload, UserRole } from "@/lib/services/user"; // Убедитесь, что UserUpdatePayload и UserRole импортированы
+import { UserProfile, UserUpdatePayload, UserRole } from "@/lib/services/admin/user"; // Убедитесь, что UserUpdatePayload и UserRole импортированы
 
 // Вспомогательная функция для проверки авторизации
 async function authorizeAdmin(req: NextRequest) {

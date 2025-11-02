@@ -40,16 +40,21 @@ async function fetchCategories(newsData: NewsItem[]): Promise<string[]> {
 }
 
 export default async function NewsPage() {
-    
+    return (
+        <Suspense fallback={<NewsLoadingFallback />}>
+            <NewsPageContent />
+        </Suspense>
+    );
+}
+
+async function NewsPageContent() {
     const initialNews = await fetchAllNews();
     const categories = await fetchCategories(initialNews);
     
     return (
-        <Suspense fallback={<NewsLoadingFallback />}>
-            <NewsPageClient
-                initialNews={initialNews}
-                categories={categories}
-            />
-        </Suspense>
+        <NewsPageClient
+            initialNews={initialNews}
+            categories={categories}
+        />
     );
 }

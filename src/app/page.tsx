@@ -1,10 +1,16 @@
 import { HomeClient } from "./HomeClient";
-import { News } from "@/components/News"; 
+import { Suspense } from "react";
+import { News } from "@/components/News";
+import { NewsLoadingFallback } from "@/components/NewsLoadingFallback";
 
 export default function ServerHomePage() {
   return (
     <HomeClient
-      newsSlot={<News />}
+      newsSlot={
+        <Suspense fallback={<NewsLoadingFallback />}>
+          <News />
+        </Suspense>
+      }
     />
   );
 }

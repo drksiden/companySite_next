@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   Shield,
@@ -150,9 +151,7 @@ async function fetchData({
   };
 }
 
-export default async function CatalogShell({
-  searchParams,
-}: CatalogShellProps) {
+async function CatalogContent({ searchParams }: CatalogShellProps) {
   const { products, categories, brands, topLevelCategories } = await fetchData({
     query: searchParams?.query,
     category: searchParams?.category,
@@ -160,13 +159,7 @@ export default async function CatalogShell({
   });
 
   return (
-    <div className="container mx-auto px-4 py-8" id="catalog-top">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold text-black dark:text-white">
-          Каталог товаров
-        </h1>
-      </div>
+    <>
       {/* Top-Level Category Selection */}
       <section className="mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -195,7 +188,6 @@ export default async function CatalogShell({
         </div>
       </section>
 
-
       <Separator className="my-6 bg-[var(--card-border)]" />
 
       {/* Mobile Filter Button */}
@@ -219,14 +211,48 @@ export default async function CatalogShell({
 
         {/* Main Content */}
         <div className="min-w-0">
-          <Suspense fallback={<LoadingSkeletons />}>
-            <CatalogProducts
-              initialProducts={products}
-              searchParams={searchParams}
-            />
-          </Suspense>
+          <CatalogProducts
+            initialProducts={products}
+            searchParams={searchParams}
+          />
         </div>
       </div>
+    </>
+  );
+}
+
+export default async function CatalogShell({
+  searchParams,
+}: CatalogShellProps) {
+  return (
+    <div className="container mx-auto px-4 py-8" id="catalog-top">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+        <h1 className="text-3xl font-bold text-black dark:text-white">
+          Каталог товаров
+        </h1>
+      </div>
+      
+      <Suspense fallback={
+        <>
+          {/* Top-Level Categories Skeleton */}
+          <section className="mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {[...Array(10)].map((_, i) => (
+                <Card key={i} className="p-3 flex flex-col items-center justify-center gap-3 min-h-[120px]">
+                  <Skeleton className="h-14 w-14 rounded-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-8" />
+                </Card>
+              ))}
+            </div>
+          </section>
+          <Separator className="my-6" />
+          <LoadingSkeletons count={12} />
+        </>
+      }>
+        <CatalogContent searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Collection, collectionService } from "@/lib/services/collection";
+import { Collection, collectionService } from "@/lib/services/admin/collection";
 import { Brand, Category } from "@/types/catalog";
 import { Button } from "@/components/ui/button";
 import {
@@ -367,7 +367,6 @@ export function CollectionManagerClient({
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Коллекции</h1>
         <div className="flex gap-2">
           {selectedRowsIds.length > 0 && (
             <Button

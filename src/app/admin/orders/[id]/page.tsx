@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Типы для заказа
 interface OrderItem {
@@ -322,7 +323,8 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <motion.div
+    <ContentLayout title="Заказы">
+      <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -678,5 +680,6 @@ export default function OrderDetailPage() {
         </div>
       </div>
     </motion.div>
+    </ContentLayout>
   );
 }

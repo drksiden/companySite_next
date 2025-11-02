@@ -32,6 +32,14 @@ import {
   Plus,
   Upload,
   X,
+  FileText,
+  File,
+  Download,
+  ExternalLink,
+  ArrowUp,
+  ArrowDown,
+  Heading1,
+  Minus,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -42,6 +50,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 
 // Zod schema для формы продукта
 const productSchema = z.object({
@@ -134,12 +143,37 @@ export function ProductFormNew({
   isSubmitting,
 }: ProductFormProps) {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
-  const [specifications, setSpecifications] = useState<
-    { key: string; value: string }[]
-  >([]);
+  
+  // Структура строк спецификации (технических данных)
+  interface SpecificationRow {
+    id: string;
+    type: "header" | "row" | "separator";
+    key?: string; // для типа "row"
+    value?: string; // для типа "row", может быть HTML
+  }
+  
+  const [specifications, setSpecifications] = useState<SpecificationRow[]>([]);
+  const [specificationsDescription, setSpecificationsDescription] = useState<string>("");
+
+  // Новая структура документов с группами
+  interface DocumentItem {
+    id: string;
+    title: string;
+    url?: string;
+    file?: File;
+    description?: string;
+    size?: number;
+    type?: string;
+  }
+
+  interface DocumentGroup {
+    id: string;
+    title: string;
+    documents: DocumentItem[];
+  }
+
+  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
 
   const form = useForm<ProductFormData>({
     // resolver: zodResolver(productSchema),
@@ -185,15 +219,37 @@ export function ProductFormNew({
     if (initialData && initialData.id !== initialDataIdRef.current) {
       initialDataIdRef.current = initialData.id;
 
-      form.reset({
+      // Извлекаем ID из связанных объектов, если они есть
+      const categoryId = initialData.category_id || 
+                        (initialData.category as any)?.id || 
+                        "";
+      const brandId = initialData.brand_id || 
+                     (initialData.brand as any)?.id || 
+                     null;
+      const collectionId = initialData.collection_id || 
+                          (initialData.collection as any)?.id || 
+                          null;
+      const currencyId = initialData.currency_id || 
+                        (initialData.currency as any)?.id || 
+                        null;
+
+      // Преобразуем все ID в строки для корректной работы Select компонентов
+      const formValues = {
         ...initialData,
+        // Категория - обязательное поле, должно быть строкой
+        category_id: categoryId ? String(categoryId) : "",
+        // Статус - должен быть строкой из enum
+        status: (initialData.status as string) || "draft",
+        // Бренд и коллекция - могут быть null, заменяем на спец. значения
+        brand_id: brandId ? String(brandId) : "no-brand",
+        collection_id: collectionId ? String(collectionId) : "no-collection",
+        // Валюта - преобразуем в строку
+        currency_id: currencyId ? String(currencyId) : (currencies.find((c) => c.code === "KZT")?.id || ""),
         dimensions: {
           length: initialData.dimensions?.length || 0,
           width: initialData.dimensions?.width || 0,
           height: initialData.dimensions?.height || 0,
         },
-        brand_id: initialData.brand_id || "no-brand",
-        collection_id: initialData.collection_id || "no-collection",
         // Обрабатываем null значения для строковых полей
         sku: initialData.sku || "",
         barcode: initialData.barcode || "",
@@ -208,24 +264,135 @@ export function ProductFormNew({
         weight: initialData.weight || 0,
         sale_price: initialData.sale_price || 0,
         cost_price: initialData.cost_price || 0,
-      });
+      };
+
+      form.reset(formValues);
+      
+      // Принудительно устанавливаем значения для Select компонентов после небольшой задержки
+      // Это гарантирует, что компоненты уже отрендерены и готовы к обновлению
+      setTimeout(() => {
+        // Устанавливаем категорию
+        const finalCategoryId = categoryId ? String(categoryId) : "";
+        if (finalCategoryId) {
+          form.setValue("category_id", finalCategoryId, { 
+            shouldValidate: false,
+            shouldDirty: false,
+            shouldTouch: false 
+          });
+        }
+        
+        // Устанавливаем статус
+        const finalStatus = (initialData.status as string) || "draft";
+        form.setValue("status", finalStatus as any, { 
+          shouldValidate: false,
+          shouldDirty: false,
+          shouldTouch: false 
+        });
+        
+        // Устанавливаем бренд
+        const finalBrandId = brandId ? String(brandId) : "no-brand";
+        form.setValue("brand_id", finalBrandId, { 
+          shouldValidate: false,
+          shouldDirty: false,
+          shouldTouch: false 
+        });
+        
+        // Устанавливаем коллекцию
+        const finalCollectionId = collectionId ? String(collectionId) : "no-collection";
+        form.setValue("collection_id", finalCollectionId, { 
+          shouldValidate: false,
+          shouldDirty: false,
+          shouldTouch: false 
+        });
+        
+        // Устанавливаем валюту
+        const finalCurrencyId = currencyId ? String(currencyId) : (currencies.find((c) => c.code === "KZT")?.id || "");
+        if (finalCurrencyId) {
+          form.setValue("currency_id", finalCurrencyId, { 
+            shouldValidate: false,
+            shouldDirty: false,
+            shouldTouch: false 
+          });
+        }
+      }, 50);
 
       setExistingImages(initialData.images || []);
-      setExistingDocuments(initialData.documents || []);
-      setSpecifications(
-        Object.entries(initialData.specifications || {}).map(
-          ([key, value]) => ({
-            key,
-            value: String(value),
-          }),
-        ),
-      );
+      
+      // Преобразуем существующие документы в группы
+      // Если документы уже в формате групп, используем их, иначе создаем группу по умолчанию
+      if (initialData.documents && Array.isArray(initialData.documents)) {
+        if (initialData.documents.length > 0) {
+          // Проверяем, есть ли уже структура групп
+          const firstDoc = initialData.documents[0];
+          if (firstDoc && typeof firstDoc === 'object' && 'title' in firstDoc && 'documents' in firstDoc) {
+            // Это уже группы
+            setDocumentGroups(initialData.documents as DocumentGroup[]);
+          } else {
+            // Старый формат - преобразуем в группу по умолчанию
+            const defaultGroup: DocumentGroup = {
+              id: `group-${Date.now()}`,
+              title: "Документы",
+              documents: initialData.documents.map((doc: any, index: number) => ({
+                id: doc.id || `doc-${index}`,
+                title: doc.name || "Документ",
+                url: doc.url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              })),
+            };
+            setDocumentGroups([defaultGroup]);
+          }
+        } else {
+          setDocumentGroups([]);
+        }
+      } else {
+        setDocumentGroups([]);
+      }
+      
+      // Загружаем спецификации
+      if (initialData.specifications) {
+        // Проверяем новый формат: объект с rows и description
+        if (typeof initialData.specifications === 'object' && !Array.isArray(initialData.specifications) && 'rows' in initialData.specifications) {
+          const specsData = initialData.specifications as any;
+          setSpecifications(Array.isArray(specsData.rows) ? specsData.rows : []);
+          setSpecificationsDescription(specsData.description || "");
+        }
+        // Проверяем, это массив строк (новая структура без description)
+        else if (Array.isArray(initialData.specifications)) {
+          setSpecifications(initialData.specifications as SpecificationRow[]);
+          setSpecificationsDescription("");
+        } else {
+          // Старый формат - преобразуем в новую структуру
+          const rows: SpecificationRow[] = [];
+          // Добавляем заголовок по умолчанию
+          rows.push({
+            id: `header-${Date.now()}`,
+            type: "header",
+            key: "Технические данные",
+          });
+          // Добавляем строки из объекта
+          Object.entries(initialData.specifications).forEach(([key, value]) => {
+            rows.push({
+              id: `row-${Date.now()}-${Math.random()}`,
+              type: "row",
+              key,
+              value: String(value),
+            });
+          });
+          setSpecifications(rows);
+          setSpecificationsDescription("");
+        }
+      } else {
+        setSpecifications([]);
+        setSpecificationsDescription("");
+      }
     } else if (!initialData && initialDataIdRef.current !== null) {
       // Сброс формы при создании нового товара
       initialDataIdRef.current = null;
       form.reset();
       setExistingImages([]);
-      setExistingDocuments([]);
+      setDocumentGroups([]);
       setSpecifications([]);
     }
   }, [initialData?.id, initialData, form]);
@@ -247,12 +414,6 @@ export function ProductFormNew({
     setImageFiles((prev) => [...prev, ...files]);
   };
 
-  // Обработка загрузки документов
-  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setDocumentFiles((prev) => [...prev, ...files]);
-  };
-
   // Удаление изображения
   const removeImage = (index: number, isExisting: boolean) => {
     if (isExisting) {
@@ -262,34 +423,106 @@ export function ProductFormNew({
     }
   };
 
-  // Удаление документа
-  const removeDocument = (index: number, isExisting: boolean) => {
-    if (isExisting) {
-      setExistingDocuments((prev) => prev.filter((_, i) => i !== index));
-    } else {
-      setDocumentFiles((prev) => prev.filter((_, i) => i !== index));
-    }
+  // Работа с группами документов
+  const addDocumentGroup = () => {
+    const newGroup: DocumentGroup = {
+      id: `group-${Date.now()}`,
+      title: "Новая группа",
+      documents: [],
+    };
+    setDocumentGroups((prev) => [...prev, newGroup]);
   };
 
-  // Добавление спецификации
-  const addSpecification = () => {
-    setSpecifications((prev) => [...prev, { key: "", value: "" }]);
+  const removeDocumentGroup = (groupId: string) => {
+    setDocumentGroups((prev) => prev.filter((g) => g.id !== groupId));
   };
 
-  // Удаление спецификации
-  const removeSpecification = (index: number) => {
-    setSpecifications((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Обновление спецификации
-  const updateSpecification = (
-    index: number,
-    field: "key" | "value",
-    value: string,
-  ) => {
-    setSpecifications((prev) =>
-      prev.map((spec, i) => (i === index ? { ...spec, [field]: value } : spec)),
+  const updateDocumentGroupTitle = (groupId: string, title: string) => {
+    setDocumentGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, title } : g))
     );
+  };
+
+  const addDocumentToGroup = (groupId: string, file?: File) => {
+    const newDoc: DocumentItem = {
+      id: `doc-${Date.now()}-${Math.random()}`,
+      title: file?.name || "Новый документ",
+      file,
+      size: file?.size,
+      type: file?.type,
+    };
+    setDocumentGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? { ...g, documents: [...g.documents, newDoc] }
+          : g
+      )
+    );
+  };
+
+  const removeDocumentFromGroup = (groupId: string, docId: string) => {
+    setDocumentGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? { ...g, documents: g.documents.filter((d) => d.id !== docId) }
+          : g
+      )
+    );
+  };
+
+  const updateDocument = (
+    groupId: string,
+    docId: string,
+    updates: Partial<DocumentItem>
+  ) => {
+    setDocumentGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? {
+              ...g,
+              documents: g.documents.map((d) =>
+                d.id === docId ? { ...d, ...updates } : d
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+  // Добавление строки спецификации
+  const addSpecificationRow = (type: "header" | "row" | "separator" = "row") => {
+    const newRow: SpecificationRow = {
+      id: `spec-${Date.now()}-${Math.random()}`,
+      type,
+      ...(type === "row" ? { key: "", value: "" } : {}),
+      ...(type === "header" ? { key: "" } : {}),
+    };
+    setSpecifications((prev) => [...prev, newRow]);
+  };
+
+  // Удаление строки спецификации
+  const removeSpecification = (id: string) => {
+    setSpecifications((prev) => prev.filter((spec) => spec.id !== id));
+  };
+
+  // Обновление строки спецификации
+  const updateSpecification = (id: string, updates: Partial<SpecificationRow>) => {
+    setSpecifications((prev) =>
+      prev.map((spec) => (spec.id === id ? { ...spec, ...updates } : spec))
+    );
+  };
+
+  // Перемещение строки вверх/вниз
+  const moveSpecification = (id: string, direction: "up" | "down") => {
+    setSpecifications((prev) => {
+      const index = prev.findIndex((s) => s.id === id);
+      if (index === -1) return prev;
+      const newIndex = direction === "up" ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
+      const newSpecs = [...prev];
+      [newSpecs[index], newSpecs[newIndex]] = [newSpecs[newIndex], newSpecs[index]];
+      return newSpecs;
+    });
   };
 
   const handleSubmit: SubmitHandler<ProductFormData> = (data) => {
@@ -331,32 +564,51 @@ export function ProductFormNew({
       }
     });
 
-    // Добавляем спецификации
-    const specsObject = specifications.reduce(
-      (acc, spec) => {
-        if (spec.key && spec.value) {
-          acc[spec.key] = spec.value;
-        }
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
-    formData.append("specifications", JSON.stringify(specsObject));
+    // Добавляем спецификации (технические данные) как массив строк
+    const specificationsData = {
+      rows: specifications,
+      description: specificationsDescription,
+    };
+    formData.append("specifications", JSON.stringify(specificationsData));
 
     // Добавляем файлы изображений
     imageFiles.forEach((file) => {
       formData.append("imageFiles", file);
     });
 
-    // Добавляем файлы документов
-    documentFiles.forEach((file) => {
+    // Добавляем документы с группами
+    // Собираем все файлы для загрузки
+    const documentFilesToUpload: File[] = [];
+    documentGroups.forEach((group) => {
+      group.documents.forEach((doc) => {
+        if (doc.file) {
+          documentFilesToUpload.push(doc.file);
+        }
+      });
+    });
+    
+    documentFilesToUpload.forEach((file) => {
       formData.append("documentFiles", file);
     });
 
-    // Добавляем существующие изображения и документы только при редактировании
+    // Сохраняем структуру документов (без файлов, только метаданные)
+    const documentsStructure = documentGroups.map((group) => ({
+      title: group.title,
+      documents: group.documents.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        url: doc.url, // для существующих документов
+        description: doc.description,
+        size: doc.size,
+        type: doc.type,
+        // file будет загружен отдельно
+      })),
+    }));
+    formData.append("documentsStructure", JSON.stringify(documentsStructure));
+
+    // Добавляем существующие изображения только при редактировании
     if (initialData?.id) {
       formData.append("existingImages", JSON.stringify(existingImages));
-      formData.append("existingDocuments", JSON.stringify(existingDocuments));
     }
 
     onSubmit(formData);
@@ -439,95 +691,116 @@ export function ProductFormNew({
                   <FormField
                     control={form.control}
                     name="category_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Категория</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Выберите категорию" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {"—".repeat(category.level)} {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      // Убеждаемся, что value это строка и существует в списке категорий
+                      const categoryValue = field.value ? String(field.value) : "";
+                      const isValidCategory = categories.some(c => String(c.id) === categoryValue);
+                      const displayValue = isValidCategory ? categoryValue : "";
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel>Категория</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={displayValue}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Выберите категорию" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map((category) => (
+                                <SelectItem key={category.id} value={String(category.id)}>
+                                  {"—".repeat(category.level)} {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="brand_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Бренд</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value || ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите бренд" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="no-brand">
-                                Без бренда
-                              </SelectItem>
-                              {brands.map((brand) => (
-                                <SelectItem key={brand.id} value={brand.id}>
-                                  {brand.name}
+                      render={({ field }) => {
+                        // Убеждаемся, что value это строка
+                        const brandValue = field.value ? String(field.value) : "no-brand";
+                        const isValidBrand = brandValue === "no-brand" || brands.some(b => String(b.id) === brandValue);
+                        const displayValue = isValidBrand ? brandValue : "no-brand";
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Бренд</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={displayValue}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Выберите бренд" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="no-brand">
+                                  Без бренда
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                {brands.map((brand) => (
+                                  <SelectItem key={brand.id} value={String(brand.id)}>
+                                    {brand.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
 
                     <FormField
                       control={form.control}
                       name="collection_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Коллекция</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value || ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите коллекцию" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="no-collection">
-                                Без коллекции
-                              </SelectItem>
-                              {collections.map((collection) => (
-                                <SelectItem
-                                  key={collection.id}
-                                  value={collection.id}
-                                >
-                                  {collection.name}
+                      render={({ field }) => {
+                        // Убеждаемся, что value это строка
+                        const collectionValue = field.value ? String(field.value) : "no-collection";
+                        const isValidCollection = collectionValue === "no-collection" || collections.some(c => String(c.id) === collectionValue);
+                        const displayValue = isValidCollection ? collectionValue : "no-collection";
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Коллекция</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={displayValue}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Выберите коллекцию" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="no-collection">
+                                  Без коллекции
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                {collections.map((collection) => (
+                                  <SelectItem
+                                    key={collection.id}
+                                    value={String(collection.id)}
+                                  >
+                                    {collection.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
 
@@ -545,64 +818,89 @@ export function ProductFormNew({
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Описание</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={4} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Описание</FormLabel>
+                          <FormControl>
+                            <SimpleHtmlEditor
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              placeholder="Введите описание товара... Используйте кнопки форматирования для заголовков (h1, h2, h3), списков и т.д."
+                              rows={12}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Используйте HTML-форматирование для структурирования описания
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="technical_description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Техническое описание</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={4} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="technical_description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Дополнительная информация</FormLabel>
+                          <FormControl>
+                            <SimpleHtmlEditor
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              placeholder="Дополнительная техническая информация о товаре... Используйте кнопки форматирования для структурирования текста."
+                              rows={12}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Дополнительные сведения и технические детали. Используйте HTML-форматирование для структурирования информации.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Статус</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="draft">Черновик</SelectItem>
-                              <SelectItem value="active">Активный</SelectItem>
-                              <SelectItem value="archived">
-                                Архивирован
-                              </SelectItem>
-                              <SelectItem value="out_of_stock">
-                                Нет в наличии
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        // Убеждаемся, что value это строка и валидное значение статуса
+                        const statusValue = field.value ? String(field.value) : "draft";
+                        const validStatuses = ["draft", "active", "archived", "out_of_stock"];
+                        const displayValue = validStatuses.includes(statusValue) ? statusValue : "draft";
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Статус</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={displayValue}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="draft">Черновик</SelectItem>
+                                <SelectItem value="active">Активный</SelectItem>
+                                <SelectItem value="archived">
+                                  Архивирован
+                                </SelectItem>
+                                <SelectItem value="out_of_stock">
+                                  Нет в наличии
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
 
                     <FormField
@@ -656,53 +954,220 @@ export function ProductFormNew({
                 </CardContent>
               </Card>
 
-              {/* Спецификации */}
+              {/* Спецификации - Технические данные */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Спецификации</CardTitle>
-                  <CardDescription>
-                    Технические характеристики товара
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Технические данные</CardTitle>
+                      <CardDescription>
+                        Создайте редактируемую таблицу с подтаблицами. Используйте заголовки для группировки параметров.
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSpecificationRow("header")}
+                      >
+                        <Heading1 className="h-4 w-4 mr-2" />
+                        Заголовок
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSpecificationRow("row")}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Строка
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSpecificationRow("separator")}
+                      >
+                        <Minus className="h-4 w-4 mr-2" />
+                        Разделитель
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {specifications.map((spec, index) => (
-                      <div key={index} className="flex gap-2">
-                        <Input
-                          placeholder="Название характеристики"
-                          value={spec.key}
-                          onChange={(e) =>
-                            updateSpecification(index, "key", e.target.value)
-                          }
-                        />
-                        <Input
-                          placeholder="Значение"
-                          value={spec.value}
-                          onChange={(e) =>
-                            updateSpecification(index, "value", e.target.value)
-                          }
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => removeSpecification(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addSpecification}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Добавить характеристику
-                    </Button>
+                  {specifications.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>Нет технических данных. Добавьте заголовок или строку для начала.</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="w-1/2 p-2 text-left font-semibold border-r">Параметр</th>
+                            <th className="w-1/2 p-2 text-left font-semibold">Значение</th>
+                            <th className="w-24 p-2 text-center font-semibold border-l">Действия</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {specifications.map((spec, index) => {
+                            if (spec.type === "separator") {
+                              return (
+                                <tr key={spec.id} className="border-t">
+                                  <td colSpan={3} className="p-2">
+                                    <div className="flex items-center justify-center py-2">
+                                      <div className="flex-1 border-t"></div>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="mx-2 h-6 w-6 p-0"
+                                        onClick={() => removeSpecification(spec.id)}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            if (spec.type === "header") {
+                              return (
+                                <tr key={spec.id} className="bg-muted/30 border-t">
+                                  <td colSpan={3} className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        value={spec.key || ""}
+                                        onChange={(e) =>
+                                          updateSpecification(spec.id, { key: e.target.value })
+                                        }
+                                        placeholder="Название подтаблицы (например: Параметры радиоканала)"
+                                        className="font-semibold text-base h-auto py-1"
+                                      />
+                                      <div className="flex gap-1">
+                                        {index > 0 && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => moveSpecification(spec.id, "up")}
+                                          >
+                                            <ArrowUp className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        {index < specifications.length - 1 && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => moveSpecification(spec.id, "down")}
+                                          >
+                                            <ArrowDown className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 text-destructive"
+                                          onClick={() => removeSpecification(spec.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            // Обычная строка (row)
+                            return (
+                              <tr key={spec.id} className="border-t hover:bg-muted/20">
+                                <td className="p-2 border-r">
+                                  <Input
+                                    value={spec.key || ""}
+                                    onChange={(e) =>
+                                      updateSpecification(spec.id, { key: e.target.value })
+                                    }
+                                    placeholder="Название параметра"
+                                    className="border-0 bg-transparent focus:bg-background"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <Textarea
+                                    value={spec.value || ""}
+                                    onChange={(e) =>
+                                      updateSpecification(spec.id, { value: e.target.value })
+                                    }
+                                    placeholder="Значение параметра (можно использовать HTML: <strong>, <em>, <ul>, <ol>, и т.д.)"
+                                    rows={2}
+                                    className="min-h-[60px] text-sm resize-none"
+                                  />
+                                </td>
+                                <td className="p-2 border-l">
+                                  <div className="flex justify-center gap-1">
+                                    {index > 0 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => moveSpecification(spec.id, "up")}
+                                      >
+                                        <ArrowUp className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {index < specifications.length - 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => moveSpecification(spec.id, "down")}
+                                      >
+                                        <ArrowDown className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive"
+                                      onClick={() => removeSpecification(spec.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  
+                  {/* HTML описание для спецификаций */}
+                  <div className="mt-6 space-y-2">
+                    <Label>Дополнительное описание к характеристикам</Label>
+                    <SimpleHtmlEditor
+                      value={specificationsDescription}
+                      onChange={setSpecificationsDescription}
+                      placeholder="Дополнительная информация о технических характеристиках (можно использовать HTML форматирование)..."
+                      rows={6}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Используйте это поле для добавления дополнительного текстового описания к характеристикам.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
+
             </TabsContent>
 
             <TabsContent value="pricing" className="space-y-4">
@@ -715,30 +1180,38 @@ export function ProductFormNew({
                   <FormField
                     control={form.control}
                     name="currency_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Валюта</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {currencies.map((currency) => (
-                              <SelectItem key={currency.id} value={currency.id}>
-                                {currency.code} - {currency.name} (
-                                {currency.symbol})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      // Убеждаемся, что value это строка и существует в списке валют
+                      const currencyValue = field.value ? String(field.value) : "";
+                      const isValidCurrency = currencies.some(c => String(c.id) === currencyValue);
+                      const defaultCurrencyId = currencies.find((c) => c.code === "KZT")?.id || "";
+                      const displayValue = isValidCurrency ? currencyValue : (defaultCurrencyId ? String(defaultCurrencyId) : "");
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel>Валюта</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={displayValue}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {currencies.map((currency) => (
+                                <SelectItem key={currency.id} value={String(currency.id)}>
+                                  {currency.code} - {currency.name} (
+                                  {currency.symbol})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <div className="grid grid-cols-3 gap-4">
@@ -988,58 +1461,189 @@ export function ProductFormNew({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Документы</CardTitle>
-                  <CardDescription>
-                    Загрузите документы и файлы товара
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Документы</CardTitle>
+                      <CardDescription>
+                        Организуйте документы по группам с заголовками и описаниями
+                      </CardDescription>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addDocumentGroup}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Добавить группу
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      {existingDocuments.map((doc, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 p-2 border rounded"
-                        >
-                          <span className="flex-1">{doc.name}</span>
-                          <Badge variant="secondary">{doc.type}</Badge>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeDocument(index, true)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      {documentFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 p-2 border rounded"
-                        >
-                          <span className="flex-1">{file.name}</span>
-                          <Badge variant="secondary">{file.type}</Badge>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeDocument(index, false)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    <div>
-                      <Label htmlFor="documents">Добавить документы</Label>
-                      <Input
-                        id="documents"
-                        type="file"
-                        multiple
-                        onChange={handleDocumentUpload}
-                      />
-                    </div>
+                  <div className="space-y-6">
+                    {documentGroups.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Нет документов. Добавьте группу для начала работы.</p>
+                      </div>
+                    ) : (
+                      documentGroups.map((group) => (
+                        <Card key={group.id} className="border-2">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between gap-4">
+                              <Input
+                                value={group.title}
+                                onChange={(e) =>
+                                  updateDocumentGroupTitle(group.id, e.target.value)
+                                }
+                                placeholder="Название группы (например: Сертификаты)"
+                                className="font-semibold text-lg h-auto py-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => removeDocumentGroup(group.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {group.documents.length === 0 ? (
+                              <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                                Нет документов в этой группе
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {group.documents.map((doc) => (
+                                  <div
+                                    key={doc.id}
+                                    className="p-4 border rounded-lg bg-muted/30 space-y-3"
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <FileText className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+                                      <div className="flex-1 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            value={doc.title}
+                                            onChange={(e) =>
+                                              updateDocument(
+                                                group.id,
+                                                doc.id,
+                                                { title: e.target.value }
+                                              )
+                                            }
+                                            placeholder="Название документа (текст ссылки)"
+                                            className="font-medium"
+                                          />
+                                          {doc.url && (
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-8 w-8 p-0"
+                                              onClick={() =>
+                                                window.open(doc.url, "_blank")
+                                              }
+                                              title="Открыть документ"
+                                            >
+                                              <ExternalLink className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-destructive"
+                                            onClick={() =>
+                                              removeDocumentFromGroup(group.id, doc.id)
+                                            }
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                        {doc.file && (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Badge variant="outline">
+                                              {doc.file.type?.split("/")[1]?.toUpperCase() || "FILE"}
+                                            </Badge>
+                                            <span>
+                                              {(doc.file.size / 1024).toFixed(1)} KB
+                                            </span>
+                                          </div>
+                                        )}
+                                        {doc.url && (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Badge variant="secondary">
+                                              {doc.type?.split("/")[1]?.toUpperCase() || "FILE"}
+                                            </Badge>
+                                            {doc.size && (
+                                              <span>
+                                                {(doc.size / 1024).toFixed(1)} KB
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                        <Textarea
+                                          value={doc.description || ""}
+                                          onChange={(e) =>
+                                            updateDocument(group.id, doc.id, {
+                                              description: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Описание документа (опционально)"
+                                          rows={2}
+                                          className="text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    {!doc.url && !doc.file && (
+                                      <div>
+                                        <Label
+                                          htmlFor={`file-${doc.id}`}
+                                          className="text-xs text-muted-foreground"
+                                        >
+                                          Выбрать файл
+                                        </Label>
+                                        <Input
+                                          id={`file-${doc.id}`}
+                                          type="file"
+                                          accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.odt,.ods,.odp"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              updateDocument(group.id, doc.id, {
+                                                file,
+                                                size: file.size,
+                                                type: file.type,
+                                                title: doc.title || file.name,
+                                              });
+                                            }
+                                          }}
+                                          className="mt-1"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addDocumentToGroup(group.id)}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Добавить документ в группу
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>

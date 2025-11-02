@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Types
 interface DashboardStats {
@@ -487,33 +488,13 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <motion.div
+    <ContentLayout title="Дашборд">
+      <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-6"
     >
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Дашборд</h1>
-            <p className="text-muted-foreground">
-              Обзор вашего интернет-магазина
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Экспорт
-            </Button>
-            <Button size="sm">
-              <Eye className="mr-2 h-4 w-4" />
-              Подробная аналитика
-            </Button>
-          </div>
-        </div>
-      </motion.div>
 
       {/* Stats Grid */}
       <motion.div
@@ -681,5 +662,6 @@ export default function AdminDashboardPage() {
         </motion.div>
       </div>
     </motion.div>
+    </ContentLayout>
   );
 }

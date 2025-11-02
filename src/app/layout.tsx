@@ -4,6 +4,7 @@ import { COMPANY_NAME_SHORT } from '@/data/constants';
 import { ClientProviders } from './ClientProviders';
 import { cn } from '@/lib/utils';
 import { inter } from '@/styles/fonts';
+import { ReactQueryClientProvider } from '@/components/ReactQueryClientProvider';
 
 // Рекомендуется определить базовый URL сайта, например, из переменных окружения
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
@@ -44,9 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={cn('min-h-screen bg-background font-sans antialiased', inter.variable)}>
-        <ClientProviders>
+        <ReactQueryClientProvider>
+          <ClientProviders>
           {children}
         </ClientProviders>
+        </ReactQueryClientProvider>
       </body>
     </html>
   );

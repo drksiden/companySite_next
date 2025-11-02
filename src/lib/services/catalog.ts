@@ -37,10 +37,12 @@ export interface CatalogProduct {
   sku?: string;
   short_description?: string;
   description?: string;
+  technical_description?: string;
   base_price: number;
   sale_price?: number;
   thumbnail?: string;
   images: string[];
+  documents?: any;
   inventory_quantity: number;
   track_inventory: boolean;
   is_featured: boolean;
@@ -48,7 +50,7 @@ export interface CatalogProduct {
   created_at: string;
   view_count: number;
   sales_count: number;
-  specifications?: Record<string, any>;
+  specifications?: Record<string, any> | Array<any>;
   brands?: {
     id: string;
     name: string;
@@ -405,10 +407,12 @@ export async function getProduct(
       sku,
       short_description,
       description,
+      technical_description,
       base_price,
       sale_price,
       thumbnail,
       images,
+      documents,
       inventory_quantity,
       track_inventory,
       is_featured,

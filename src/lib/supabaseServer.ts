@@ -10,10 +10,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-/**
- * Create a Supabase client for server-side usage with user context
- * Uses cookies for authentication
- */
 export async function createServerClient() {
   const cookieStore = await cookies();
 

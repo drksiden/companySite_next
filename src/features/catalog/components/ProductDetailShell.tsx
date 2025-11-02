@@ -3,20 +3,41 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Heart, Share2, ArrowLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ShoppingCart, Heart, Share2, ArrowLeft, FileText, Download, ExternalLink, Zap } from "lucide-react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { formatPrice } from "@/lib/utils";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
+import { HtmlContent } from "@/components/ui/html-content";
+import ProductCard from "@/features/catalog/components/ProductCard";
 import { toast } from "sonner";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 interface ProductDetailShellProps {
   product: CatalogProduct;
+  relatedProducts?: any[];
 }
 
 export default function ProductDetailShell({
   product,
+  relatedProducts = [],
 }: ProductDetailShellProps) {
   const [quantity, setQuantity] = useState(1);
 
@@ -192,80 +213,415 @@ export default function ProductDetailShell({
 
           {/* Short Description */}
           {product.short_description && (
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-muted-foreground leading-relaxed">
-                  {product.short_description}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="space-y-2">
+              <p className="text-muted-foreground leading-relaxed">
+                {product.short_description}
+              </p>
+            </div>
+          )}
+
+          {/* Additional Information */}
+          {(product as any).technical_description && (
+            <div className="space-y-2">
+              <HtmlContent
+                content={(product as any).technical_description}
+                variant="product"
+              />
+            </div>
           )}
         </div>
       </div>
 
-      {/* Detailed Description */}
-      {product.description && (
-        <div className="mt-12 space-y-6">
-          <Separator />
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Описание товара</h2>
-            <Card>
-              <CardContent className="p-6">
-                <div
-                  className="prose prose-gray max-w-none"
-                  dangerouslySetInnerHTML={{ __html: product.description }}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
+      {/* Product Details Tabs */}
+      <div className="mt-12">
+        <Separator className="mb-6" />
+        <Card>
+          <Tabs defaultValue="description" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 p-1 bg-muted/50">
+              <TabsTrigger
+                value="description"
+                className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Описание
+              </TabsTrigger>
+              <TabsTrigger
+                value="specifications"
+                className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Характеристики
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="text-sm sm:text-base font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Документы
+              </TabsTrigger>
+            </TabsList>
 
-      {/* Specifications */}
-      {product.specifications &&
-        Object.keys(product.specifications).length > 0 && (
-          <div className="mt-8 space-y-4">
-            <h2 className="text-2xl font-bold">Характеристики</h2>
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid gap-3">
-                  {Object.entries(product.specifications).map(
-                    ([key, value]) => (
-                      <div
-                        key={key}
-                        className="grid grid-cols-2 gap-4 py-2 border-b border-border/50 last:border-0"
-                      >
-                        <span className="font-medium text-muted-foreground">
-                          {key}:
-                        </span>
-                        <span>{String(value)}</span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-      {/* Category Info */}
-      {product.categories && (
-        <div className="mt-8 space-y-4">
-          <h2 className="text-2xl font-bold">Категория</h2>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <TabsContent
+              value="description"
+              className="p-4 sm:p-6 space-y-6 sm:space-y-8"
+            >
+              {product.description ? (
                 <div>
-                  <h3 className="font-semibold">{product.categories.name}</h3>
+                  <HtmlContent
+                    content={product.description}
+                    variant="product"
+                  />
                 </div>
-                <Button variant="outline" asChild>
-                  <Link href={`/catalog?category=${product.categories.id}`}>
-                    Смотреть все товары
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">📄</span>
+                  </div>
+                  <p className="text-muted-foreground text-lg">
+                    Описание не указано
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent
+              value="specifications"
+              className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+            >
+              {/* Новый формат specifications (массив или объект с rows) */}
+              {(() => {
+                let specsRows: any[] = [];
+                let specsDescription = "";
+                
+                // Проверяем новый формат: объект с rows и description
+                if (typeof product.specifications === 'object' && !Array.isArray(product.specifications) && product.specifications !== null && 'rows' in product.specifications) {
+                  specsRows = (product.specifications as any).rows || [];
+                  specsDescription = (product.specifications as any).description || "";
+                }
+                // Проверяем, это массив строк (новая структура без description)
+                else if (Array.isArray(product.specifications) && product.specifications.length > 0) {
+                  specsRows = product.specifications as any[];
+                  specsDescription = "";
+                }
+                
+                if (specsRows.length > 0) {
+                  return (
+                <div className="space-y-6">
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-1/2 font-semibold">
+                            Параметр
+                          </TableHead>
+                          <TableHead className="w-1/2 font-semibold">Значение</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {specsRows.map((spec: any, index: number) => {
+                          if (spec.type === "separator") {
+                            return (
+                              <TableRow key={spec.id || index} className="border-t-2 border-border">
+                                <TableCell colSpan={2} className="p-4">
+                                  <div className="flex-1 border-t"></div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+
+                          if (spec.type === "header") {
+                            return (
+                              <TableRow
+                                key={spec.id || index}
+                                className="bg-muted/30 border-t-2 border-primary/20"
+                              >
+                                <TableCell
+                                  colSpan={2}
+                                  className="font-bold text-base text-foreground py-4 px-4"
+                                >
+                                  {spec.key || "Заголовок"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+
+                          if (spec.type === "row" && spec.key && spec.value) {
+                            return (
+                              <TableRow
+                                key={spec.id || index}
+                                className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}
+                              >
+                                <TableCell className="font-medium text-foreground py-4 px-4">
+                                  {spec.key}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground py-4 px-4">
+                                  <HtmlContent
+                                    content={String(spec.value)}
+                                    variant="compact"
+                                    className="[&_*]:text-muted-foreground [&_strong]:text-foreground"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+
+                          return null;
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* HTML описание спецификаций */}
+                      {specsDescription && (
+                        <div className="mt-6">
+                          <HtmlContent
+                            content={specsDescription}
+                            variant="product"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                } else if (product.specifications &&
+                  typeof product.specifications === "object" &&
+                  !Array.isArray(product.specifications) &&
+                  !('rows' in product.specifications) &&
+                  Object.keys(product.specifications).length > 0) {
+                  return (
+                    // Старый формат (объект)
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="w-1/3 font-semibold">
+                              Характеристика
+                            </TableHead>
+                            <TableHead className="font-semibold">Значение</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(product.specifications).map(
+                            ([key, value], index) => (
+                              <TableRow
+                                key={key}
+                                className={
+                                  index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                                }
+                              >
+                                <TableCell className="font-medium text-foreground py-4">
+                                  {key}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground py-4">
+                                  {String(value)}
+                                </TableCell>
+                              </TableRow>
+                            ),
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-2xl">📋</span>
+                      </div>
+                      <p className="text-muted-foreground text-lg">
+                        Характеристики не указаны
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
+            </TabsContent>
+
+            <TabsContent
+              value="documents"
+              className="p-4 sm:p-6 space-y-4 sm:space-y-6"
+            >
+              {(product as any).documents && Array.isArray((product as any).documents) && (product as any).documents.length > 0 ? (
+                <div className="space-y-4">
+                  {(product as any).documents.map((docGroup: any, groupIndex: number) => {
+                    // Проверяем, это новый формат с группами или старый
+                    const isGroupFormat = docGroup && typeof docGroup === 'object' && 'title' in docGroup && 'documents' in docGroup;
+                    
+                    if (isGroupFormat) {
+                      // Новый формат с группами
+                      const groupTitle = docGroup.title || "Документы";
+                      const groupDocs = Array.isArray(docGroup.documents) ? docGroup.documents : [];
+                      
+                      if (groupDocs.length === 0) return null;
+                      
+                      return (
+                        <div key={groupIndex} className="space-y-2">
+                          {groupTitle && (
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                              {groupTitle}
+                            </h3>
+                          )}
+                          <div className="space-y-2">
+                            {groupDocs.map((doc: any, docIndex: number) => (
+                              <div
+                                key={docIndex}
+                                className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                              >
+                                <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <a
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
+                                    >
+                                      {doc.title || doc.name || "Документ"}
+                                      <ExternalLink className="h-4 w-4 opacity-70" />
+                                    </a>
+                                  </div>
+                                  {doc.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      {doc.description}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                    {doc.type && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {doc.type.split("/")[1]?.toUpperCase() || "FILE"}
+                                      </Badge>
+                                    )}
+                                    {doc.size && (
+                                      <span>{(doc.size / 1024).toFixed(1)} KB</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  asChild
+                                  className="flex-shrink-0"
+                                >
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      // Старый формат - простой массив документов
+                      return (
+                        <div
+                          key={groupIndex}
+                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                        >
+                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={docGroup.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
+                              >
+                                {docGroup.name || docGroup.title || "Документ"}
+                                <ExternalLink className="h-4 w-4 opacity-70" />
+                              </a>
+                            </div>
+                            {docGroup.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {docGroup.description}
+                              </p>
+                            )}
+                            {docGroup.type && (
+                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  {docGroup.type.split("/")[1]?.toUpperCase() || "FILE"}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="flex-shrink-0"
+                          >
+                            <a
+                              href={docGroup.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                            >
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground text-lg">
+                    Документы не загружены
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </div>
+
+      {/* Related Products */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Похожие товары</h2>
+            {product.categories && (
+              <Button variant="outline" asChild>
+                <Link href={`/catalog?category=${product.categories.id}`}>
+                  Смотреть все
+                </Link>
+              </Button>
+            )}
+          </div>
+          <Carousel
+            opts={{
+              align: "start",
+              loop: relatedProducts.length > 4,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {relatedProducts.map((relatedProduct, index) => (
+                <CarouselItem
+                  key={relatedProduct.id}
+                  className="pl-2 md:pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4"
+                >
+                  <div className="h-full">
+                    <ProductCard
+                      product={relatedProduct as CatalogProduct}
+                      priority={index < 4}
+                    />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            {relatedProducts.length > 4 && (
+              <>
+                <CarouselPrevious className="hidden md:flex -left-12" />
+                <CarouselNext className="hidden md:flex -right-12" />
+              </>
+            )}
+          </Carousel>
         </div>
       )}
     </div>

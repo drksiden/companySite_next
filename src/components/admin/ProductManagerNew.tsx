@@ -3,8 +3,6 @@
 import React, {
   useState,
   useEffect,
-  useMemo,
-  useRef,
   useCallback,
 } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useDataCache } from "@/hooks/useAdminSettings";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +38,6 @@ import {
   Collection,
   Currency,
 } from "@/types/catalog";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -49,22 +45,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
   Edit,
   Trash2,
   Eye,
-  Filter,
   MoreHorizontal,
   Star,
   Package,
-  TrendingUp,
   AlertCircle,
   Loader2,
+  FileText,
+  Sparkles,
 } from "lucide-react";
-import Image from "next/image";
 import { toast } from "sonner";
 import { ProductFormNew } from "./ProductFormNew";
 import { LoadingSkeleton } from "./LoadingSkeleton";
@@ -74,7 +68,6 @@ import {
   FeaturedIndicator,
 } from "./ProductStatusIndicator";
 import { ProductImageDisplay } from "./ProductImageDisplay";
-import { DialogScrollableContent } from "@/components/ui/scrollable-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +76,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  useProductsQuery,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+} from "@/lib/hooks/useProductsQuery";
 
 interface AdminFormData {
   categories: any[];
@@ -99,29 +98,18 @@ interface Filters {
   featured: string;
 }
 
-interface Pagination {
-  limit: number;
-  offset: number;
-  total: number;
-  hasMore: boolean;
-}
-
 export function ProductManagerNew() {
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [formData, setFormData] = useState<AdminFormData>({
     categories: [],
     brands: [],
     collections: [],
     currencies: [],
   });
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(
     null,
   );
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
@@ -129,142 +117,62 @@ export function ProductManagerNew() {
     brand: "all",
     featured: "all",
   });
-  const [pagination, setPagination] = useState<Pagination>({
+  const [pagination, setPagination] = useState({
     limit: 20,
     offset: 0,
-    total: 0,
-    hasMore: false,
   });
-
-  // Простая загрузка данных для форм
-  const [formDataLoading, setFormDataLoading] = useState(false);
-  const [formDataError, setFormDataError] = useState<string | null>(null);
 
   // Загружаем данные форм
   useEffect(() => {
     const loadFormData = async () => {
       try {
-        setFormDataLoading(true);
         const response = await fetch("/api/admin/form-data?type=all");
         if (!response.ok) throw new Error("Failed to load form data");
         const data = await response.json();
         setFormData(data);
       } catch (error) {
-        setFormDataError(
-          error instanceof Error ? error.message : "Unknown error",
+        toast.error(
+          error instanceof Error ? error.message : "Ошибка при загрузке данных для форм"
         );
-      } finally {
-        setFormDataLoading(false);
       }
     };
 
     loadFormData();
   }, []);
 
-  // Построение URL для запроса продуктов
-  const productsUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      limit: pagination.limit.toString(),
-      offset: pagination.offset.toString(),
-    });
+  // Используем TanStack Query для загрузки продуктов
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isRefetching: isRefreshing,
+    error: productsError,
+    refetch,
+  } = useProductsQuery(
+    {
+      search: filters.search || undefined,
+      status: filters.status !== "all" ? filters.status : undefined,
+      category: filters.category !== "all" ? filters.category : undefined,
+      brand: filters.brand !== "all" ? filters.brand : undefined,
+      featured: filters.featured !== "all" ? filters.featured : undefined,
+    },
+    pagination
+  );
 
-    if (filters.search) params.append("search", filters.search);
-    if (filters.status !== "all") params.append("status", filters.status);
-    if (filters.category !== "all") params.append("category", filters.category);
-    if (filters.brand !== "all") params.append("brand", filters.brand);
-    if (filters.featured !== "all") params.append("featured", filters.featured);
+  const products = productsData?.products || [];
+  const total = productsData?.total || 0;
+  const hasMore = productsData?.hasMore || false;
 
-    return `/api/admin/products?${params}`;
-  }, [filters, pagination.limit, pagination.offset]);
-
-  // Простая загрузка продуктов
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productsError, setProductsError] = useState<string | null>(null);
-
-  // Используем новый хук для кэширования
-  const { getCachedData, setCachedData, isCacheEnabled } = useDataCache<{
-    products: any[];
-    total: number;
-    hasMore: boolean;
-  }>("products");
-
-  // Загружаем продукты
-  const loadProducts = async (url: string, isRefresh = false) => {
-    try {
-      // Проверяем кэш сначала (кроме случаев принудительного обновления)
-      if (!isRefresh && isCacheEnabled) {
-        const cachedData = getCachedData(url);
-        if (cachedData) {
-          setProducts(cachedData.products || []);
-          setPagination((prev) => ({
-            ...prev,
-            total: cachedData.total || 0,
-            hasMore: cachedData.hasMore || false,
-          }));
-          return;
-        }
-      }
-
-      if (isRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setProductsLoading(true);
-      }
-      setProductsError(null);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to load products");
-      const data = await response.json();
-
-      // Кэшируем данные
-      if (isCacheEnabled) {
-        setCachedData(url, {
-          products: data.products || [],
-          total: data.total || 0,
-          hasMore: data.hasMore || false,
-        });
-      }
-
-      // Добавляем небольшую задержку для плавности анимации
-      if (isRefresh) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
-
-      setProducts(data.products || []);
-      setPagination((prev) => ({
-        ...prev,
-        total: data.total || 0,
-        hasMore: data.hasMore || false,
-      }));
-    } catch (error) {
-      setProductsError(
-        error instanceof Error ? error.message : "Unknown error",
-      );
-    } finally {
-      setProductsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
-  // Загружаем продукты при изменении URL
-  useEffect(() => {
-    const isFirstLoad = products.length === 0;
-    loadProducts(productsUrl, !isFirstLoad);
-  }, [productsUrl]);
-
-  // Устанавливаем общее состояние загрузки
-  useEffect(() => {
-    setLoading(formDataLoading || productsLoading);
-  }, [formDataLoading, productsLoading]);
+  // Мутации для CRUD операций
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
 
   // Показываем ошибки
   useEffect(() => {
-    if (formDataError) {
-      toast.error("Ошибка при загрузке данных для форм");
-    }
     if (productsError) {
       toast.error("Ошибка при загрузке товаров");
     }
-  }, [formDataError, productsError]);
+  }, [productsError]);
 
   // Функция для закрытия диалога с очисткой состояния
   const handleCloseDialog = useCallback(() => {
@@ -275,85 +183,68 @@ export function ProductManagerNew() {
 
   const handleCreateProduct = async (data: globalThis.FormData) => {
     try {
-      setSubmitting(true);
-
-      const response = await fetch("/api/admin/products", {
-        method: "POST",
-        body: data as unknown as BodyInit,
+      const result = await createProductMutation.mutateAsync({
+        formData: data as unknown as FormData,
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        let message = "Продукт успешно создан";
+      let message = "Продукт успешно создан";
 
-        // Добавляем информацию о загрузке файлов
-        if (result.uploadInfo) {
-          const { imagesUploaded, documentsUploaded, errors } =
-            result.uploadInfo;
-          if (imagesUploaded > 0 || documentsUploaded > 0) {
-            message += ` (загружено: ${imagesUploaded} изображений, ${documentsUploaded} документов)`;
-          }
-          if (errors && errors.length > 0) {
-            message += `. Ошибки загрузки: ${errors.join(", ")}`;
-          }
+      // Добавляем информацию о загрузке файлов
+      if (result.uploadInfo) {
+        const { imagesUploaded, documentsUploaded, errors } =
+          result.uploadInfo;
+        if (imagesUploaded > 0 || documentsUploaded > 0) {
+          message += ` (загружено: ${imagesUploaded} изображений, ${documentsUploaded} документов)`;
         }
-
-        toast.success(message);
-        handleCloseDialog();
-        // Плавное обновление списка
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        loadProducts(productsUrl, true);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Не удалось создать продукт");
+        if (errors && errors.length > 0) {
+          message += `. Ошибки загрузки: ${errors.join(", ")}`;
+        }
       }
+
+      toast.success(message);
+      handleCloseDialog();
     } catch (error) {
       console.error("Error creating product:", error);
-      toast.error("Ошибка при создании продукта");
-    } finally {
-      setSubmitting(false);
+      toast.error(
+        error instanceof Error ? error.message : "Ошибка при создании продукта"
+      );
     }
   };
 
   const handleUpdateProduct = async (data: globalThis.FormData) => {
     try {
-      setSubmitting(true);
+      const productId = data.get("id") as string;
+      if (!productId) {
+        toast.error("ID продукта не найден");
+        return;
+      }
 
-      const response = await fetch("/api/admin/products", {
-        method: "PUT",
-        body: data as unknown as BodyInit,
+      const result = await updateProductMutation.mutateAsync({
+        id: productId,
+        formData: data as unknown as FormData,
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        let message = "Продукт успешно обновлен";
+      let message = "Продукт успешно обновлен";
 
-        // Добавляем информацию о загрузке файлов
-        if (result.uploadInfo) {
-          const { imagesUploaded, documentsUploaded, errors } =
-            result.uploadInfo;
-          if (imagesUploaded > 0 || documentsUploaded > 0) {
-            message += ` (загружено: ${imagesUploaded} новых изображений, ${documentsUploaded} новых документов)`;
-          }
-          if (errors && errors.length > 0) {
-            message += `. Ошибки загрузки: ${errors.join(", ")}`;
-          }
+      // Добавляем информацию о загрузке файлов
+      if (result.uploadInfo) {
+        const { imagesUploaded, documentsUploaded, errors } =
+          result.uploadInfo;
+        if (imagesUploaded > 0 || documentsUploaded > 0) {
+          message += ` (загружено: ${imagesUploaded} новых изображений, ${documentsUploaded} новых документов)`;
         }
-
-        toast.success(message);
-        handleCloseDialog();
-        // Плавное обновление списка
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        loadProducts(productsUrl, true);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Не удалось обновить продукт");
+        if (errors && errors.length > 0) {
+          message += `. Ошибки загрузки: ${errors.join(", ")}`;
+        }
       }
+
+      toast.success(message);
+      handleCloseDialog();
     } catch (error) {
       console.error("Error updating product:", error);
-      toast.error("Ошибка при обновлении продукта");
-    } finally {
-      setSubmitting(false);
+      toast.error(
+        error instanceof Error ? error.message : "Ошибка при обновлении продукта"
+      );
     }
   };
 
@@ -363,22 +254,13 @@ export function ProductManagerNew() {
     }
 
     try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Продукт удален");
-        // Плавное обновление списка после удаления
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        loadProducts(productsUrl, true);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Не удалось удалить продукт");
-      }
+      await deleteProductMutation.mutateAsync(productId);
+      toast.success("Продукт удален");
     } catch (error) {
       console.error("Error deleting product:", error);
-      toast.error("Ошибка при удалении продукта");
+      toast.error(
+        error instanceof Error ? error.message : "Ошибка при удалении продукта"
+      );
     }
   };
 
@@ -389,6 +271,8 @@ export function ProductManagerNew() {
 
   const handlePageChange = (newOffset: number) => {
     setPagination((prev) => ({ ...prev, offset: newOffset }));
+    // Прокручиваем вверх при смене страницы
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const formatPrice = (price: number, currency?: { symbol: string }) => {
@@ -418,13 +302,6 @@ export function ProductManagerNew() {
     <div className="space-y-6">
       {/* Заголовок и статистика */}
       <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Управление товарами</h1>
-          <p className="text-muted-foreground mt-2">
-            Управляйте каталогом товаров вашего магазина
-          </p>
-        </div>
-
         <Dialog
           key={dialogKey}
           open={isFormOpen}
@@ -466,7 +343,9 @@ export function ProductManagerNew() {
               brands={formData.brands}
               collections={formData.collections}
               currencies={formData.currencies}
-              isSubmitting={submitting}
+              isSubmitting={
+                createProductMutation.isPending || updateProductMutation.isPending
+              }
             />
           </DialogContent>
         </Dialog>
@@ -474,59 +353,81 @@ export function ProductManagerNew() {
 
       {/* Статистические карточки */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Всего товаров</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pagination.total}</div>
+            <div className="text-3xl font-bold">{total}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Всего в базе данных
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-green-500 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Опубликованные
             </CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
+            <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Eye className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
               {products.filter((p) => p.status === "active").length}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Активных товаров
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-yellow-500 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Рекомендуемые</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
+            <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
               {products.filter((p) => p.is_featured).length}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Избранных товаров
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-red-500 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Заканчиваются</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">
               {products.filter((p) => p.inventory_quantity <= 5).length}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Требуют пополнения
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Фильтры */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Фильтры</CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg">Фильтры и поиск</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
@@ -624,22 +525,25 @@ export function ProductManagerNew() {
       </Card>
 
       {/* Таблица товаров */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle>Товары</CardTitle>
-            <CardDescription>
-              Найдено {pagination.total} товаров
+            <CardTitle className="text-lg">Список товаров</CardTitle>
+            <CardDescription className="mt-1">
+              Найдено <span className="font-semibold text-foreground">{total}</span> товаров
               {isRefreshing && (
-                <span className="ml-2 text-primary">• Обновление...</span>
+                <span className="ml-2 text-primary flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Обновление...
+                </span>
               )}
             </CardDescription>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => loadProducts(productsUrl, true)}
-            disabled={loading || isRefreshing}
+            onClick={() => refetch()}
+            disabled={productsLoading || isRefreshing}
             className="transition-all duration-200"
           >
             {isRefreshing ? (
@@ -659,7 +563,7 @@ export function ProductManagerNew() {
               : "transition-opacity duration-300"
           }
         >
-          {loading ? (
+          {productsLoading ? (
             <LoadingSkeleton rows={5} showFilters={false} />
           ) : products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -741,21 +645,37 @@ export function ProductManagerNew() {
                         </TableCell>
                         <TableCell className="p-3">
                           <div className="space-y-1">
-                            <div className="font-medium text-foreground leading-tight">
-                              {product.name}
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-foreground leading-tight">
+                                {product.name}
+                              </div>
                             </div>
                             {product.sku && (
                               <div className="text-xs text-muted-foreground font-mono">
                                 SKU: {product.sku}
                               </div>
                             )}
-                            {product.is_featured && (
-                              <FeaturedIndicator
-                                isFeatured={true}
-                                size="sm"
-                                className="mt-1"
-                              />
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              {product.is_featured && (
+                                <FeaturedIndicator
+                                  isFeatured={true}
+                                  size="sm"
+                                />
+                              )}
+                              {(product as any).documents &&
+                                Array.isArray((product as any).documents) &&
+                                (product as any).documents.length > 0 && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <FileText className="h-3.5 w-3.5" />
+                                    <span>
+                                      {(product as any).documents.length}{" "}
+                                      {(product as any).documents.length === 1
+                                        ? "документ"
+                                        : "документов"}
+                                    </span>
+                                  </div>
+                                )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="p-3">
@@ -859,7 +779,7 @@ export function ProductManagerNew() {
               </div>
 
               {/* Пагинация */}
-              {pagination.total > pagination.limit && (
+              {total > pagination.limit && (
                 <div className="flex items-center justify-between mt-6 p-4 bg-muted/20 rounded-lg border">
                   <div className="text-sm text-muted-foreground font-medium">
                     Показано{" "}
@@ -870,12 +790,12 @@ export function ProductManagerNew() {
                     <span className="text-foreground">
                       {Math.min(
                         pagination.offset + pagination.limit,
-                        pagination.total,
+                        total,
                       )}
                     </span>{" "}
                     из{" "}
                     <span className="text-foreground font-semibold">
-                      {pagination.total}
+                      {total}
                     </span>{" "}
                     товаров
                   </div>
@@ -896,7 +816,7 @@ export function ProductManagerNew() {
                     <div className="text-sm text-muted-foreground px-2">
                       Страница{" "}
                       {Math.floor(pagination.offset / pagination.limit) + 1} из{" "}
-                      {Math.ceil(pagination.total / pagination.limit)}
+                      {Math.ceil(total / pagination.limit)}
                     </div>
                     <Button
                       variant="outline"
@@ -904,7 +824,7 @@ export function ProductManagerNew() {
                       onClick={() =>
                         handlePageChange(pagination.offset + pagination.limit)
                       }
-                      disabled={!pagination.hasMore}
+                      disabled={!hasMore}
                       className="transition-all duration-200 hover:shadow-sm"
                     >
                       Следующая

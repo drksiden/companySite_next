@@ -14,6 +14,7 @@ interface NewsItem {
   images: string[] | null;
   tags: string[] | null;
   author: string | null;
+  documents: string[] | null;
   is_active: boolean;
 }
 
@@ -45,7 +46,7 @@ async function fetchNewsArticle(id: string): Promise<NewsItem | null> {
   const { data, error } = await supabase
     .from("news")
     .select(
-      "id, title, description, content, date, category, images, tags, author, is_active",
+      "id, title, description, content, date, category, images, tags, author, documents, is_active",
     )
     .eq("id", id)
     .eq("is_active", true)
