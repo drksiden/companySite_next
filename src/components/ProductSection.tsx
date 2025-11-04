@@ -212,9 +212,6 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
             console.warn(`Logo failed to load: "${brandLogoUrl}"`);
             setLogoVisible(false);
           }}
-          onLoad={() =>
-            console.log(`Logo loaded successfully: "${brandLogoUrl}"`)
-          }
         />
         <Image
           src={brandLogoUrlDark}

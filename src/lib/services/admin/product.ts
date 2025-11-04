@@ -81,6 +81,47 @@ export const productService = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: "Failed to create product" }));
+      
+      // Если ошибка 401, пытаемся обновить токен и повторить запрос
+      if (response.status === 401) {
+        try {
+          const { supabase } = await import("@/lib/supabaseClient");
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+            const { data: { session: refreshedSession }, error: refreshError } = 
+              await supabase.auth.refreshSession(session);
+            
+            if (!refreshError && refreshedSession) {
+              // Клонируем FormData для повторного использования
+              const retryFormData = new FormData();
+              for (const [key, value] of data.formData.entries()) {
+                retryFormData.append(key, value);
+              }
+              
+              // Повторяем запрос после обновления токена
+              const retryResponse = await fetch("/api/admin/products", {
+                method: "POST",
+                body: retryFormData,
+              });
+              
+              if (!retryResponse.ok) {
+                const retryError = await retryResponse.json().catch(() => ({ 
+                  error: "Session expired. Please refresh the page and try again." 
+                }));
+                throw new Error(retryError.error || "Session expired. Please refresh the page and try again.");
+              }
+              
+              return await retryResponse.json();
+            }
+          }
+          
+          throw new Error("Session expired. Please refresh the page and try again.");
+        } catch (refreshError) {
+          throw new Error("Session expired. Please refresh the page and try again.");
+        }
+      }
+      
       throw new Error(error.error || "Failed to create product");
     }
 
@@ -97,6 +138,47 @@ export const productService = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: "Failed to update product" }));
+      
+      // Если ошибка 401, пытаемся обновить токен и повторить запрос
+      if (response.status === 401) {
+        try {
+          const { supabase } = await import("@/lib/supabaseClient");
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+            const { data: { session: refreshedSession }, error: refreshError } = 
+              await supabase.auth.refreshSession(session);
+            
+            if (!refreshError && refreshedSession) {
+              // Клонируем FormData для повторного использования
+              const retryFormData = new FormData();
+              for (const [key, value] of data.formData.entries()) {
+                retryFormData.append(key, value);
+              }
+              
+              // Повторяем запрос после обновления токена
+              const retryResponse = await fetch("/api/admin/products", {
+                method: "PUT",
+                body: retryFormData,
+              });
+              
+              if (!retryResponse.ok) {
+                const retryError = await retryResponse.json().catch(() => ({ 
+                  error: "Session expired. Please refresh the page and try again." 
+                }));
+                throw new Error(retryError.error || "Session expired. Please refresh the page and try again.");
+              }
+              
+              return await retryResponse.json();
+            }
+          }
+          
+          throw new Error("Session expired. Please refresh the page and try again.");
+        } catch (refreshError) {
+          throw new Error("Session expired. Please refresh the page and try again.");
+        }
+      }
+      
       throw new Error(error.error || "Failed to update product");
     }
 

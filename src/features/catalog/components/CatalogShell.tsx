@@ -14,15 +14,13 @@ import LoadingSkeletons from "./LoadingSkeletons";
 import { createServerClient } from "@/lib/supabaseServer";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   Shield,
-  Flame,
-  Camera,
+  Cctv,
   Network,
   Phone,
   BatteryFull,
@@ -31,6 +29,7 @@ import {
   Cable,
   Plug,
 } from "lucide-react";
+import CategoryInfo from "./CategoryInfo";
 
 interface CatalogShellProps {
   searchParams?: {
@@ -43,21 +42,15 @@ interface CatalogShellProps {
 // Static top-level categories with display names and images
 const staticCategories = [
   {
-    name: "Охранная сигнализация",
-    slug: "security-alarms",
+    name: "Охранно-пожарная сигнализация",
+    slug: "security-fire-alarms",
     Icon: Shield,
-    color: "bg-blue-100 text-blue-600",
-  },
-  {
-    name: "Пожарная сигнализация",
-    slug: "fire-alarms",
-    Icon: Flame,
-    color: "bg-red-100 text-red-600",
+    color: "bg-orange-100 text-orange-600",
   },
   {
     name: "Видеонаблюдение",
     slug: "surveillance",
-    Icon: Camera,
+    Icon: Cctv,
     color: "bg-indigo-100 text-indigo-600",
   },
   {
@@ -104,6 +97,148 @@ const staticCategories = [
   },
 ];
 
+// Extended category information (description, image, price list, etc.)
+// This is stored locally, not in the database
+const categoryInfoMap: Record<
+  string,
+  {
+    description?: string;
+    image?: string;
+    priceListUrl?: string;
+    manufacturer?: {
+      name: string;
+      logo?: string;
+      badge?: string;
+      website?: string;
+    };
+    features?: string[];
+  }
+> = {
+  "security-fire-alarms": {
+    description:
+      "Комплексные системы охранно-пожарной сигнализации для защиты объектов различного назначения. От радиоканальных систем «Астра» до адресных решений для защиты вашего объекта. Полный спектр оборудования НПО «ТЕКО» в Казахстане.",
+    // image: "/images/categories/security-fire-alarms.jpg",
+    priceListUrl: "/price-lists/security-fire-alarms.pdf",
+    manufacturer: {
+      name: 'НПО "ТЕКО"',
+      logo: "/images/logos/teko-logo.svg",
+      badge: "Официальный дилер",
+      website: "https://teko.biz",
+    },
+    features: [
+      "Радиоканальные системы «Астра»",
+      "Адресные проводные и беспроводные извещатели",
+      "Интеграция с системами дымоудаления",
+      "Масштабируемые решения для любых объектов",
+      "Профессиональная техническая поддержка",
+    ],
+  },
+  surveillance: {
+    description:
+      "Системы видеонаблюдения для мониторинга и обеспечения безопасности. Аналоговые, IP и гибридные решения с поддержкой высокого разрешения и аналитики. Полный комплекс оборудования для видеоконтроля объектов любой сложности.",
+    // image: "/images/categories/surveillance.jpg",
+    priceListUrl: "/price-lists/surveillance.pdf",
+    features: [
+      "IP-камеры высокого разрешения",
+      "Аналоговые и гибридные системы",
+      "Системы видеоаналитики",
+      "Видеорегистраторы и серверы",
+      "Комплекты для объектов различного масштаба",
+    ],
+  },
+  "network-equipment": {
+    description:
+      "Сетевое оборудование и структурированные кабельные системы для построения надежных IT-инфраструктур. Коммутаторы, маршрутизаторы, патч-панели и аксессуары от ведущих производителей.",
+    // image: "/images/categories/network-equipment.jpg",
+    priceListUrl: "/price-lists/network-equipment.pdf",
+    features: [
+      "Коммутаторы и маршрутизаторы",
+      "Патч-панели и коммутационные панели",
+      "Аксессуары для монтажа",
+      "Серверные стойки и шкафы",
+      "Комплектующие для СКС",
+    ],
+  },
+  intercoms: {
+    description:
+      "Системы домофонии и связи для контроля доступа и коммуникации. Аудио и видеодомофоны, системы IP-телефонии для офисов и жилых комплексов. Современные решения для обеспечения безопасности и комфорта.",
+    // image: "/images/categories/intercoms.jpg",
+    priceListUrl: "/price-lists/intercoms.pdf",
+    features: [
+      "Видеодомофоны с поддержкой IP",
+      "Аудиодомофоны",
+      "Системы IP-телефонии",
+      "Контроллеры и коммутаторы",
+      "Аксессуары и комплектующие",
+    ],
+  },
+  "power-supplies": {
+    description:
+      "Источники питания и резервного питания для систем безопасности и автоматизации. Блоки питания, ИБП, аккумуляторы различных типов и емкостей. Обеспечение бесперебойной работы критически важных систем.",
+    // image: "/images/categories/power-supplies.jpg",
+    priceListUrl: "/price-lists/power-supplies.pdf",
+    features: [
+      "Блоки питания различной мощности",
+      "Источники бесперебойного питания (ИБП)",
+      "Аккумуляторы и батареи",
+      "Зарядные устройства",
+      "Контроллеры заряда",
+    ],
+  },
+  "notification-systems": {
+    description:
+      "Системы оповещения и трансляции для экстренных ситуаций и фонового вещания. Громкоговорители, усилители, системы речевого оповещения. Соответствие требованиям пожарной безопасности и нормативным документам.",
+    // image: "/images/categories/notification-systems.jpg",
+    priceListUrl: "/price-lists/notification-systems.pdf",
+    features: [
+      "Системы речевого оповещения (СОУЭ)",
+      "Громкоговорители и колонки",
+      "Усилители мощности",
+      "Контроллеры оповещения",
+      "Аксессуары для монтажа",
+    ],
+  },
+  "access-control": {
+    description:
+      "Системы контроля и управления доступом (СКУД) для автоматизации пропускного режима. Считыватели, контроллеры, карты доступа и программное обеспечение. Современные решения для контроля доступа на объекты.",
+    // image: "/images/categories/access-control.jpg",
+    priceListUrl: "/price-lists/access-control.pdf",
+    features: [
+      "Считыватели карт и биометрии",
+      "Контроллеры доступа",
+      "Замки и электромеханические устройства",
+      "Карты доступа и брелоки",
+      "Программное обеспечение",
+    ],
+  },
+  "cable-management": {
+    description:
+      "Кабеленесущие системы для организации и защиты кабельной инфраструктуры. Кабель-каналы, лотки, короба, стойки и аксессуары для монтажа. Профессиональные решения для упорядочивания кабельных систем.",
+    // image: "/images/categories/cable-management.jpg",
+    priceListUrl: "/price-lists/cable-management.pdf",
+    features: [
+      "Кабель-каналы и короба",
+      "Кабельные лотки и перфорированные системы",
+      "Серверные стойки и шкафы",
+      "Аксессуары для крепления",
+      "Маркировка и организация кабелей",
+    ],
+  },
+  cables: {
+    description:
+      "Кабельная продукция для систем безопасности, связи и автоматизации. Силовые, сигнальные, витые пары, коаксиальные и оптоволоконные кабели. Широкий ассортимент кабельной продукции для различных применений.",
+    // image: "/images/categories/cables.jpg",
+    priceListUrl: "/price-lists/cables.pdf",
+    features: [
+      "Силовые кабели",
+      "Сигнальные и контрольные кабели",
+      "Витая пара (UTP, STP)",
+      "Коаксиальные кабели",
+      "Оптоволоконные кабели",
+    ],
+  },
+};
+
 async function fetchData({
   query = "",
   category = "",
@@ -114,6 +249,9 @@ async function fetchData({
   brand?: string;
 }) {
   const supabase = await createServerClient();
+  
+  // Categories are already slugs, so we pass them as-is
+  // listProducts will handle the conversion internally
   const params = {
     page: 1,
     limit: 50,
@@ -158,6 +296,18 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
     brand: searchParams?.brand,
   });
 
+  // Определяем выбранную основную категорию (только если выбрана одна категория без других фильтров)
+  const selectedCategorySlug = searchParams?.category?.split(",")[0];
+  const hasSingleCategory = 
+    selectedCategorySlug && 
+    !searchParams?.query && 
+    !searchParams?.brand &&
+    searchParams?.category?.split(",").length === 1;
+  
+  const selectedCategory = hasSingleCategory && selectedCategorySlug
+    ? topLevelCategories.find((cat) => cat.slug === selectedCategorySlug)
+    : null;
+
   return (
     <>
       {/* Top-Level Category Selection */}
@@ -165,10 +315,10 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {topLevelCategories.map((category) => (
             <Card
-              key={category.id}
+              key={category.slug}
               className="group relative p-2 sm:p-3 flex flex-col items-center justify-center gap-3 border hover:border-primary hover:shadow transition-all duration-200 cursor-pointer min-h-[120px]"
             >
-              <Link href={`/catalog?category=${category.id}`} className="flex flex-col items-center w-full h-full">
+              <Link href={`/catalog?category=${category.slug}`} className="flex flex-col items-center w-full h-full">
                 <div
                   className={`rounded-full flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 text-2xl sm:text-3xl shadow ${category.color} group-hover:bg-opacity-50 group-hover:scale-105 transition-transform`}
                 >
@@ -189,6 +339,14 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
       </section>
 
       <Separator className="my-6 bg-[var(--card-border)]" />
+
+      {/* Category Information Section - клиентский компонент для мгновенного отображения */}
+      {selectedCategory && (
+        <CategoryInfo 
+          categorySlug={selectedCategory.slug} 
+          categoryName={selectedCategory.name}
+        />
+      )}
 
       {/* Mobile Filter Button */}
       <div className="lg:hidden mb-4">

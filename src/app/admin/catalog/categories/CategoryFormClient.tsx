@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Category, CategoryFormData } from "@/types/catalog";
 import { useCategoriesQuery, useCreateCategory, useUpdateCategory, useDeleteCategory, useToggleActiveCategory } from "@/lib/hooks/useCategoriesQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import { CategoryForm } from "@/components/admin/CategoryForm";
 import { CategoryList } from "@/components/admin/CategoryList";
 import { Button } from "@/components/ui/button";
@@ -25,26 +26,64 @@ export default function CategoryFormClient() {
   const [formMode, setFormMode] = useState<FormMode>("create");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [formKey, setFormKey] = useState(0); // Ключ для принудительного пересоздания формы
+  const [isFormSubmitting, setIsFormSubmitting] = useState(false); // Локальное состояние для отслеживания отправки формы
 
   const handleOpenForm = (mode: FormMode, category?: Category) => {
+    // Сбрасываем состояние мутаций перед открытием формы, чтобы избежать бесконечной загрузки
+    createMut.reset();
+    updateMut.reset();
+    
+    console.log("Opening form:", {
+      mode,
+      categoryId: category?.id,
+      createPending: createMut.isPending,
+      updatePending: updateMut.isPending,
+      createStatus: createMut.status,
+      updateStatus: updateMut.status,
+    });
+    
     setFormMode(mode);
     setSelectedCategory(category || null);
+    setFormKey(prev => prev + 1); // Увеличиваем ключ для пересоздания формы
     setShowForm(true);
   };
 
   const handleCloseForm = () => {
+    // Сбрасываем состояние мутаций при закрытии формы
+    createMut.reset();
+    updateMut.reset();
+    setIsFormSubmitting(false); // Сбрасываем локальное состояние отправки
+    
     setShowForm(false);
+    setFormMode("create"); // Сбрасываем режим формы на создание
     setSelectedCategory(null);
   };
 
   const handleCreateCategory = async (data: CategoryFormData) => {
-    await createMut.mutateAsync(data);
-    toast.success("Категория успешно создана");
+    try {
+      const result = await createMut.mutateAsync(data);
+      // Инвалидация уже происходит в onSuccess мутации, не нужно делать дважды
+      toast.success("Категория успешно создана");
+      return result; // Возвращаем результат для логирования
+    } catch (error) {
+      // Ошибка уже обработана в handleSubmit, но перебросим её дальше
+      throw error;
+    }
   };
   const handleEditCategory = async (data: CategoryFormData) => {
-    if (!selectedCategory) return;
-    await updateMut.mutateAsync({ id: selectedCategory.id, data });
-    toast.success("Категория успешно обновлена");
+    if (!selectedCategory) {
+      throw new Error("Категория для редактирования не выбрана");
+    }
+    try {
+      const result = await updateMut.mutateAsync({ id: selectedCategory.id, data });
+      // Инвалидация уже происходит в onSuccess мутации, не нужно делать дважды
+      toast.success("Категория успешно обновлена");
+      return result; // Возвращаем результат для логирования
+    } catch (error) {
+      // Ошибка уже обработана в handleSubmit, но перебросим её дальше
+      throw error;
+    }
   };
   const handleDeleteCategory = async () => {
     if (!selectedCategory) return;
@@ -57,48 +96,116 @@ export default function CategoryFormClient() {
     toast.success(isActive ? "Категория активирована" : "Категория деактивирована");
   };
 
-  const handleSubmit = (data: CategoryFormData) => {
-    switch (formMode) {
-      case "create": handleCreateCategory(data); break;
-      case "edit": handleEditCategory(data); break;
-      case "createSub": handleCreateCategory({ ...data, parent_id: selectedCategory?.id }); break;
+  const handleSubmit = async (data: CategoryFormData) => {
+    // Предотвращаем повторную отправку
+    if (isFormSubmitting || createMut.isPending || updateMut.isPending) {
+      console.warn("Form already submitting, skipping submit");
+      return;
     }
-    handleCloseForm();
+
+    setIsFormSubmitting(true);
+
+    try {
+      console.log("Submitting category form:", { formMode, data, selectedCategoryId: selectedCategory?.id });
+      
+      let result;
+      switch (formMode) {
+        case "create": 
+          result = await handleCreateCategory(data); 
+          break;
+        case "edit": 
+          result = await handleEditCategory(data); 
+          break;
+        case "createSub": 
+          result = await handleCreateCategory({ ...data, parent_id: selectedCategory?.id }); 
+          break;
+        default:
+          throw new Error("Неизвестный режим формы");
+      }
+      
+      console.log("Category submission successful:", result);
+      
+      // Небольшая задержка для завершения всех операций
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Проверяем статус мутаций перед закрытием
+      console.log("Mutations status before close:", {
+        createPending: createMut.isPending,
+        updatePending: updateMut.isPending,
+        createStatus: createMut.status,
+        updateStatus: updateMut.status,
+      });
+      
+      // Если мутации все еще в процессе, принудительно сбрасываем их
+      if (createMut.isPending || updateMut.isPending) {
+        console.warn("Mutations still pending, forcing reset");
+        createMut.reset();
+        updateMut.reset();
+      }
+      
+      setIsFormSubmitting(false);
+      
+      // Мутация завершена, закрываем форму
+      // Инвалидация кэша происходит в фоне и не должна блокировать закрытие формы
+      handleCloseForm();
+    } catch (error: any) {
+      console.error("Error submitting category:", error);
+      
+      setIsFormSubmitting(false);
+      
+      // Детальная обработка ошибок
+      let errorMessage = "Произошла ошибка при сохранении категории";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.code) {
+        errorMessage = `Ошибка ${error.code}: ${error.message || "Неизвестная ошибка"}`;
+      }
+      
+      // Показываем ошибку пользователю
+      toast.error(errorMessage);
+      
+      // Сбрасываем состояние мутаций при ошибке, чтобы не было бесконечной загрузки
+      createMut.reset();
+      updateMut.reset();
+      
+      // Не закрываем форму при ошибке, чтобы пользователь мог исправить
+    }
   };
 
   const getInitialFormData = (): CategoryFormData | undefined => {
-  if (formMode === "edit" && selectedCategory) {
-    return {
-      name: selectedCategory.name || "",
-      slug: selectedCategory.slug || "",
-      description: selectedCategory.description || "",
-      parent_id: selectedCategory.parent_id,
-      image_url: selectedCategory.image_url || "",
-      icon_name: selectedCategory.icon_name || "",
-      is_active: selectedCategory.is_active || true,
-      sort_order: selectedCategory.sort_order || 0,
-      meta_title: selectedCategory.meta_title || "",
-      meta_description: selectedCategory.meta_description || "",
-      meta_keywords: selectedCategory.meta_keywords || "",
-    };
-  } else if (formMode === "createSub" && selectedCategory) {
-    return {
-      name: "",
-      slug: "",
-      description: "",
-      parent_id: selectedCategory.id,
-      image_url: "",
-      icon_name: "",
-      is_active: true,
-      sort_order: 0,
-      meta_title: "",
-      meta_description: "",
-      meta_keywords: "",
-    };
-  }
-
-  return undefined;
-};
+    if (formMode === "edit" && selectedCategory) {
+      return {
+        name: selectedCategory.name || "",
+        slug: selectedCategory.slug || "",
+        description: selectedCategory.description || "",
+        parent_id: selectedCategory.parent_id,
+        image_url: selectedCategory.image_url || "",
+        icon_name: selectedCategory.icon_name || "",
+        is_active: selectedCategory.is_active ?? true,
+        sort_order: selectedCategory.sort_order || 0,
+        meta_title: selectedCategory.meta_title || "",
+        meta_description: selectedCategory.meta_description || "",
+        meta_keywords: selectedCategory.meta_keywords || "",
+      };
+    } else if (formMode === "createSub" && selectedCategory) {
+      return {
+        name: "",
+        slug: "",
+        description: "",
+        parent_id: selectedCategory.id,
+        image_url: "",
+        icon_name: "none",
+        is_active: true,
+        sort_order: 0,
+        meta_title: "",
+        meta_description: "",
+        meta_keywords: "",
+      };
+    }
+    // Для режима "create" возвращаем undefined, чтобы форма сбросилась
+    return undefined;
+  };
 
   return (
     <>
@@ -136,7 +243,16 @@ export default function CategoryFormClient() {
         </AnimatePresence>
       )}
       {/* Остальные модальные окна как раньше */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog 
+        open={showForm} 
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseForm(); // Используем нашу функцию для правильного сброса
+          } else {
+            setShowForm(true);
+          }
+        }}
+      >
         <DialogContent size="lg" scrollable>
           <DialogHeader>
             <DialogTitle>
@@ -149,19 +265,13 @@ export default function CategoryFormClient() {
             </DialogDescription>
           </DialogHeader>
           <CategoryForm
+            key={`${formMode}-${selectedCategory?.id || "new"}-${formKey}`} // Пересоздаем форму при изменении режима/категории/открытии
             onSubmit={handleSubmit}
             initialData={getInitialFormData()}
             categories={categories}
             currentCategoryId={selectedCategory?.id}
+            isSubmitting={isFormSubmitting || createMut.isPending || updateMut.isPending}
           />
-          {(createMut.isPending || updateMut.isPending) && (
-            <div className="flex items-center justify-center mt-4 text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {formMode === "create" || formMode === "createSub"
-                ? "Создание..."
-                : "Сохранение..."}
-            </div>
-          )}
         </DialogContent>
       </Dialog>
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

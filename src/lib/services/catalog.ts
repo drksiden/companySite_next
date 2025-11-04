@@ -30,6 +30,12 @@ function cleanImagesArray(images: string[] | null | undefined): string[] {
     .filter((img): img is string => img !== null);
 }
 
+// Helper function to check if a string is a UUID
+function isUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export interface CatalogProduct {
   id: string;
   name: string;
@@ -197,15 +203,55 @@ export async function listProducts(
 
   // Apply filters - include child categories
   if (categories.length > 0) {
+    // Convert slugs to IDs if needed
+    let categoryIds: string[] = [];
+    const slugsToConvert = categories.filter((cat) => !isUUID(cat));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch category IDs by slugs
+      const { data: categoriesBySlug } = await supabase
+        .from("categories")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      categoriesBySlug?.forEach((cat) => {
+        slugToIdMap.set(cat.slug, cat.id);
+      });
+
+      // Convert all categories to IDs
+      categoryIds = categories.map((cat) => {
+        if (isUUID(cat)) return cat;
+        return slugToIdMap.get(cat) || "";
+      }).filter(Boolean);
+    } else {
+      categoryIds = categories;
+    }
+
+    if (categoryIds.length === 0) {
+      // If no valid categories found, return empty result
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page: params.page,
+          limit: params.limit,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
+
     // Get all categories including children
     const { data: allCategories } = await supabase
       .from("categories")
       .select("id, parent_id, path");
 
-    const expandedCategories = new Set(categories);
+    const expandedCategories = new Set(categoryIds);
 
     // For each selected category, find all its children
-    categories.forEach((categoryId) => {
+    categoryIds.forEach((categoryId) => {
       const findChildren = (parentId: string) => {
         allCategories?.forEach((cat) => {
           if (cat.parent_id === parentId) {
@@ -221,11 +267,65 @@ export async function listProducts(
   }
 
   if (brands.length > 0) {
-    query = query.in("brand_id", brands);
+    // Convert slugs to IDs if needed
+    let brandIds: string[] = [];
+    const slugsToConvert = brands.filter((brand) => !isUUID(brand));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch brand IDs by slugs
+      const { data: brandsBySlug } = await supabase
+        .from("brands")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      brandsBySlug?.forEach((brand) => {
+        slugToIdMap.set(brand.slug, brand.id);
+      });
+
+      // Convert all brands to IDs
+      brandIds = brands.map((brand) => {
+        if (isUUID(brand)) return brand;
+        return slugToIdMap.get(brand) || "";
+      }).filter(Boolean);
+    } else {
+      brandIds = brands;
+    }
+
+    if (brandIds.length > 0) {
+      query = query.in("brand_id", brandIds);
+    }
   }
 
   if (collections.length > 0) {
-    query = query.in("collection_id", collections);
+    // Convert slugs to IDs if needed
+    let collectionIds: string[] = [];
+    const slugsToConvert = collections.filter((collection) => !isUUID(collection));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch collection IDs by slugs
+      const { data: collectionsBySlug } = await supabase
+        .from("collections")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      collectionsBySlug?.forEach((collection) => {
+        slugToIdMap.set(collection.slug, collection.id);
+      });
+
+      // Convert all collections to IDs
+      collectionIds = collections.map((collection) => {
+        if (isUUID(collection)) return collection;
+        return slugToIdMap.get(collection) || "";
+      }).filter(Boolean);
+    } else {
+      collectionIds = collections;
+    }
+
+    if (collectionIds.length > 0) {
+      query = query.in("collection_id", collectionIds);
+    }
   }
 
   if (minPrice && minPrice > 0) {

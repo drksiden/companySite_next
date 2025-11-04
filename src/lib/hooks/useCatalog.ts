@@ -58,7 +58,8 @@ export function useProducts(params?: {
       }
       return { data: result.data, meta: result.meta };
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000, // 5 minutes - товары не меняются часто
+    gcTime: 10 * 60 * 1000, // 10 minutes - хранить в кэше дольше
   });
 }
 
@@ -77,6 +78,7 @@ export function useProduct(slug: string) {
     },
     enabled: !!slug,
     staleTime: 5 * 60 * 1000, // 5 minutes - товары не меняются часто
+    gcTime: 10 * 60 * 1000, // 10 minutes - хранить в кэше дольше
   });
 }
 

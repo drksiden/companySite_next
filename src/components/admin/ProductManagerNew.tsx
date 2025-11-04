@@ -202,12 +202,28 @@ export function ProductManagerNew() {
       }
 
       toast.success(message);
-      handleCloseDialog();
+      // Очищаем автосохранение после успешного создания
+      localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      handleCloseDialog(true);
     } catch (error) {
       console.error("Error creating product:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Ошибка при создании продукта"
-      );
+      const errorMessage = error instanceof Error ? error.message : "Ошибка при создании продукта";
+      
+      // Если ошибка связана с сессией, предлагаем обновить страницу
+      if (errorMessage.includes("Session expired") || errorMessage.includes("Unauthorized")) {
+        toast.error(
+          "Сессия истекла. Пожалуйста, обновите страницу и попробуйте снова.",
+          {
+            duration: 5000,
+            action: {
+              label: "Обновить",
+              onClick: () => window.location.reload(),
+            },
+          }
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -239,12 +255,28 @@ export function ProductManagerNew() {
       }
 
       toast.success(message);
-      handleCloseDialog();
+      // Очищаем автосохранение после успешного обновления
+      localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      handleCloseDialog(true);
     } catch (error) {
       console.error("Error updating product:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Ошибка при обновлении продукта"
-      );
+      const errorMessage = error instanceof Error ? error.message : "Ошибка при обновлении продукта";
+      
+      // Если ошибка связана с сессией, предлагаем обновить страницу
+      if (errorMessage.includes("Session expired") || errorMessage.includes("Unauthorized")) {
+        toast.error(
+          "Сессия истекла. Пожалуйста, обновите страницу и попробуйте снова.",
+          {
+            duration: 5000,
+            action: {
+              label: "Обновить",
+              onClick: () => window.location.reload(),
+            },
+          }
+        );
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -307,7 +339,7 @@ export function ProductManagerNew() {
           open={isFormOpen}
           onOpenChange={(open) => {
             if (!open) {
-              handleCloseDialog();
+              handleCloseDialog(false);
             } else {
               setIsFormOpen(true);
             }
@@ -315,14 +347,45 @@ export function ProductManagerNew() {
         >
           <DialogTrigger asChild>
             <Button
-              onClick={() => setEditingProduct(null)}
+              onClick={() => {
+                setEditingProduct(null);
+                // Очищаем автосохранение при создании нового товара
+                localStorage.removeItem("product-form-draft-new");
+              }}
               className="enhanced-shadow"
             >
               <Plus className="h-4 w-4 mr-2" />
               Добавить товар
             </Button>
           </DialogTrigger>
-          <DialogContent size="xl" scrollable={true}>
+          <DialogContent 
+            size="xl" 
+            scrollable={true}
+            onInteractOutside={(e) => {
+              // Перехватываем закрытие при клике вне формы
+              const formElement = document.querySelector('[data-unsaved-changes]');
+              if (formElement) {
+                e.preventDefault();
+                if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
+                  // Очищаем автосохранение при подтверждении закрытия
+                  localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  handleCloseDialog(true);
+                }
+              }
+            }}
+            onEscapeKeyDown={(e) => {
+              // Перехватываем закрытие по Escape
+              const formElement = document.querySelector('[data-unsaved-changes]');
+              if (formElement) {
+                e.preventDefault();
+                if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
+                  // Очищаем автосохранение при подтверждении закрытия
+                  localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  handleCloseDialog(true);
+                }
+              }
+            }}
+          >
             <DialogHeader>
               <DialogTitle>
                 {editingProduct ? "Редактировать товар" : "Добавить товар"}

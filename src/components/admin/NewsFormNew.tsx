@@ -27,6 +27,7 @@ import {
   X,
   FileText,
   File,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -68,6 +69,9 @@ export function NewsFormNew({
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [documentUrls, setDocumentUrls] = useState<Array<{ url: string; name: string }>>([]);
+  const [documentUrlInput, setDocumentUrlInput] = useState("");
+  const [documentNameInput, setDocumentNameInput] = useState("");
   const [existingDocuments, setExistingDocuments] = useState<
     Array<{ url: string; name: string; type: string }>
   >([]);
@@ -148,6 +152,31 @@ export function NewsFormNew({
     setExistingDocuments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddDocumentUrl = () => {
+    if (!documentUrlInput.trim()) {
+      return;
+    }
+    const url = documentUrlInput.trim();
+    const name = documentNameInput.trim() || `Документ ${documentUrls.length + 1}`;
+    
+    // Простая валидация URL
+    try {
+      new URL(url);
+      setDocumentUrls((prev) => [...prev, { url, name }]);
+      setDocumentUrlInput("");
+      setDocumentNameInput("");
+    } catch {
+      // Если не валидный URL, все равно добавим (может быть относительный путь)
+      setDocumentUrls((prev) => [...prev, { url, name }]);
+      setDocumentUrlInput("");
+      setDocumentNameInput("");
+    }
+  };
+
+  const removeDocumentUrl = (index: number) => {
+    setDocumentUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags((prev) => [...prev, tagInput.trim()]);
@@ -185,6 +214,14 @@ export function NewsFormNew({
     documentFiles.forEach((file) => {
       formData.append("documentFiles", file);
     });
+
+    // Добавляем документы по URL
+    if (documentUrls.length > 0) {
+      formData.append(
+        "documentUrls",
+        JSON.stringify(documentUrls)
+      );
+    }
 
     // Добавляем существующие изображения
     if (initialData?.id) {
@@ -473,24 +510,69 @@ export function NewsFormNew({
 
           {/* Документы */}
           <TabsContent value="documents" className="space-y-4 px-6">
-            <div className="space-y-2">
-              <Label>Загрузить документы</Label>
-              <div className="flex gap-2">
-                <Input
-                  ref={documentInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleDocumentUpload}
-                  className="cursor-pointer"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => documentInputRef.current?.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Выбрать
-                </Button>
+            <div className="space-y-4">
+              {/* Загрузка файлов */}
+              <div className="space-y-2">
+                <Label>Загрузить документы (файлы)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    ref={documentInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleDocumentUpload}
+                    className="cursor-pointer"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => documentInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Выбрать
+                  </Button>
+                </div>
+              </div>
+
+              {/* Добавление по URL */}
+              <div className="space-y-2">
+                <Label>Добавить документ по URL</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/document.pdf"
+                      value={documentUrlInput}
+                      onChange={(e) => setDocumentUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddDocumentUrl();
+                        }
+                      }}
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Название документа (необязательно)"
+                      value={documentNameInput}
+                      onChange={(e) => setDocumentNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddDocumentUrl();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddDocumentUrl}
+                    disabled={!documentUrlInput.trim()}
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Добавить
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -526,11 +608,11 @@ export function NewsFormNew({
               </Card>
             )}
 
-            {/* Новые документы */}
+            {/* Новые документы (файлы) */}
             {documentFiles.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Новые документы</CardTitle>
+                  <CardTitle>Новые документы (файлы)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -551,6 +633,48 @@ export function NewsFormNew({
                           variant="ghost"
                           size="icon"
                           onClick={() => removeDocumentFile(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Документы по URL */}
+            {documentUrls.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Документы по URL</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {documentUrls.map((doc, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 border rounded-md"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{doc.name}</div>
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-primary truncate block"
+                            >
+                              {doc.url}
+                            </a>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeDocumentUrl(index)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

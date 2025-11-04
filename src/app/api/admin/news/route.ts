@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // --- Обработка документов ---
+    // --- Обработка документов (файлы) ---
     const documentFiles = formData.getAll("documentFiles") as File[];
     const uploadedDocumentUrls: string[] = [];
 
@@ -129,11 +129,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // --- Обработка документов по URL ---
+    const documentUrlsStr = formData.get("documentUrls") as string;
+    const documentUrls: Array<{ url: string; name: string }> = [];
+    if (documentUrlsStr) {
+      try {
+        const parsed = JSON.parse(documentUrlsStr);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((doc: any) => {
+            if (doc.url) {
+              // Добавляем URL напрямую, без загрузки
+              documentUrls.push({
+                url: doc.url,
+                name: doc.name || doc.url,
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing documentUrls:", error);
+      }
+    }
+
     // Собираем все изображения
     const images = newImageUrls.length > 0 ? newImageUrls : [];
 
-    // Собираем документы (пока простой массив URL)
-    const documents = uploadedDocumentUrls.length > 0 ? uploadedDocumentUrls : [];
+    // Собираем документы: сначала загруженные файлы, потом URL
+    const documents = [
+      ...uploadedDocumentUrls,
+      ...documentUrls.map((doc) => doc.url),
+    ];
 
     // Вставляем новость в базу данных
     const { data: newsData, error: insertError } = await supabase

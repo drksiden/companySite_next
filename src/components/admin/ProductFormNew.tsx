@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useForm, SubmitHandler, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ import {
   ArrowDown,
   Heading1,
   Minus,
+  Link as LinkIcon,
+  Wand2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -131,6 +133,8 @@ interface ProductFormProps {
   collections: Collection[];
   currencies: Currency[];
   isSubmitting: boolean;
+  onClose?: () => void;
+  onCloseAttempt?: () => boolean;
 }
 
 export function ProductFormNew({
@@ -141,6 +145,8 @@ export function ProductFormNew({
   collections,
   currencies,
   isSubmitting,
+  onClose,
+  onCloseAttempt,
 }: ProductFormProps) {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -174,6 +180,95 @@ export function ProductFormNew({
   }
 
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
+
+  // Ключ для localStorage
+  const storageKey = `product-form-draft-${initialData?.id || 'new'}`;
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const isSubmittingRef = useRef(false);
+
+  // Функция для генерации мета-тегов на основе данных товара
+  const generateMetaTags = () => {
+    const name = form.getValues("name") || "";
+    const shortDescription = form.getValues("short_description") || "";
+    const description = form.getValues("description") || "";
+    const brandId = form.getValues("brand_id");
+    const categoryId = form.getValues("category_id");
+
+    // Получаем названия бренда и категории
+    const brand = brandId && brandId !== "no-brand" 
+      ? brands.find((b) => b.id === brandId)?.name 
+      : null;
+    const category = categoryId 
+      ? categories.find((c) => c.id === categoryId)?.name 
+      : null;
+
+    // Генерация meta_title: название + бренд (если есть) - максимум 60 символов
+    let metaTitle = name;
+    if (brand && metaTitle.length + brand.length + 3 <= 60) {
+      metaTitle = `${name} - ${brand}`;
+    }
+    if (metaTitle.length > 60) {
+      metaTitle = metaTitle.substring(0, 57) + "...";
+    }
+
+    // Генерация meta_description: краткое описание или первые 160 символов полного описания
+    let metaDescription = shortDescription.trim();
+    if (!metaDescription) {
+      // Удаляем HTML теги из описания
+      const plainDescription = description
+        .replace(/<[^>]*>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      metaDescription = plainDescription.substring(0, 160);
+      if (plainDescription.length > 160) {
+        metaDescription = metaDescription.substring(0, 157) + "...";
+      }
+    } else if (metaDescription.length > 160) {
+      metaDescription = metaDescription.substring(0, 157) + "...";
+    }
+
+    // Генерация meta_keywords: название, бренд, категория, ключевые слова из описания
+    const keywords: string[] = [];
+    
+    // Добавляем название (разбиваем на слова)
+    if (name) {
+      const nameWords = name
+        .toLowerCase()
+        .split(/[\s,\-]+/)
+        .filter((word) => word.length > 2);
+      keywords.push(...nameWords);
+    }
+
+    // Добавляем бренд
+    if (brand) {
+      keywords.push(brand.toLowerCase());
+    }
+
+    // Добавляем категорию
+    if (category) {
+      keywords.push(category.toLowerCase());
+    }
+
+    // Добавляем ключевые слова из описания (первые 5-7 значимых слов)
+    if (shortDescription || description) {
+      const text = (shortDescription || description)
+        .replace(/<[^>]*>/g, "")
+        .toLowerCase()
+        .replace(/[^\w\s]/g, " ")
+        .split(/\s+/)
+        .filter((word) => word.length > 3 && !["это", "для", "или", "что", "как", "где"].includes(word));
+      keywords.push(...text.slice(0, 7));
+    }
+
+    // Убираем дубликаты и объединяем
+    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 10);
+    const metaKeywords = uniqueKeywords.join(", ");
+
+    // Устанавливаем значения в форму
+    form.setValue("meta_title", metaTitle);
+    form.setValue("meta_description", metaDescription);
+    form.setValue("meta_keywords", metaKeywords);
+  };
 
   const form = useForm<ProductFormData>({
     // resolver: zodResolver(productSchema),
@@ -318,84 +413,76 @@ export function ProductFormNew({
 
       setExistingImages(initialData.images || []);
       
-      // Преобразуем существующие документы в группы
-      // Если документы уже в формате групп, используем их, иначе создаем группу по умолчанию
-      if (initialData.documents && Array.isArray(initialData.documents)) {
-        if (initialData.documents.length > 0) {
-          // Проверяем, есть ли уже структура групп
-          const firstDoc = initialData.documents[0];
-          if (firstDoc && typeof firstDoc === 'object' && 'title' in firstDoc && 'documents' in firstDoc) {
-            // Это уже группы
-            setDocumentGroups(initialData.documents as DocumentGroup[]);
+      // Восстановление данных из localStorage при монтировании (только для новых товаров)
+    } else {
+      // Восстанавливаем данные только для новых товаров
+      try {
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          // Проверяем, не слишком ли старые данные (более 7 дней)
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
+            // Восстанавливаем только текстовые поля, не файлы
+            const { specifications: savedSpecs, documentGroups: savedDocs, timestamp, ...formData } = parsed;
+            
+            if (savedSpecs) setSpecifications(savedSpecs);
+            if (savedDocs) setDocumentGroups(savedDocs);
+            
+            // Восстанавливаем значения формы
+            setTimeout(() => {
+              Object.entries(formData).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== "" && key !== 'timestamp') {
+                  form.setValue(key as any, value, { shouldDirty: false });
+                }
+              });
+            }, 100);
           } else {
-            // Старый формат - преобразуем в группу по умолчанию
-            const defaultGroup: DocumentGroup = {
-              id: `group-${Date.now()}`,
-              title: "Документы",
-              documents: initialData.documents.map((doc: any, index: number) => ({
-                id: doc.id || `doc-${index}`,
-                title: doc.name || "Документ",
-                url: doc.url,
-                description: doc.description,
-                size: doc.size,
-                type: doc.type,
-              })),
-            };
-            setDocumentGroups([defaultGroup]);
+            // Удаляем устаревшие данные
+            localStorage.removeItem(storageKey);
           }
-        } else {
-          setDocumentGroups([]);
         }
-      } else {
-        setDocumentGroups([]);
+      } catch (error) {
+        console.error("Error loading from localStorage:", error);
       }
-      
-      // Загружаем спецификации
-      if (initialData.specifications) {
-        // Проверяем новый формат: объект с rows и description
-        if (typeof initialData.specifications === 'object' && !Array.isArray(initialData.specifications) && 'rows' in initialData.specifications) {
-          const specsData = initialData.specifications as any;
-          setSpecifications(Array.isArray(specsData.rows) ? specsData.rows : []);
-          setSpecificationsDescription(specsData.description || "");
-        }
-        // Проверяем, это массив строк (новая структура без description)
-        else if (Array.isArray(initialData.specifications)) {
-          setSpecifications(initialData.specifications as SpecificationRow[]);
-          setSpecificationsDescription("");
-        } else {
-          // Старый формат - преобразуем в новую структуру
-          const rows: SpecificationRow[] = [];
-          // Добавляем заголовок по умолчанию
-          rows.push({
-            id: `header-${Date.now()}`,
-            type: "header",
-            key: "Технические данные",
-          });
-          // Добавляем строки из объекта
-          Object.entries(initialData.specifications).forEach(([key, value]) => {
-            rows.push({
-              id: `row-${Date.now()}-${Math.random()}`,
-              type: "row",
-              key,
-              value: String(value),
-            });
-          });
-          setSpecifications(rows);
-          setSpecificationsDescription("");
-        }
-      } else {
-        setSpecifications([]);
-        setSpecificationsDescription("");
-      }
-    } else if (!initialData && initialDataIdRef.current !== null) {
-      // Сброс формы при создании нового товара
-      initialDataIdRef.current = null;
-      form.reset();
-      setExistingImages([]);
-      setDocumentGroups([]);
-      setSpecifications([]);
     }
-  }, [initialData?.id, initialData, form]);
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.id]); // Только при изменении initialData
+
+  // Отслеживаем изменения формы для автосохранения
+  const formValues = useWatch({ control: form.control });
+  
+  // Автосохранение в localStorage
+  useEffect(() => {
+    if (isSubmittingRef.current || initialData?.id) return; // Не сохраняем во время отправки и для редактирования
+    
+    // Не сохраняем сразу после загрузки (первые 2 секунды)
+    const timeoutId = setTimeout(() => {
+      if (formValues && Object.keys(formValues).length > 0) {
+        try {
+          const dataToSave = {
+            ...formValues,
+            specifications: specifications,
+            documentGroups: documentGroups,
+            existingImages: existingImages,
+            timestamp: Date.now(),
+          };
+          
+          // Удаляем пустые значения
+          const cleanedData = Object.fromEntries(
+            Object.entries(dataToSave).filter(([_, v]) => v !== null && v !== undefined && v !== "")
+          );
+          
+          localStorage.setItem(storageKey, JSON.stringify(cleanedData));
+          setHasUnsavedChanges(true);
+        } catch (error) {
+          console.error("Error saving to localStorage:", error);
+        }
+      }
+    }, 2000); // Задержка 2 секунды для дебаунса
+
+    return () => clearTimeout(timeoutId);
+  }, [formValues, specifications, documentGroups, existingImages, storageKey, initialData?.id]);
 
   // Автогенерация slug из названия
   const handleNameChange = (value: string) => {
@@ -526,9 +613,12 @@ export function ProductFormNew({
   };
 
   const handleSubmit: SubmitHandler<ProductFormData> = (data) => {
+    isSubmittingRef.current = true;
+    
     // Простая валидация
     if (!data.name || data.name.trim().length === 0) {
       form.setError("name", { message: "Название товара обязательно" });
+      isSubmittingRef.current = false;
       return;
     }
     if (!data.category_id || data.category_id.trim().length === 0) {
@@ -611,7 +701,16 @@ export function ProductFormNew({
       formData.append("existingImages", JSON.stringify(existingImages));
     }
 
+    // Очищаем автосохранение после успешной отправки
+    localStorage.removeItem(storageKey);
+    setHasUnsavedChanges(false);
+    
     onSubmit(formData);
+    
+    // Сбрасываем флаг после небольшой задержки
+    setTimeout(() => {
+      isSubmittingRef.current = false;
+    }, 1000);
   };
 
   return (
@@ -619,6 +718,7 @@ export function ProductFormNew({
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
         className="h-full flex flex-col"
+        data-unsaved-changes={hasUnsavedChanges ? "true" : undefined}
       >
         <Tabs defaultValue="general" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-0 pb-4 border-b bg-background sticky top-0 z-10">
@@ -1574,18 +1674,43 @@ export function ProductFormNew({
                                             </span>
                                           </div>
                                         )}
-                                        {doc.url && (
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Badge variant="secondary">
-                                              {doc.type?.split("/")[1]?.toUpperCase() || "FILE"}
-                                            </Badge>
-                                            {doc.size && (
-                                              <span>
-                                                {(doc.size / 1024).toFixed(1)} KB
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
+                                        {doc.url && (() => {
+                                          // Определяем тип файла из расширения URL
+                                          const getFileExtension = (url: string): string | null => {
+                                            try {
+                                              const urlObj = new URL(url);
+                                              const pathname = urlObj.pathname;
+                                              const match = pathname.match(/\.([a-z0-9]+)$/i);
+                                              return match ? match[1].toUpperCase() : null;
+                                            } catch {
+                                              // Если не валидный URL, пытаемся найти расширение в конце строки
+                                              const match = url.match(/\.([a-z0-9]+)(?:\?|$)/i);
+                                              return match ? match[1].toUpperCase() : null;
+                                            }
+                                          };
+                                          
+                                          const fileExtension = getFileExtension(doc.url);
+                                          
+                                          return (
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                              {fileExtension && (
+                                                <Badge variant="secondary" className="flex items-center gap-1">
+                                                  <LinkIcon className="h-3 w-3" />
+                                                  {fileExtension}
+                                                </Badge>
+                                              )}
+                                              <a
+                                                href={doc.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary hover:underline truncate max-w-xs"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                {doc.url}
+                                              </a>
+                                            </div>
+                                          );
+                                        })()}
                                         <Textarea
                                           value={doc.description || ""}
                                           onChange={(e) =>
@@ -1600,30 +1725,82 @@ export function ProductFormNew({
                                       </div>
                                     </div>
                                     {!doc.url && !doc.file && (
-                                      <div>
-                                        <Label
-                                          htmlFor={`file-${doc.id}`}
-                                          className="text-xs text-muted-foreground"
-                                        >
-                                          Выбрать файл
-                                        </Label>
-                                        <Input
-                                          id={`file-${doc.id}`}
-                                          type="file"
-                                          accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.odt,.ods,.odp"
-                                          onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                              updateDocument(group.id, doc.id, {
-                                                file,
-                                                size: file.size,
-                                                type: file.type,
-                                                title: doc.title || file.name,
-                                              });
-                                            }
-                                          }}
-                                          className="mt-1"
-                                        />
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <div className="flex-1">
+                                            <Label
+                                              htmlFor={`file-${doc.id}`}
+                                              className="text-xs text-muted-foreground"
+                                            >
+                                              Выбрать файл
+                                            </Label>
+                                            <Input
+                                              id={`file-${doc.id}`}
+                                              type="file"
+                                              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.odt,.ods,.odp"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  updateDocument(group.id, doc.id, {
+                                                    file,
+                                                    size: file.size,
+                                                    type: file.type,
+                                                    title: doc.title || file.name,
+                                                  });
+                                                }
+                                              }}
+                                              className="mt-1"
+                                            />
+                                          </div>
+                                          <div className="text-xs text-muted-foreground flex items-center">
+                                            или
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <Label
+                                            htmlFor={`url-${doc.id}`}
+                                            className="text-xs text-muted-foreground"
+                                          >
+                                            Указать URL документа
+                                          </Label>
+                                          <div className="flex gap-2 mt-1">
+                                            <Input
+                                              id={`url-${doc.id}`}
+                                              type="url"
+                                              placeholder="https://example.com/document.pdf"
+                                              value={doc.url || ""}
+                                              onChange={(e) => {
+                                                const url = e.target.value.trim();
+                                                if (url) {
+                                                  updateDocument(group.id, doc.id, {
+                                                    url,
+                                                    file: undefined,
+                                                  });
+                                                } else {
+                                                  updateDocument(group.id, doc.id, {
+                                                    url: undefined,
+                                                  });
+                                                }
+                                              }}
+                                              className="flex-1"
+                                            />
+                                            {doc.url && (
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 px-3"
+                                                onClick={() => {
+                                                  updateDocument(group.id, doc.id, {
+                                                    url: undefined,
+                                                  });
+                                                }}
+                                              >
+                                                <X className="h-4 w-4" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -1658,6 +1835,19 @@ export function ProductFormNew({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium">Мета-теги</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateMetaTags}
+                      className="gap-2"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                      Заполнить автоматически
+                    </Button>
+                  </div>
                   <FormField
                     control={form.control}
                     name="meta_title"

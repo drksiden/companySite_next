@@ -1,8 +1,12 @@
+"use client";
+
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalogProduct } from "@/lib/services/catalog";
+import { catalogKeys } from "@/lib/hooks/useCatalog";
 
 interface ProductCardProps {
   product: CatalogProduct;
@@ -34,7 +38,24 @@ const getFinalImageSrc = (product: CatalogProduct): string => {
 };
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
+  const queryClient = useQueryClient();
   const imageSrc = getFinalImageSrc(product);
+  
+  // Prefetch продукта при наведении для быстрой загрузки страницы
+  const handleMouseEnter = () => {
+    queryClient.prefetchQuery({
+      queryKey: catalogKeys.product(product.slug),
+      queryFn: async () => {
+        const response = await fetch(`/api/products/${product.slug}`);
+        if (!response.ok) {
+          if (response.status === 404) return null;
+          throw new Error("Failed to fetch product");
+        }
+        const result = await response.json();
+        return result.product || null;
+      },
+    });
+  };
 
   const finalPrice = product.sale_price || product.base_price;
   const isOnSale = !!(
@@ -55,7 +76,10 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   };
 
   return (
-    <Card className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1">
+    <Card 
+      className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1"
+      onMouseEnter={handleMouseEnter}
+    >
       <Link href={`/catalog/product/${product.slug}`} className="block h-full">
         <div className="relative h-full flex flex-col">
           {/* Image Section */}

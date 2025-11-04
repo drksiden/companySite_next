@@ -187,7 +187,7 @@ export async function PUT(
       }
     }
 
-    // --- Обработка новых документов ---
+    // --- Обработка новых документов (файлы) ---
     const documentFiles = formData.getAll("documentFiles") as File[];
     const uploadedDocumentUrls: string[] = [];
 
@@ -214,11 +214,34 @@ export async function PUT(
       }
     }
 
+    // --- Обработка документов по URL ---
+    const documentUrlsStr = formData.get("documentUrls") as string;
+    const documentUrls: string[] = [];
+    if (documentUrlsStr) {
+      try {
+        const parsed = JSON.parse(documentUrlsStr);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((doc: any) => {
+            if (doc.url) {
+              // Добавляем URL напрямую, без загрузки
+              documentUrls.push(doc.url);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing documentUrls:", error);
+      }
+    }
+
     // Собираем все изображения
     const images = [...existingImages, ...newImageUrls];
 
-    // Собираем все документы
-    const documents = [...existingDocuments, ...uploadedDocumentUrls];
+    // Собираем все документы: существующие + новые загруженные + URL
+    const documents = [
+      ...existingDocuments,
+      ...uploadedDocumentUrls,
+      ...documentUrls,
+    ];
 
     // Обновляем новость
     const { data: updatedNews, error: updateError } = await supabase
@@ -252,7 +275,7 @@ export async function PUT(
       ...updatedNews,
       uploadInfo: {
         imagesUploaded: newImageUrls.length,
-        documentsUploaded: uploadedDocumentUrls.length,
+        documentsUploaded: uploadedDocumentUrls.length + documentUrls.length,
         errors: uploadErrors,
       },
     });

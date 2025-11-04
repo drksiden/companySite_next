@@ -16,7 +16,21 @@ export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: categoryService.createCategory,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => {
+      // Инвалидация в фоне, не блокируя завершение мутации
+      // Используем refetchType: 'active' чтобы обновить только активные запросы
+      qc.invalidateQueries({ 
+        queryKey: ["categories"],
+        refetchType: 'active'
+      }).then(() => {
+        console.log("Categories cache invalidated after create");
+      }).catch((err) => {
+        console.error("Error invalidating cache:", err);
+      });
+    },
+    onError: (error) => {
+      console.error("Error creating category:", error);
+    },
   });
 }
 
@@ -25,7 +39,21 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: CategoryFormData }) =>
       categoryService.updateCategory(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => {
+      // Инвалидация в фоне, не блокируя завершение мутации
+      // Используем refetchType: 'active' чтобы обновить только активные запросы
+      qc.invalidateQueries({ 
+        queryKey: ["categories"],
+        refetchType: 'active'
+      }).then(() => {
+        console.log("Categories cache invalidated after update");
+      }).catch((err) => {
+        console.error("Error invalidating cache:", err);
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating category:", error);
+    },
   });
 }
 

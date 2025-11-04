@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,7 @@ interface CategoryFormProps {
   initialData?: CategoryFormData;
   categories?: Category[];
   currentCategoryId?: string;
+  isSubmitting?: boolean;
 }
 
 // Helper function to build a flat list of categories with indentation
@@ -65,6 +67,7 @@ export function CategoryForm({
   initialData,
   categories = [],
   currentCategoryId,
+  isSubmitting = false,
 }: CategoryFormProps) {
   // Convert empty icon_name to 'none' for the select component
   const processedInitialData = useMemo(() => {
@@ -383,9 +386,22 @@ export function CategoryForm({
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end">
-        <Button type="submit">
-          {initialData ? "Сохранить изменения" : "Создать категорию"}
+      <div className="flex justify-end gap-4 pt-6 pb-6 px-6 border-t">
+        {isSubmitting && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{initialData ? "Сохранение..." : "Создание..."}</span>
+          </div>
+        )}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {initialData ? "Сохранение..." : "Создание..."}
+            </>
+          ) : (
+            initialData ? "Сохранить изменения" : "Создать категорию"
+          )}
         </Button>
       </div>
     </form>

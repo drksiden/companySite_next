@@ -176,13 +176,15 @@ export async function POST(req: NextRequest) {
           title: group.title,
           documents: group.documents.map((doc: any) => {
             if (doc.url) {
-              // Существующий документ
+              // Существующий документ или документ по URL (не загружаем на R2)
+              // Проверяем, является ли URL внешним (не R2)
+              const isExternalUrl = doc.url && !doc.url.includes('r2.dev') && !doc.url.includes('cloudflare');
               return {
                 title: doc.title,
                 url: doc.url,
                 description: doc.description,
                 size: doc.size,
-                type: doc.type,
+                type: doc.type || (isExternalUrl ? 'application/pdf' : undefined),
               };
             } else if (fileIndex < uploadedFileUrls.length) {
               // Новый документ - берем URL из загруженных файлов
@@ -347,6 +349,15 @@ export async function POST(req: NextRequest) {
       insertData.published_at = new Date().toISOString();
     }
 
+    // Проверяем авторизацию перед запросом
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please refresh your session." },
+        { status: 401 },
+      );
+    }
+
     // Сохранение в Supabase с полными связанными данными
     const { data, error } = await supabase
       .from("products")
@@ -356,6 +367,15 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Supabase insert error:", error);
+      
+      // Если ошибка связана с авторизацией, возвращаем 401
+      if (error.code === "PGRST301" || error.message?.includes("JWT") || error.message?.includes("token")) {
+        return NextResponse.json(
+          { error: "Session expired. Please refresh your session and try again." },
+          { status: 401 },
+        );
+      }
+      
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -471,13 +491,15 @@ export async function PUT(req: NextRequest) {
           title: group.title,
           documents: group.documents.map((doc: any) => {
             if (doc.url) {
-              // Существующий документ
+              // Существующий документ или документ по URL (не загружаем на R2)
+              // Проверяем, является ли URL внешним (не R2)
+              const isExternalUrl = doc.url && !doc.url.includes('r2.dev') && !doc.url.includes('cloudflare');
               return {
                 title: doc.title,
                 url: doc.url,
                 description: doc.description,
                 size: doc.size,
-                type: doc.type,
+                type: doc.type || (isExternalUrl ? 'application/pdf' : undefined),
               };
             } else if (fileIndex < uploadedFileUrls.length) {
               // Новый документ - берем URL из загруженных файлов
