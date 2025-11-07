@@ -14,6 +14,8 @@ interface NewsItem {
   images: string[] | null;
   tags: string[] | null;
   author: string | null;
+  documents: string[] | null;
+  is_active: boolean;
 }
 
 interface RelatedNewsItem {
@@ -21,6 +23,7 @@ interface RelatedNewsItem {
   title: string;
   category: string;
   date: string;
+  is_active: boolean;
 }
 
 interface NewsPageProps {
@@ -43,9 +46,10 @@ async function fetchNewsArticle(id: string): Promise<NewsItem | null> {
   const { data, error } = await supabase
     .from("news")
     .select(
-      "id, title, description, content, date, category, images, tags, author",
+      "id, title, description, content, date, category, images, tags, author, documents, is_active",
     )
     .eq("id", id)
+    .eq("is_active", true)
     .single();
 
   if (error || !data) {
@@ -64,8 +68,9 @@ async function fetchRelatedNews(
 
   const { data, error } = await supabase
     .from("news")
-    .select("id, title, date, category")
+    .select("id, title, date, category, is_active")
     .eq("category", currentArticle.category)
+    .eq("is_active", true)
     .neq("id", currentArticle.id)
     .order("date", { ascending: false })
     .limit(3);

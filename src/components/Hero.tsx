@@ -52,7 +52,7 @@ export function Hero() {
             size="lg"
             className="rounded-full px-6 py-3 transition-transform duration-300 hover:scale-105 active:scale-95"
           >
-            <Link href="/contact">Получить консультацию</Link>
+            <Link href="/contacts">Получить консультацию</Link>
           </Button>
         </motion.div>
       </motion.div>

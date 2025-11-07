@@ -298,16 +298,18 @@ export function ProductCard({
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card
         className={cn(
-          "group relative overflow-hidden bg-card shadow-sm hover:shadow-lg transition-all duration-300",
+          "group relative overflow-hidden bg-card shadow-sm hover:shadow-lg transition-all duration-300 w-full",
           !isInStock && "opacity-75",
-          variant === "compact" && "max-w-xs",
           className,
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {/* Image Section */}
-        <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        <div className={cn(
+          "relative bg-gray-50 overflow-hidden",
+          variant === "compact" ? "aspect-square" : "aspect-square"
+        )}>
           <Link
             href={`/product/${product.slug}`}
             className="block w-full h-full"
@@ -411,7 +413,7 @@ export function ProductCard({
         <CardHeader className="pb-2">
           <div className="space-y-1">
             <Link href={`/product/${product.slug}`}>
-              <h3 className="font-medium text-foreground hover:text-primary transition-colors line-clamp-2 text-sm leading-tight">
+              <h3 className="font-medium text-foreground hover:text-primary transition-colors line-clamp-2 leading-tight text-sm">
                 {product.name}
               </h3>
             </Link>
@@ -443,19 +445,7 @@ export function ProductCard({
             </span>
           </div>
 
-          {/* Stock Status */}
-          <div className="flex items-center gap-2 mt-2">
-            {isInStock ? (
-              <Badge variant="secondary" className="text-xs">
-                <CheckCircle className="h-3 w-3 mr-1" />В наличии
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="text-xs">
-                <Clock className="h-3 w-3 mr-1" />
-                Под заказ
-              </Badge>
-            )}
-          </div>
+          {/* Stock Status - скрыто */}
         </CardContent>
 
         <CardFooter className="pt-0">

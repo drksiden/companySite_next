@@ -23,7 +23,9 @@ export default function AdminAuthGuard({
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [backgroundChecking, setBackgroundChecking] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>("");
+  const [hasInitialCache, setHasInitialCache] = useState(false);
   const router = useRouter();
   const lastCheckRef = useRef<number>(0);
   const listenerRef = useRef<any>(null);
@@ -33,6 +35,7 @@ export default function AdminAuthGuard({
     process.env.NODE_ENV === "development" &&
     process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
 
+  // Проверяем кэш только на клиенте после монтирования
   useEffect(() => {
     if (shouldBypassAuth) {
       setLoading(false);
@@ -40,6 +43,65 @@ export default function AdminAuthGuard({
     }
 
     let ignore = false;
+
+    // Проверяем кэш только на клиенте (после монтирования компонента)
+    if (typeof window !== "undefined") {
+      const cachedUser = sessionStorage.getItem("current_user");
+      const cachedProfile = sessionStorage.getItem("user_profile");
+      if (cachedUser && cachedProfile) {
+        try {
+          const parsedUser = JSON.parse(cachedUser);
+          const parsedProfile = JSON.parse(cachedProfile);
+          if (!ignore) {
+            setUser(parsedUser);
+            setUserProfile(parsedProfile);
+            setUserRole(parsedProfile?.role || "user");
+            setHasInitialCache(true);
+            setLoading(false);
+          }
+        } catch (e) {
+          console.error("Error parsing cached data:", e);
+          sessionStorage.removeItem("current_user");
+          sessionStorage.removeItem("user_profile");
+        }
+      }
+    }
+
+    // Фоновая проверка актуальности данных (не блокирует UI)
+    async function checkAuthInBackground(userId: string) {
+      if (ignore) return;
+      setBackgroundChecking(true);
+      try {
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
+        
+        if (profile) {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser && currentUser.id === userId) {
+            const cacheKey = "current_user";
+            const profileCacheKey = "user_profile";
+            sessionStorage.setItem(cacheKey, JSON.stringify(currentUser));
+            sessionStorage.setItem(profileCacheKey, JSON.stringify(profile));
+            if (!ignore) {
+              setUser(currentUser);
+              setUserProfile(profile);
+              setUserRole(profile?.role || "user");
+              setBackgroundChecking(false);
+            }
+          } else {
+            if (!ignore) setBackgroundChecking(false);
+          }
+        } else {
+          if (!ignore) setBackgroundChecking(false);
+        }
+      } catch (error) {
+        console.error("Background auth check error:", error);
+        if (!ignore) setBackgroundChecking(false);
+      }
+    }
 
     async function checkAuth(forceRefresh = false) {
       const now = Date.now();
@@ -49,8 +111,22 @@ export default function AdminAuthGuard({
       // Отладочная информация
       setDebugInfo(`Checking auth at ${new Date().toISOString()}`);
 
-      // Проверяем кэш
-      if (!forceRefresh && now - lastCheckRef.current < 5000) {
+      // Если уже использовали кэш при монтировании, сразу запускаем фоновую проверку
+      if (hasInitialCache && user) {
+        if (!ignore) {
+          setDebugInfo(`Using cached user: ${user.email} (${userRole})`);
+          // Проверяем актуальность данных в фоне (не блокируя UI)
+          setTimeout(() => {
+            if (!ignore) {
+              checkAuthInBackground(user.id);
+            }
+          }, 0);
+        }
+        return;
+      }
+
+      // Проверяем кэш - используем более длительный интервал для кэша
+      if (!forceRefresh && now - lastCheckRef.current < 30000) {
         const cachedUser = sessionStorage.getItem(cacheKey);
         const cachedProfile = sessionStorage.getItem(profileCacheKey);
         if (cachedUser && cachedProfile) {
@@ -58,13 +134,21 @@ export default function AdminAuthGuard({
             const parsedUser = JSON.parse(cachedUser);
             const parsedProfile = JSON.parse(cachedProfile);
             if (!ignore) {
+              // Быстро показываем интерфейс с кэшированными данными
               setUser(parsedUser);
               setUserProfile(parsedProfile);
               setUserRole(parsedProfile?.role || "user");
               setLoading(false);
+              setHasInitialCache(true);
               setDebugInfo(
                 `Using cached user: ${parsedUser.email} (${parsedProfile.role})`,
               );
+              // Проверяем актуальность данных в фоне (не блокируя UI)
+              setTimeout(() => {
+                if (!ignore) {
+                  checkAuthInBackground(parsedUser.id);
+                }
+              }, 0);
             }
             return;
           } catch (e) {
@@ -153,16 +237,64 @@ export default function AdminAuthGuard({
       }
     }
 
-    // Первоначальная проверка
-    checkAuth();
+    // Первоначальная проверка (только если не использовали кэш)
+    if (!hasInitialCache) {
+      checkAuth();
+    } else if (user) {
+      // Если использовали кэш, запускаем фоновую проверку
+      setTimeout(() => {
+        if (!ignore && user) {
+          checkAuthInBackground(user.id);
+        }
+      }, 0);
+    }
 
     return () => {
       ignore = true;
     };
-  }, [shouldBypassAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Пустой массив - выполняем только при монтировании
 
   useEffect(() => {
     if (shouldBypassAuth) return;
+
+    // Автоматическое обновление токена каждые 10 минут
+    const refreshTokenInterval = setInterval(async () => {
+      if (user) {
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (session && !error) {
+            // Проверяем, истекает ли токен в ближайшие 5 минут
+            const expiresAt = session.expires_at;
+            if (expiresAt) {
+              const expiresIn = expiresAt - Math.floor(Date.now() / 1000);
+              // Если токен истекает менее чем через 5 минут, обновляем его
+              if (expiresIn < 300) {
+                const { data: { session: refreshedSession }, error: refreshError } = 
+                  await supabase.auth.refreshSession(session);
+                
+                if (!refreshError && refreshedSession) {
+                  setDebugInfo(`Token refreshed at ${new Date().toISOString()}`);
+                  // Обновляем кэш пользователя
+                  sessionStorage.setItem("current_user", JSON.stringify(refreshedSession.user));
+                } else {
+                  console.error("Token refresh error:", refreshError);
+                  // Если не удалось обновить токен, очищаем кэш и состояние
+                  // Это вызовет повторную проверку при следующем запросе
+                  sessionStorage.removeItem("current_user");
+                  sessionStorage.removeItem("user_profile");
+                  setUser(null);
+                  setUserRole(null);
+                  setUserProfile(null);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error checking session:", error);
+        }
+      }
+    }, 10 * 60 * 1000); // Проверяем каждые 10 минут
 
     // Подписываемся на изменения авторизации
     const {
@@ -190,15 +322,21 @@ export default function AdminAuthGuard({
         setUserRole(role);
         sessionStorage.setItem("current_user", JSON.stringify(session.user));
         sessionStorage.setItem("user_profile", JSON.stringify(profile));
+      } else if (event === "TOKEN_REFRESHED" && session?.user) {
+        // При обновлении токена обновляем кэш
+        setUser(session.user);
+        sessionStorage.setItem("current_user", JSON.stringify(session.user));
+        setDebugInfo(`Token refreshed at ${new Date().toISOString()}`);
       }
     });
 
     listenerRef.current = subscription;
 
     return () => {
+      clearInterval(refreshTokenInterval);
       subscription.unsubscribe();
     };
-  }, [shouldBypassAuth]);
+  }, [shouldBypassAuth, user]);
 
   useEffect(() => {
     if (shouldBypassAuth) return;
@@ -229,8 +367,25 @@ export default function AdminAuthGuard({
     return <>{children}</>;
   }
 
-  // Loading state
+  // Loading state - если есть кэш, показываем интерфейс сразу
   if (loading) {
+    // Если использовали кэш при монтировании, показываем контент сразу
+    if (hasInitialCache && user) {
+      return (
+        <>
+          {children}
+          {/* Индикатор проверки в углу экрана - скрывается автоматически после проверки */}
+          {backgroundChecking && (
+            <div className="fixed top-4 right-4 z-50 bg-background border rounded-lg shadow-lg p-3 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Проверка доступа...</span>
+            </div>
+          )}
+        </>
+      );
+    }
+    
+    // Если кэша нет, показываем обычный loading
     return (
       fallback || (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

@@ -190,6 +190,7 @@ export default async function CategoryPage({
               parent_id: cat.parent_id,
               image_url: cat.image_url,
               created_at: cat.created_at,
+              is_active: cat.status === "active",
             }))}
             basePath={`/catalog/${currentCategory.slug}`}
           />

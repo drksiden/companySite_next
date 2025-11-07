@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Brand, brandService } from "@/lib/services/brand";
+import { useMemo, useState } from "react";
+import { Brand } from "@/lib/services/admin/brand";
+import {
+  useBrandsQuery,
+  useCreateBrand,
+  useUpdateBrand,
+  useDeleteBrand,
+} from "@/lib/hooks/useBrandsQuery";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,28 +65,28 @@ import {
   ColumnFiltersState,
 } from "@tanstack/react-table";
 
-interface BrandManagerClientProps {
-  initialBrands: Brand[];
-}
+export function BrandManagerClient() {
+  // Получение брендов через кэш-хук
+  const { data: brands = [], isLoading, error } = useBrandsQuery();
 
-export function BrandManagerClient({ initialBrands }: BrandManagerClientProps) {
-  const [brands, setBrands] = useState(initialBrands);
+  // Мутации
+  const createBrandMutation = useCreateBrand();
+  const updateBrandMutation = useUpdateBrand();
+  const deleteBrandMutation = useDeleteBrand();
+
+  // Все локальные UI состояния
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [brandIdsToDelete, setBrandIdsToDelete] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
 
-  // TODO: Реализовать проверку привязок (products, collections)
+  // Моки проверки связанных товаров/коллекций (оставить как у тебя)
   async function canDeleteBrand(brandId: string): Promise<boolean> {
-    // Пример: запрос к supabase для проверки наличия товаров с этим брендом
-    // const { data: products } = await supabase.from('products').select('id').eq('brand_id', brandId).limit(1);
-    // return !products || products.length === 0;
-    return true; // Заглушка, реализовать позже
+    return true;
   }
 
   const handleCreateNewBrand = () => {
@@ -106,15 +112,12 @@ export function BrandManagerClient({ initialBrands }: BrandManagerClientProps) {
         const canDelete = await canDeleteBrand(id);
         if (!canDelete) {
           anyBlocked = true;
-          toast.error(
-            "Нельзя удалить бренд: есть связанные товары или коллекции",
-          );
+          toast.error("Нельзя удалить бренд: есть связанные товары или коллекции");
           continue;
         }
-        await brandService.deleteBrand(id);
+        await deleteBrandMutation.mutateAsync(id);
       }
       if (!anyBlocked) toast.success("Бренды успешно удалены");
-      await fetchBrands();
     } catch (e) {
       toast.error("Ошибка при удалении бренда");
     } finally {
@@ -124,28 +127,19 @@ export function BrandManagerClient({ initialBrands }: BrandManagerClientProps) {
     }
   };
 
-  async function fetchBrands() {
-    const data = await brandService.listBrands();
-    setBrands(data);
-  }
-
   const handleFormSubmit = async (data: any) => {
-    setIsSubmitting(true);
     try {
       if (editingBrand) {
-        await brandService.updateBrand(editingBrand.id, data);
+        await updateBrandMutation.mutateAsync({ id: editingBrand.id, brand: data });
         toast.success("Бренд обновлён");
       } else {
-        await brandService.createBrand(data);
+        await createBrandMutation.mutateAsync(data);
         toast.success("Бренд создан");
       }
       setIsModalOpen(false);
       setEditingBrand(null);
-      await fetchBrands();
     } catch (e) {
       toast.error("Ошибка при сохранении бренда");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -262,90 +256,100 @@ export function BrandManagerClient({ initialBrands }: BrandManagerClientProps) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Бренды</h1>
-        <div className="flex gap-2">
-          {selectedRowsIds.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() => openDeleteDialog(selectedRowsIds)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 mr-2 animate-spin" />
+          Загрузка брендов...
+        </div>
+      ) : error ? (
+        <div className="text-destructive text-center">{String(error)}</div>
+      ) : (
+        <>
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+            <div className="flex gap-2">
+              {selectedRowsIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => openDeleteDialog(selectedRowsIds)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Удалить выбранные ({selectedRowsIds.length})
+                </Button>
               )}
-              Удалить выбранные ({selectedRowsIds.length})
-            </Button>
-          )}
-          <Button onClick={handleCreateNewBrand}>Создать бренд</Button>
-        </div>
-      </div>
-      <div className="w-full">
-        <div className="flex items-center gap-4 py-4">
-          <Input
-            placeholder="Поиск по названию..."
-            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-          />
-        </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
+              <Button onClick={handleCreateNewBrand}>Создать бренд</Button>
+            </div>
+          </div>
+          <div className="w-full">
+            <div className="flex items-center gap-4 py-4">
+              <Input
+                placeholder="Поиск по названию..."
+                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                onChange={(event) =>
+                  table.getColumn("name")?.setFilterValue(event.target.value)
+                }
+                className="max-w-sm"
+              />
+            </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        Бренды не найдены.
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    Бренды не найдены.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="text-muted-foreground flex items-center justify-end py-4 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} из{" "}
-          {table.getFilteredRowModel().rows.length} строк(и) выбрано.
-        </div>
-      </div>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="text-muted-foreground flex items-center justify-end py-4 text-sm">
+              {table.getFilteredSelectedRowModel().rows.length} из{" "}
+              {table.getFilteredRowModel().rows.length} строк(и) выбрано.
+            </div>
+          </div>
+        </>
+      )}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent size="lg" scrollable>
           <DialogHeader>
@@ -361,7 +365,7 @@ export function BrandManagerClient({ initialBrands }: BrandManagerClientProps) {
           <BrandForm
             initialData={editingBrand || undefined}
             onSubmit={handleFormSubmit}
-            isSubmitting={isSubmitting}
+            isSubmitting={createBrandMutation.isPending || updateBrandMutation.isPending}
           />
         </DialogContent>
       </Dialog>

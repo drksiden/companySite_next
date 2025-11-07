@@ -15,6 +15,7 @@ interface NewsItem {
   author: string | null;
   created_at: string;
   updated_at: string;
+  is_active: boolean;
 }
 
 const NEWS_LIMIT = 4;
@@ -25,7 +26,8 @@ async function fetchNews(): Promise<NewsItem[]> {
 
   const { data, error } = await supabase
     .from("news")
-    .select("id, title, description, date, category, images")
+    .select("id, title, description, date, category, images, is_active")
+    .eq("is_active", true)
     .order("date", { ascending: false })
     .limit(NEWS_LIMIT);
 

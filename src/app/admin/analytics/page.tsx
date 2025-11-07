@@ -40,6 +40,7 @@ import {
   Percent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Типы для аналитики
 interface AnalyticsData {
@@ -312,7 +313,8 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <motion.div
+    <ContentLayout title="Аналитика и отчеты">
+      <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -323,14 +325,6 @@ export default function AnalyticsPage() {
         variants={itemVariants}
         className="flex items-center justify-between"
       >
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Аналитика и отчеты
-          </h1>
-          <p className="text-muted-foreground">
-            Детальная статистика и аналитика продаж вашего магазина
-          </p>
-        </div>
         <div className="flex items-center space-x-2">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-40">
@@ -623,5 +617,6 @@ export default function AnalyticsPage() {
         </Tabs>
       </motion.div>
     </motion.div>
+    </ContentLayout>
   );
 }

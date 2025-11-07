@@ -19,6 +19,8 @@ import { useRef } from "react";
 import { ProductImageGallery } from "./product/ProductImageGallery";
 import { toast } from "sonner";
 import Autoplay from "embla-carousel-autoplay";
+import { HtmlContent } from "@/components/ui/html-content";
+import { FileText, Download, ExternalLink } from "lucide-react";
 
 // Интерфейс NewsItem, соответствующий Supabase
 interface NewsItem {
@@ -31,6 +33,8 @@ interface NewsItem {
   images: string[] | null;
   tags: string[] | null;
   author: string | null;
+  documents: string[] | null;
+  is_active: boolean;
 }
 
 interface RelatedNewsItem {
@@ -38,6 +42,7 @@ interface RelatedNewsItem {
   title: string;
   category: string;
   date: string;
+  is_active: boolean;
 }
 
 interface NewsArticleClientProps {
@@ -171,9 +176,9 @@ export default function NewsArticleClient({
                 size="sm"
                 className="text-white hover:bg-white/10 backdrop-blur-sm border border-white/30 bg-white/5"
               >
-                <Link href="/news">
+                <Link href="..">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Назад к новостям
+                  Назад
                 </Link>
               </Button>
             </motion.div>
@@ -257,6 +262,7 @@ export default function NewsArticleClient({
               <ProductImageGallery
                 images={article.images}
                 productName={article.title}
+                maxWidth="4xl"
                 className="h-full"
               />
             </div>
@@ -277,55 +283,106 @@ export default function NewsArticleClient({
             <motion.div variants={itemVariants}>
               <Card className="border border-gray-200/50 dark:border-gray-800/50 shadow-lg">
                 <CardContent className="p-8 md:p-12 lg:p-16">
-                  <div
-                    className="prose prose-lg dark:prose-invert max-w-none
-                    prose-headings:text-gray-900 dark:prose-headings:text-white
-                    prose-headings:font-bold prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6
-                    prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-4
-                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-6
-                    prose-li:text-gray-700 dark:prose-li:text-gray-300 prose-li:my-2
-                    prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
-                    prose-ul:my-6 prose-ul:space-y-2
-                    prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline"
-                    dangerouslySetInnerHTML={{ __html: article.content }}
-                  />
+                  {article.content ? (
+                    <HtmlContent
+                      content={article.content}
+                      variant="product"
+                      className="text-gray-700 dark:text-gray-300"
+                    />
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">
+                      Содержание новости отсутствует
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
 
-            <Separator className="my-16" />
+            {/* Documents Section */}
+            {article.documents && article.documents.length > 0 && (
+              <>
+                <Separator className="my-12" />
+                <motion.div variants={itemVariants}>
+                  <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+                    Документы
+                  </h3>
+                  <div className="space-y-2">
+                    {article.documents.map((doc, index) => {
+                      // Документ всегда строка (URL)
+                      const docUrl = doc;
+                      const docName = doc.split("/").pop() || `Документ ${index + 1}`;
+                      const docType = doc.split(".").pop()?.toUpperCase() || "FILE";
 
-            {/* Related News */}
-            <motion.div variants={itemVariants}>
-              <h3 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
-                Похожие новости
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {relatedNews.map((news) => (
-                  <Link key={news.id} href={`/news/${news.id}`}>
-                    <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200/50 dark:border-gray-800/50">
-                      <CardContent className="p-6">
-                        <Badge
-                          className={`${getCategoryColor(news.category)} border mb-4 font-medium`}
+                      return (
+                        <a
+                          key={index}
+                          href={docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors group"
                         >
-                          {news.category}
-                        </Badge>
-                        <h4 className="font-semibold text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
-                          {news.title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatDate(news.date)}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </motion.div>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                            <span className="font-medium text-foreground truncate">
+                              {docName}
+                            </span>
+                            {docType && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs flex-shrink-0"
+                              >
+                                {docType}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            <Download className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </>
+            )}
 
+            {relatedNews && relatedNews.length > 0 && (
+              <>
+                <Separator className="my-16" />
+
+                <motion.div variants={itemVariants}>
+                  <h3 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+                    Похожие новости
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {relatedNews.map((news) => (
+                      <Link key={news.id} href={`/news/${news.id}`}>
+                        <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200/50 dark:border-gray-800/50">
+                          <CardContent className="p-6">
+                            <Badge
+                              className={`${getCategoryColor(news.category)} border mb-4 font-medium`}
+                            >
+                              {news.category}
+                            </Badge>
+                            <h4 className="font-semibold text-lg mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
+                              {news.title}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                              <Calendar className="h-3 w-3" />
+                              <span>{formatDate(news.date)}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                </motion.div>
+              </>
+            )}
+            
             {/* Navigation */}
-            <motion.div variants={itemVariants} className="mt-16 text-center">
+            {/* <motion.div variants={itemVariants} className="mt-16 text-center">
               <Button
                 asChild
                 size="lg"
@@ -336,7 +393,7 @@ export default function NewsArticleClient({
                   Вернуться к списку новостей
                 </Link>
               </Button>
-            </motion.div>
+            </motion.div> */}
           </div>
         </motion.div>
       </SectionWrapper>

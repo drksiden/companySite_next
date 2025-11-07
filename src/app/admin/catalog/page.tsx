@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Folder, ShoppingBag, Tag, Palette, Database } from 'lucide-react';
+import { ContentLayout } from '@/components/admin-panel/content-layout';
 
 export default function AdminCatalogPage() {
   const catalogSections = [
@@ -14,9 +15,8 @@ export default function AdminCatalogPage() {
   ];
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Catalog Management</h1>
-      
+    <ContentLayout title="Каталог">
+      <div className="p-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {catalogSections.map((section) => {
           const Icon = section.icon;
@@ -36,5 +36,7 @@ export default function AdminCatalogPage() {
         })}
       </div>
     </div>
+    </ContentLayout>
+    
   );
 }

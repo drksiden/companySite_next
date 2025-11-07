@@ -1,17 +1,13 @@
 import { createServerClient } from "@/lib/supabaseServer";
 import { BrandManagerClient } from "@/components/admin/BrandManagerClient";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
-export default async function BrandsPage() {
-  const supabase = await createServerClient();
-  const { data: brands } = await supabase.from("brands").select("*");
-
-  if (!brands) {
-    return <div>Ошибка загрузки данных.</div>;
-  }
-
+export default function BrandsPage() {
   return (
     <div className="p-6">
-      <BrandManagerClient initialBrands={brands} />
+      <ContentLayout title="Бренды">
+        <BrandManagerClient />
+      </ContentLayout>
     </div>
   );
 }

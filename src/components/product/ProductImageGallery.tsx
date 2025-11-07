@@ -20,12 +20,14 @@ interface ProductImageGalleryProps {
   images: string[];
   productName: string;
   className?: string;
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 }
 
 export function ProductImageGallery({
   images,
   productName,
   className,
+  maxWidth = "md",
 }: ProductImageGalleryProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -177,10 +179,25 @@ export function ProductImageGallery({
     );
   }
 
+  const maxWidthClasses = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+    "2xl": "max-w-2xl",
+    "3xl": "max-w-3xl",
+    "4xl": "max-w-4xl",
+    full: "max-w-full",
+  };
+
   return (
     <div
-      // Убрано "sm:max-w-md mx-auto" для максимальной ширины
-      className={cn("space-y-3 md:space-y-4 w-full overflow-hidden", className)} 
+      // Ограничиваем максимальную ширину
+      className={cn(
+        "space-y-3 md:space-y-4 w-full mx-auto overflow-hidden",
+        maxWidthClasses[maxWidth],
+        className
+      )} 
     >
       {/* Основная карусель */}
       <div className="relative w-full px-2 sm:px-0 mx-auto"> 
@@ -210,7 +227,7 @@ export function ProductImageGallery({
                       setSelectedImage(index);
                       setIsFullscreen(true);
                     }}
-                    unoptimized={image.includes("r2.dev")}
+                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                   />
                 </div>
               </CarouselItem>
@@ -267,7 +284,7 @@ export function ProductImageGallery({
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 56px, 80px"
-                    unoptimized={image.includes("r2.dev")}
+                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                   />
                 </button>
               </CarouselItem>
@@ -324,7 +341,10 @@ export function ProductImageGallery({
                   height={1200}
                   className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain select-none"
                   sizes="100vw"
-                  unoptimized={validImages[selectedImage]?.includes("r2.dev")}
+                  unoptimized={
+                    validImages[selectedImage]?.includes("r2.dev") ||
+                    validImages[selectedImage]?.includes("r2.asia-ntb.kz")
+                  }
                   draggable={false}
                 />
               </div>
@@ -434,7 +454,7 @@ export function ProductImageGallery({
                       fill
                       className="object-cover"
                       sizes="48px"
-                      unoptimized={image.includes("r2.dev")}
+                      unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                     />
                   </button>
                 ))}

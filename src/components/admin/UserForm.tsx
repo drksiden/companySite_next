@@ -31,7 +31,7 @@ import {
   UserUpdatePayload,
   UserCreatePayload,
   ClientType,
-} from '@/lib/services/user';
+} from '@/lib/services/admin/user';
 
 // --- Константы и типы ---
 export const USER_ROLES = ['admin', 'moderator', 'customer'] as const;

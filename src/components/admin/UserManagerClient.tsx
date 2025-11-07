@@ -77,7 +77,7 @@ import {
   Company,
   UserRole,
   ClientType,
-} from "@/lib/services/user";
+} from "@/lib/services/admin/user";
 
 import {
   UserForm,

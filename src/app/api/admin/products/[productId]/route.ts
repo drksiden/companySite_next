@@ -56,34 +56,102 @@ export async function PUT(
     const allImageUrls = [...existingImageUrls, ...newImageUrls];
 
     // --- Обработка документов ---
-    const existingDocuments = formData.get("documents")
-      ? JSON.parse(formData.get("documents") as string)
-      : [];
+    const documentsStructureStr = formData.get("documentsStructure") as string;
     const documentFiles = formData.getAll("documentFiles") as File[];
-
-    const newDocuments = [];
+    
+    // Загружаем файлы документов
+    const uploadedFileUrls: string[] = [];
     for (const file of documentFiles) {
       if (file.size > 0) {
-        const url = await uploadFileToR2(file, "documents/products");
-        newDocuments.push({ url, name: file.name, type: file.type });
+        try {
+          const url = await uploadFileToR2(file, "documents/products");
+          uploadedFileUrls.push(url);
+        } catch (error) {
+          console.error(`Failed to upload document ${file.name}:`, error);
+        }
       }
     }
-    const documentsToDelete = Array.isArray(currentProduct.documents)
-      ? currentProduct.documents.filter(
-          (doc: { url: string; name: string; type?: string }) =>
-            !existingDocuments.some(
-              (existingDoc: { url: string; name: string; type?: string }) =>
-                existingDoc.url === doc.url,
-            ),
-        )
-      : [];
-    for (const doc of documentsToDelete) {
-      const key = extractKeyFromUrl(doc.url);
-      if (key) {
-        await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key });
+
+    // Обрабатываем структуру документов с группами (новый формат)
+    let allDocuments: any[] = [];
+    if (documentsStructureStr) {
+      try {
+        const documentsStructure = JSON.parse(documentsStructureStr);
+        let fileIndex = 0;
+
+        // Преобразуем структуру: проходим по группам и документам, добавляем URL для новых файлов
+        const finalDocuments = documentsStructure.map((group: any) => ({
+          title: group.title,
+          documents: group.documents.map((doc: any) => {
+            if (doc.url) {
+              // Существующий документ или документ по URL (не загружаем на R2)
+              // Проверяем, является ли URL внешним (не R2)
+              const isExternalUrl = doc.url && !doc.url.includes('r2.dev') && !doc.url.includes('cloudflare');
+              return {
+                title: doc.title,
+                url: doc.url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type || (isExternalUrl ? 'application/pdf' : undefined),
+              };
+            } else if (fileIndex < uploadedFileUrls.length) {
+              // Новый документ - берем URL из загруженных файлов
+              const url = uploadedFileUrls[fileIndex++];
+              return {
+                title: doc.title,
+                url,
+                description: doc.description,
+                size: doc.size,
+                type: doc.type,
+              };
+            }
+            return null;
+          }).filter(Boolean), // Убираем null
+        }));
+        allDocuments = finalDocuments;
+      } catch (error) {
+        console.error("Error parsing documents structure:", error);
+        // Fallback к старому формату
+        const existingDocuments = formData.get("documents")
+          ? JSON.parse(formData.get("documents") as string)
+          : [];
+        allDocuments = [...existingDocuments, ...uploadedFileUrls.map((url, index) => ({
+          name: documentFiles[index]?.name || `Document ${index + 1}`,
+          url,
+          type: documentFiles[index]?.type,
+        }))];
       }
+    } else {
+      // Старый формат без групп (для обратной совместимости)
+      const existingDocuments = formData.get("documents")
+        ? JSON.parse(formData.get("documents") as string)
+        : [];
+      
+      const newDocuments = uploadedFileUrls.map((url, index) => ({
+        url,
+        name: documentFiles[index]?.name || `Document ${index + 1}`,
+        type: documentFiles[index]?.type,
+      }));
+      
+      // Удаляем только документы из R2 (не внешние URL)
+      const documentsToDelete = Array.isArray(currentProduct.documents)
+        ? currentProduct.documents.filter(
+            (doc: { url: string; name: string; type?: string }) =>
+              !existingDocuments.some(
+                (existingDoc: { url: string; name: string; type?: string }) =>
+                  existingDoc.url === doc.url,
+              ) && doc.url && (doc.url.includes('r2.dev') || doc.url.includes('cloudflare')),
+          )
+        : [];
+      for (const doc of documentsToDelete) {
+        const key = extractKeyFromUrl(doc.url);
+        if (key) {
+          await deleteFileFromR2({ bucket: DEFAULT_BUCKET, key });
+        }
+      }
+      
+      allDocuments = [...existingDocuments, ...newDocuments];
     }
-    const allDocuments = [...existingDocuments, ...newDocuments];
 
     // --- Обработка спецификаций ---
     const existingSpecs = formData.get("specifications")

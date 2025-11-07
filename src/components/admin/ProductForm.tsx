@@ -32,9 +32,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2, Image as ImageIcon, Trash2, Plus } from "lucide-react";
+import { Loader2, Image as ImageIcon, Trash2, Plus, Link as LinkIcon, Wand2 } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -136,6 +137,9 @@ export function ProductForm({
 }: ProductFormProps) {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [documentUrls, setDocumentUrls] = useState<Array<{ url: string; name: string }>>([]);
+  const [documentUrlInput, setDocumentUrlInput] = useState("");
+  const [documentNameInput, setDocumentNameInput] = useState("");
 
   // Инициализация состояний пустыми массивами, чтобы избежать ошибок
   const [specifications, setSpecifications] = useState<
@@ -144,6 +148,90 @@ export function ProductForm({
   const [existingDocuments, setExistingDocuments] = useState<
     { url: string; name: string; type: string }[]
   >([]);
+
+  // Функция для генерации мета-тегов на основе данных товара
+  const generateMetaTags = () => {
+    const name = form.getValues("name") || "";
+    const shortDescription = form.getValues("short_description") || "";
+    const description = form.getValues("description") || "";
+    const brandId = form.getValues("brand_id");
+    const categoryId = form.getValues("category_id");
+
+    // Получаем названия бренда и категории
+    const brand = brandId 
+      ? brands.find((b) => b.id === brandId)?.name 
+      : null;
+    const category = categoryId 
+      ? categories.find((c) => c.id === categoryId)?.name 
+      : null;
+
+    // Генерация meta_title: название + бренд (если есть) - максимум 60 символов
+    let metaTitle = name;
+    if (brand && metaTitle.length + brand.length + 3 <= 60) {
+      metaTitle = `${name} - ${brand}`;
+    }
+    if (metaTitle.length > 60) {
+      metaTitle = metaTitle.substring(0, 57) + "...";
+    }
+
+    // Генерация meta_description: краткое описание или первые 160 символов полного описания
+    let metaDescription = shortDescription?.trim() || "";
+    if (!metaDescription && description) {
+      // Удаляем HTML теги из описания
+      const plainDescription = description
+        .replace(/<[^>]*>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      metaDescription = plainDescription.substring(0, 160);
+      if (plainDescription.length > 160) {
+        metaDescription = metaDescription.substring(0, 157) + "...";
+      }
+    } else if (metaDescription && metaDescription.length > 160) {
+      metaDescription = metaDescription.substring(0, 157) + "...";
+    }
+
+    // Генерация meta_keywords: название, бренд, категория, ключевые слова из описания
+    const keywords: string[] = [];
+    
+    // Добавляем название (разбиваем на слова)
+    if (name) {
+      const nameWords = name
+        .toLowerCase()
+        .split(/[\s,\-]+/)
+        .filter((word) => word.length > 2);
+      keywords.push(...nameWords);
+    }
+
+    // Добавляем бренд
+    if (brand) {
+      keywords.push(brand.toLowerCase());
+    }
+
+    // Добавляем категорию
+    if (category) {
+      keywords.push(category.toLowerCase());
+    }
+
+    // Добавляем ключевые слова из описания (первые 5-7 значимых слов)
+    if (shortDescription || description) {
+      const text = ((shortDescription || description) || "")
+        .replace(/<[^>]*>/g, "")
+        .toLowerCase()
+        .replace(/[^\w\s]/g, " ")
+        .split(/\s+/)
+        .filter((word) => word.length > 3 && !["это", "для", "или", "что", "как", "где"].includes(word));
+      keywords.push(...text.slice(0, 7));
+    }
+
+    // Убираем дубликаты и объединяем
+    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 10);
+    const metaKeywords = uniqueKeywords.join(", ");
+
+    // Устанавливаем значения в форму
+    form.setValue("meta_title", metaTitle || null);
+    form.setValue("meta_description", metaDescription || null);
+    form.setValue("meta_keywords", metaKeywords || null);
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -236,6 +324,31 @@ export function ProductForm({
     );
     setExistingDocuments(newDocuments);
     form.setValue("documents", newDocuments);
+  };
+
+  const handleAddDocumentUrl = () => {
+    if (!documentUrlInput.trim()) {
+      return;
+    }
+    const url = documentUrlInput.trim();
+    const name = documentNameInput.trim() || `Документ ${documentUrls.length + 1}`;
+    
+    // Простая валидация URL
+    try {
+      new URL(url);
+      setDocumentUrls((prev) => [...prev, { url, name }]);
+      setDocumentUrlInput("");
+      setDocumentNameInput("");
+    } catch {
+      // Если не валидный URL, все равно добавим (может быть относительный путь)
+      setDocumentUrls((prev) => [...prev, { url, name }]);
+      setDocumentUrlInput("");
+      setDocumentNameInput("");
+    }
+  };
+
+  const removeDocumentUrl = (index: number) => {
+    setDocumentUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddSpec = () => {
@@ -607,18 +720,64 @@ export function ProductForm({
           </TabsContent>
           <TabsContent value="documents" className="space-y-4">
             <h2 className="text-xl font-semibold">Документы</h2>
-            <div className="space-y-2">
-              <Label htmlFor="documentFiles">Загрузить новые документы</Label>
-              <Input
-                id="documentFiles"
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.xlsx"
-                onChange={handleDocumentChange}
-              />
+            <div className="space-y-4">
+              {/* Загрузка файлов */}
+              <div className="space-y-2">
+                <Label htmlFor="documentFiles">Загрузить новые документы (файлы)</Label>
+                <Input
+                  id="documentFiles"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xlsx"
+                  onChange={handleDocumentChange}
+                />
+              </div>
+
+              {/* Добавление по URL */}
+              <div className="space-y-2">
+                <Label>Добавить документ по URL</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/document.pdf"
+                      value={documentUrlInput}
+                      onChange={(e) => setDocumentUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddDocumentUrl();
+                        }
+                      }}
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Название документа (необязательно)"
+                      value={documentNameInput}
+                      onChange={(e) => setDocumentNameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddDocumentUrl();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddDocumentUrl}
+                    disabled={!documentUrlInput.trim()}
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Добавить
+                  </Button>
+                </div>
+              </div>
             </div>
+            {/* Существующие документы */}
             {existingDocuments.length > 0 && (
-              <div>
+              <div className="space-y-2">
                 <h3 className="text-sm font-medium mb-2">
                   Существующие документы:
                 </h3>
@@ -646,6 +805,71 @@ export function ProductForm({
                       </Button>
                     </li>
                   ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Документы по URL */}
+            {documentUrls.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium mb-2">
+                  Документы по URL:
+                </h3>
+                <ul className="space-y-2">
+                  {documentUrls.map((doc, index) => {
+                    // Определяем тип файла из расширения URL
+                    const getFileExtension = (url: string): string | null => {
+                      try {
+                        const urlObj = new URL(url);
+                        const pathname = urlObj.pathname;
+                        const match = pathname.match(/\.([a-z0-9]+)$/i);
+                        return match ? match[1].toUpperCase() : null;
+                      } catch {
+                        // Если не валидный URL, пытаемся найти расширение в конце строки
+                        const match = url.match(/\.([a-z0-9]+)(?:\?|$)/i);
+                        return match ? match[1].toUpperCase() : null;
+                      }
+                    };
+                    
+                    const fileExtension = getFileExtension(doc.url);
+                    
+                    return (
+                      <li
+                        key={index}
+                        className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-800"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium truncate">{doc.name}</div>
+                              {fileExtension && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {fileExtension}
+                                </Badge>
+                              )}
+                            </div>
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-primary truncate block"
+                            >
+                              {doc.url}
+                            </a>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeDocumentUrl(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -713,6 +937,19 @@ export function ProductForm({
             </Button>
           </TabsContent>
           <TabsContent value="meta" className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium">Мета-теги</h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={generateMetaTags}
+                className="gap-2"
+              >
+                <Wand2 className="h-4 w-4" />
+                Заполнить автоматически
+              </Button>
+            </div>
             <FormField
               control={form.control}
               name="meta_title"

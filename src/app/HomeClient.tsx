@@ -2,6 +2,7 @@
 
 import { Hero } from "@/components/Hero";
 import { PartnersCarousel } from "@/components/PartnersCarousel";
+import { News } from "@/components/News"; 
 import { ProductSection } from "@/components/ProductSection";
 import { PromoCard } from "@/components/PromoCard";
 import { Services } from "@/components/Services";

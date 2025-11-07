@@ -30,6 +30,12 @@ function cleanImagesArray(images: string[] | null | undefined): string[] {
     .filter((img): img is string => img !== null);
 }
 
+// Helper function to check if a string is a UUID
+function isUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export interface CatalogProduct {
   id: string;
   name: string;
@@ -37,10 +43,12 @@ export interface CatalogProduct {
   sku?: string;
   short_description?: string;
   description?: string;
+  technical_description?: string;
   base_price: number;
   sale_price?: number;
   thumbnail?: string;
   images: string[];
+  documents?: any;
   inventory_quantity: number;
   track_inventory: boolean;
   is_featured: boolean;
@@ -48,7 +56,7 @@ export interface CatalogProduct {
   created_at: string;
   view_count: number;
   sales_count: number;
-  specifications?: Record<string, any>;
+  specifications?: Record<string, any> | Array<any>;
   brands?: {
     id: string;
     name: string;
@@ -195,15 +203,55 @@ export async function listProducts(
 
   // Apply filters - include child categories
   if (categories.length > 0) {
+    // Convert slugs to IDs if needed
+    let categoryIds: string[] = [];
+    const slugsToConvert = categories.filter((cat) => !isUUID(cat));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch category IDs by slugs
+      const { data: categoriesBySlug } = await supabase
+        .from("categories")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      categoriesBySlug?.forEach((cat) => {
+        slugToIdMap.set(cat.slug, cat.id);
+      });
+
+      // Convert all categories to IDs
+      categoryIds = categories.map((cat) => {
+        if (isUUID(cat)) return cat;
+        return slugToIdMap.get(cat) || "";
+      }).filter(Boolean);
+    } else {
+      categoryIds = categories;
+    }
+
+    if (categoryIds.length === 0) {
+      // If no valid categories found, return empty result
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page: params.page,
+          limit: params.limit,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
+
     // Get all categories including children
     const { data: allCategories } = await supabase
       .from("categories")
       .select("id, parent_id, path");
 
-    const expandedCategories = new Set(categories);
+    const expandedCategories = new Set(categoryIds);
 
     // For each selected category, find all its children
-    categories.forEach((categoryId) => {
+    categoryIds.forEach((categoryId) => {
       const findChildren = (parentId: string) => {
         allCategories?.forEach((cat) => {
           if (cat.parent_id === parentId) {
@@ -219,11 +267,65 @@ export async function listProducts(
   }
 
   if (brands.length > 0) {
-    query = query.in("brand_id", brands);
+    // Convert slugs to IDs if needed
+    let brandIds: string[] = [];
+    const slugsToConvert = brands.filter((brand) => !isUUID(brand));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch brand IDs by slugs
+      const { data: brandsBySlug } = await supabase
+        .from("brands")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      brandsBySlug?.forEach((brand) => {
+        slugToIdMap.set(brand.slug, brand.id);
+      });
+
+      // Convert all brands to IDs
+      brandIds = brands.map((brand) => {
+        if (isUUID(brand)) return brand;
+        return slugToIdMap.get(brand) || "";
+      }).filter(Boolean);
+    } else {
+      brandIds = brands;
+    }
+
+    if (brandIds.length > 0) {
+      query = query.in("brand_id", brandIds);
+    }
   }
 
   if (collections.length > 0) {
-    query = query.in("collection_id", collections);
+    // Convert slugs to IDs if needed
+    let collectionIds: string[] = [];
+    const slugsToConvert = collections.filter((collection) => !isUUID(collection));
+    
+    if (slugsToConvert.length > 0) {
+      // Fetch collection IDs by slugs
+      const { data: collectionsBySlug } = await supabase
+        .from("collections")
+        .select("id, slug")
+        .in("slug", slugsToConvert);
+      
+      const slugToIdMap = new Map<string, string>();
+      collectionsBySlug?.forEach((collection) => {
+        slugToIdMap.set(collection.slug, collection.id);
+      });
+
+      // Convert all collections to IDs
+      collectionIds = collections.map((collection) => {
+        if (isUUID(collection)) return collection;
+        return slugToIdMap.get(collection) || "";
+      }).filter(Boolean);
+    } else {
+      collectionIds = collections;
+    }
+
+    if (collectionIds.length > 0) {
+      query = query.in("collection_id", collectionIds);
+    }
   }
 
   if (minPrice && minPrice > 0) {
@@ -287,9 +389,81 @@ export async function listProducts(
       : 0;
 
     // Process images - keep original URLs from database but clean them
-    const images = product.images || [];
-    const thumbnail =
-      product.thumbnail || (images.length > 0 ? images[0] : null);
+    // Handle different image formats: array of strings, array of objects, or single string
+    let imagesArray: string[] = [];
+    
+    // Handle null, undefined, or empty values
+    if (!product.images) {
+      imagesArray = [];
+    } else if (Array.isArray(product.images)) {
+      // Already an array - process each element
+      imagesArray = product.images
+        .map((img: any) => {
+          if (typeof img === "string") {
+            // Clean the string URL
+            return img.trim();
+          }
+          if (typeof img === "object" && img !== null) {
+            // Handle object format: { url: "...", name: "..." }
+            const url = img.url || img.src || img.path || null;
+            return url && typeof url === "string" ? url.trim() : null;
+          }
+          return null;
+        })
+        .filter((img: any): img is string => 
+          img !== null && 
+          typeof img === "string" && 
+          img.length > 0 &&
+          !img.includes("example.com") &&
+          !img.includes("placeholder")
+        );
+    } else if (typeof product.images === "string") {
+      try {
+        // Try to parse as JSON if it's a string
+        const parsed = JSON.parse(product.images);
+        if (Array.isArray(parsed)) {
+          imagesArray = parsed
+            .map((img: any) => {
+              if (typeof img === "string") return img.trim();
+              if (typeof img === "object" && img !== null) {
+                const url = img.url || img.src || img.path || null;
+                return url && typeof url === "string" ? url.trim() : null;
+              }
+              return null;
+            })
+            .filter((img: any): img is string => 
+              img !== null && 
+              typeof img === "string" && 
+              img.length > 0 &&
+              !img.includes("example.com") &&
+              !img.includes("placeholder")
+            );
+        } else {
+          // Single string value - treat as single image URL
+          const trimmed = product.images.trim();
+          if (trimmed.length > 0 && !trimmed.includes("example.com") && !trimmed.includes("placeholder")) {
+            imagesArray = [trimmed];
+          }
+        }
+      } catch {
+        // If not JSON, treat as single image URL
+        const trimmed = product.images.trim();
+        if (trimmed.length > 0 && !trimmed.includes("example.com") && !trimmed.includes("placeholder")) {
+          imagesArray = [trimmed];
+        }
+      }
+    }
+    
+    // Clean images array using the helper function
+    const images = cleanImagesArray(imagesArray);
+    
+    // Get thumbnail - prefer product.thumbnail, fallback to first image
+    let thumbnailValue = product.thumbnail;
+    if (!thumbnailValue || typeof thumbnailValue !== "string" || thumbnailValue.trim().length === 0) {
+      thumbnailValue = images.length > 0 ? images[0] : null;
+    }
+    
+    const thumbnail = cleanImageUrl(thumbnailValue);
 
     // Fix the data structure for single relations
     return {
@@ -338,6 +512,7 @@ export async function listCategories(): Promise<CategoryItem[]> {
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, description, parent_id, level, path, image_url")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -357,6 +532,7 @@ export async function listBrands(): Promise<BrandItem[]> {
   const { data, error } = await supabase
     .from("brands")
     .select("id, name, slug, description, logo_url, website")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -376,6 +552,7 @@ export async function listCollections(): Promise<CollectionItem[]> {
   const { data, error } = await supabase
     .from("collections")
     .select("id, name, slug, description, image_url")
+    .eq("is_active", true)
     .order("name");
 
   if (error) {
@@ -402,13 +579,16 @@ export async function getProduct(
       sku,
       short_description,
       description,
+      technical_description,
       base_price,
       sale_price,
       thumbnail,
       images,
+      documents,
       inventory_quantity,
       track_inventory,
       is_featured,
+      is_active,
       status,
       created_at,
       view_count,
@@ -497,9 +677,9 @@ export async function getCategory(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
   ) {
-    query = query.eq("id", idOrSlug);
+    query = query.eq("id", idOrSlug).eq("is_active", true);
   } else {
-    query = query.eq("slug", idOrSlug);
+    query = query.eq("slug", idOrSlug).eq("is_active", true);
   }
 
   const { data, error } = await query.single();
@@ -526,9 +706,9 @@ export async function getBrand(idOrSlug: string): Promise<BrandItem | null> {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
   ) {
-    query = query.eq("id", idOrSlug);
+    query = query.eq("id", idOrSlug).eq("is_active", true);
   } else {
-    query = query.eq("slug", idOrSlug);
+    query = query.eq("slug", idOrSlug).eq("is_active", true);
   }
 
   const { data, error } = await query.single();

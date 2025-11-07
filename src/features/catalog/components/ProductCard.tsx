@@ -1,39 +1,85 @@
+"use client";
+
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CatalogProduct } from "@/lib/services/catalog";
+import { catalogKeys } from "@/lib/hooks/useCatalog";
 
 interface ProductCardProps {
   product: CatalogProduct;
+  priority?: boolean;
 }
 
 // Server-side function to determine image source consistently
 const getFinalImageSrc = (product: CatalogProduct): string => {
-  if (
-    product.thumbnail &&
-    !product.thumbnail.includes("example.com") &&
-    !product.thumbnail.includes("placeholder")
-  ) {
-    return product.thumbnail;
-  }
-
-  if (product.images && product.images.length > 0) {
-    const firstImage = product.images[0];
+  // First, try thumbnail
+  if (product.thumbnail) {
+    const thumbnail = typeof product.thumbnail === "string" 
+      ? product.thumbnail.trim() 
+      : null;
     if (
-      firstImage &&
-      !firstImage.includes("example.com") &&
-      !firstImage.includes("placeholder")
+      thumbnail &&
+      thumbnail.length > 0 &&
+      !thumbnail.includes("example.com") &&
+      !thumbnail.includes("placeholder") &&
+      (thumbnail.startsWith("http") || thumbnail.startsWith("/"))
     ) {
-      return firstImage;
+      return thumbnail;
     }
   }
 
+  // Then, try images array
+  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+    // Find first valid image URL
+    for (const img of product.images) {
+      let imageUrl: string | null = null;
+      
+      if (typeof img === "string") {
+        imageUrl = img.trim();
+      } else if (typeof img === "object" && img !== null) {
+        const imgObj = img as { url?: string; src?: string; path?: string };
+        imageUrl = imgObj.url || imgObj.src || imgObj.path || null;
+      }
+      
+      if (
+        imageUrl &&
+        typeof imageUrl === "string" &&
+        imageUrl.length > 0 &&
+        !imageUrl.includes("example.com") &&
+        !imageUrl.includes("placeholder") &&
+        (imageUrl.startsWith("http") || imageUrl.startsWith("/"))
+      ) {
+        return imageUrl;
+      }
+    }
+  }
+
+  // Fallback to placeholder
   return "/images/placeholder-product.svg";
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, priority = false }: ProductCardProps) {
+  const queryClient = useQueryClient();
   const imageSrc = getFinalImageSrc(product);
+  
+  // Prefetch продукта при наведении для быстрой загрузки страницы
+  const handleMouseEnter = () => {
+    queryClient.prefetchQuery({
+      queryKey: catalogKeys.product(product.slug),
+      queryFn: async () => {
+        const response = await fetch(`/api/products/${product.slug}`);
+        if (!response.ok) {
+          if (response.status === 404) return null;
+          throw new Error("Failed to fetch product");
+        }
+        const result = await response.json();
+        return result.product || null;
+      },
+    });
+  };
 
   const finalPrice = product.sale_price || product.base_price;
   const isOnSale = !!(
@@ -54,7 +100,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Card className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1">
+    <Card 
+      className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1"
+      onMouseEnter={handleMouseEnter}
+    >
       <Link href={`/catalog/product/${product.slug}`} className="block h-full">
         <div className="relative h-full flex flex-col">
           {/* Image Section */}
@@ -62,13 +111,16 @@ export default function ProductCard({ product }: ProductCardProps) {
             <Image
               src={imageSrc}
               alt={product.name}
-              width={300}
-              height={192}
-              className="w-full h-full object-contain transition-all duration-300 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              fill
+              className="object-contain transition-all duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               quality={85}
-              priority={false}
-              unoptimized={imageSrc === "/images/placeholder-product.svg"}
+              priority={priority}
+              unoptimized={
+                imageSrc === "/images/placeholder-product.svg" ||
+                imageSrc.includes("r2.asia-ntb.kz") ||
+                imageSrc.includes("r2.dev")
+              }
             />
 
             {/* Badges */}

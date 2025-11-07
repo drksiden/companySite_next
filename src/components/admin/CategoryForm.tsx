@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Category, CategoryFormData } from "@/types/catalog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,7 @@ interface CategoryFormProps {
   initialData?: CategoryFormData;
   categories?: Category[];
   currentCategoryId?: string;
+  isSubmitting?: boolean;
 }
 
 // Helper function to build a flat list of categories with indentation
@@ -65,15 +67,16 @@ export function CategoryForm({
   initialData,
   categories = [],
   currentCategoryId,
+  isSubmitting = false,
 }: CategoryFormProps) {
   // Convert empty icon_name to 'none' for the select component
-  const processedInitialData = initialData
-    ? {
-        ...initialData,
-        icon_name:
-          initialData.icon_name === "" ? "none" : initialData.icon_name,
-      }
-    : undefined;
+  const processedInitialData = useMemo(() => {
+    if (!initialData) return undefined;
+    return {
+      ...initialData,
+      icon_name: initialData.icon_name === "" ? "none" : initialData.icon_name,
+    };
+  }, [initialData]);
 
   const [formData, setFormData] = useState<CategoryFormData>({
     name: "",
@@ -90,11 +93,46 @@ export function CategoryForm({
     ...processedInitialData,
   });
 
-  // Auto-generate slug from name
+  // Обновляем форму при изменении initialData
+  useEffect(() => {
+    if (processedInitialData) {
+      setFormData({
+        name: processedInitialData.name || "",
+        slug: processedInitialData.slug || "",
+        description: processedInitialData.description || "",
+        parent_id: processedInitialData.parent_id,
+        image_url: processedInitialData.image_url || "",
+        icon_name: processedInitialData.icon_name || "none",
+        is_active: processedInitialData.is_active ?? true,
+        sort_order: processedInitialData.sort_order ?? 0,
+        meta_title: processedInitialData.meta_title || "",
+        meta_description: processedInitialData.meta_description || "",
+        meta_keywords: processedInitialData.meta_keywords || "",
+      });
+    } else {
+      // Сбрасываем форму если нет initialData
+      setFormData({
+        name: "",
+        slug: "",
+        description: "",
+        parent_id: undefined,
+        image_url: "",
+        icon_name: "none",
+        is_active: true,
+        sort_order: 0,
+        meta_title: "",
+        meta_description: "",
+        meta_keywords: "",
+      });
+    }
+  }, [processedInitialData]); // Отслеживаем изменения processedInitialData
+
+  // Auto-generate slug from name (только для новых категорий)
   useEffect(() => {
     if (
       formData.name &&
-      (!initialData?.slug || formData.name !== initialData.name)
+      (!initialData?.slug || formData.name !== initialData.name) &&
+      !initialData // Автогенерация только если нет initialData
     ) {
       setFormData((prev) => ({
         ...prev,
@@ -104,7 +142,7 @@ export function CategoryForm({
           .replace(/\s+/g, "-"),
       }));
     }
-  }, [formData.name, initialData?.slug, initialData?.name]);
+  }, [formData.name, initialData]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -162,16 +200,16 @@ export function CategoryForm({
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 px-6">
           <TabsTrigger value="basic">Основное</TabsTrigger>
           <TabsTrigger value="display">Отображение</TabsTrigger>
           <TabsTrigger value="seo">SEO</TabsTrigger>
         </TabsList>
 
         {/* Basic Information Tab */}
-        <TabsContent value="basic" className="space-y-4 pt-4">
+        <TabsContent value="basic" className="space-y-4 pt-6 px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name" className="required">
@@ -250,7 +288,7 @@ export function CategoryForm({
         </TabsContent>
 
         {/* Display Tab */}
-        <TabsContent value="display" className="space-y-4 pt-4">
+        <TabsContent value="display" className="space-y-4 pt-4 px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="image_url">URL изображения</Label>
@@ -311,7 +349,7 @@ export function CategoryForm({
         </TabsContent>
 
         {/* SEO Tab */}
-        <TabsContent value="seo" className="space-y-4 pt-4">
+        <TabsContent value="seo" className="space-y-4 pt-4 px-6">
           <div className="space-y-2">
             <Label htmlFor="meta_title">Meta Title</Label>
             <Input
@@ -348,9 +386,22 @@ export function CategoryForm({
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end">
-        <Button type="submit">
-          {initialData ? "Сохранить изменения" : "Создать категорию"}
+      <div className="flex justify-end gap-4 pt-6 pb-6 px-6 border-t">
+        {isSubmitting && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{initialData ? "Сохранение..." : "Создание..."}</span>
+          </div>
+        )}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {initialData ? "Сохранение..." : "Создание..."}
+            </>
+          ) : (
+            initialData ? "Сохранить изменения" : "Создать категорию"
+          )}
         </Button>
       </div>
     </form>

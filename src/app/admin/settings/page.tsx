@@ -47,6 +47,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AdminSettingsPanel } from "@/hooks/useAdminSettings";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 // Типы для настроек
 interface GeneralSettings {
@@ -185,7 +186,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <motion.div
+    <ContentLayout title="Настройки">
+      <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -840,5 +842,6 @@ export default function SettingsPage() {
         </Tabs>
       </motion.div>
     </motion.div>
+    </ContentLayout>
   );
 }

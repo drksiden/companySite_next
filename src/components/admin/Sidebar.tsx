@@ -25,6 +25,8 @@ import {
   Shield,
   X,
   FileText,
+  Newspaper,
+  MessageSquare,
 } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 
@@ -42,6 +44,8 @@ const navigation = [
     ],
   },
   { title: "Заказы", href: "/admin/orders", icon: FileText },
+  { title: "Новости", href: "/admin/news", icon: Newspaper },
+  { title: "Запросы клиентов", href: "/admin/contact-requests", icon: MessageSquare },
   { title: "Пользователи", href: "/admin/users", icon: Users },
   { title: "Аналитика", href: "/admin/analytics", icon: BarChart3 },
   {

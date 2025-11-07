@@ -1,7 +1,7 @@
 // src/app/api/admin/users/reset-password/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createAdminClient } from "@/lib/supabaseServer";
-import { UserRole } from "@/lib/services/user";
+import { UserRole } from "@/lib/services/admin/user";
 
 // Вспомогательная функция для проверки авторизации
 async function authorizeAdmin(req: NextRequest) {

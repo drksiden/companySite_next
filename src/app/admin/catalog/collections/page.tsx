@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabaseServer";
 import { CollectionManagerClient } from "@/components/admin/CollectionManagerClient";
+import { ContentLayout } from "@/components/admin-panel/content-layout";
 
 export default async function CollectionsPage() {
   const supabase = await createServerClient();
@@ -12,12 +13,14 @@ export default async function CollectionsPage() {
   }
 
   return (
-    <div className="p-6">
+    <ContentLayout title="Коллекции">
+      <div className="p-6">
       <CollectionManagerClient
         initialCollections={collections}
         brands={brands}
         categories={categories}
       />
     </div>
+    </ContentLayout>
   );
 }
