@@ -299,7 +299,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Добавляем обновленные массивы
-    insertData.images = newImageUrls;
+    // Убеждаемся, что images всегда массив строк (не null, не undefined)
+    insertData.images = Array.isArray(newImageUrls) && newImageUrls.length > 0 
+      ? newImageUrls 
+      : [];
     insertData.documents = finalDocuments;
 
     // Устанавливаем валюту по умолчанию, если не указана
@@ -627,7 +630,12 @@ export async function PUT(req: NextRequest) {
     }
 
     // Объединяем существующие и новые изображения
-    updateData.images = [...existingImages, ...newImageUrls];
+    // Убеждаемся, что images всегда массив строк
+    const allImages = [
+      ...(Array.isArray(existingImages) ? existingImages : []),
+      ...(Array.isArray(newImageUrls) ? newImageUrls : [])
+    ];
+    updateData.images = allImages.length > 0 ? allImages : [];
 
     // Используем структурированные документы
     updateData.documents = finalDocuments;

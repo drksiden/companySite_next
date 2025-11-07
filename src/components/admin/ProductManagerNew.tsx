@@ -82,6 +82,7 @@ import {
   useUpdateProduct,
   useDeleteProduct,
 } from "@/lib/hooks/useProductsQuery";
+import { ProductsResponse } from "@/lib/services/admin/product";
 
 interface AdminFormData {
   categories: any[];
@@ -158,9 +159,9 @@ export function ProductManagerNew() {
     pagination
   );
 
-  const products = productsData?.products || [];
-  const total = productsData?.total || 0;
-  const hasMore = productsData?.hasMore || false;
+  const products = (productsData as ProductsResponse | undefined)?.products || [];
+  const total = (productsData as ProductsResponse | undefined)?.total || 0;
+  const hasMore = (productsData as ProductsResponse | undefined)?.hasMore || false;
 
   // Мутации для CRUD операций
   const createProductMutation = useCreateProduct();
@@ -204,7 +205,7 @@ export function ProductManagerNew() {
       toast.success(message);
       // Очищаем автосохранение после успешного создания
       localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
-      handleCloseDialog(true);
+      handleCloseDialog();
     } catch (error) {
       console.error("Error creating product:", error);
       const errorMessage = error instanceof Error ? error.message : "Ошибка при создании продукта";
@@ -257,7 +258,7 @@ export function ProductManagerNew() {
       toast.success(message);
       // Очищаем автосохранение после успешного обновления
       localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
-      handleCloseDialog(true);
+      handleCloseDialog();
     } catch (error) {
       console.error("Error updating product:", error);
       const errorMessage = error instanceof Error ? error.message : "Ошибка при обновлении продукта";
@@ -339,7 +340,7 @@ export function ProductManagerNew() {
           open={isFormOpen}
           onOpenChange={(open) => {
             if (!open) {
-              handleCloseDialog(false);
+              handleCloseDialog();
             } else {
               setIsFormOpen(true);
             }
@@ -369,7 +370,7 @@ export function ProductManagerNew() {
                 if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
                   // Очищаем автосохранение при подтверждении закрытия
                   localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
-                  handleCloseDialog(true);
+                  handleCloseDialog();
                 }
               }
             }}
@@ -381,7 +382,7 @@ export function ProductManagerNew() {
                 if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
                   // Очищаем автосохранение при подтверждении закрытия
                   localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
-                  handleCloseDialog(true);
+                  handleCloseDialog();
                 }
               }
             }}

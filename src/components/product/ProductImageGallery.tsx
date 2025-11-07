@@ -227,7 +227,7 @@ export function ProductImageGallery({
                       setSelectedImage(index);
                       setIsFullscreen(true);
                     }}
-                    unoptimized={image.includes("r2.dev")}
+                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                   />
                 </div>
               </CarouselItem>
@@ -284,7 +284,7 @@ export function ProductImageGallery({
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 56px, 80px"
-                    unoptimized={image.includes("r2.dev")}
+                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                   />
                 </button>
               </CarouselItem>
@@ -341,7 +341,10 @@ export function ProductImageGallery({
                   height={1200}
                   className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain select-none"
                   sizes="100vw"
-                  unoptimized={validImages[selectedImage]?.includes("r2.dev")}
+                  unoptimized={
+                    validImages[selectedImage]?.includes("r2.dev") ||
+                    validImages[selectedImage]?.includes("r2.asia-ntb.kz")
+                  }
                   draggable={false}
                 />
               </div>
@@ -451,7 +454,7 @@ export function ProductImageGallery({
                       fill
                       className="object-cover"
                       sizes="48px"
-                      unoptimized={image.includes("r2.dev")}
+                      unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
                     />
                   </button>
                 ))}

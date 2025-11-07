@@ -389,9 +389,81 @@ export async function listProducts(
       : 0;
 
     // Process images - keep original URLs from database but clean them
-    const images = product.images || [];
-    const thumbnail =
-      product.thumbnail || (images.length > 0 ? images[0] : null);
+    // Handle different image formats: array of strings, array of objects, or single string
+    let imagesArray: string[] = [];
+    
+    // Handle null, undefined, or empty values
+    if (!product.images) {
+      imagesArray = [];
+    } else if (Array.isArray(product.images)) {
+      // Already an array - process each element
+      imagesArray = product.images
+        .map((img: any) => {
+          if (typeof img === "string") {
+            // Clean the string URL
+            return img.trim();
+          }
+          if (typeof img === "object" && img !== null) {
+            // Handle object format: { url: "...", name: "..." }
+            const url = img.url || img.src || img.path || null;
+            return url && typeof url === "string" ? url.trim() : null;
+          }
+          return null;
+        })
+        .filter((img: any): img is string => 
+          img !== null && 
+          typeof img === "string" && 
+          img.length > 0 &&
+          !img.includes("example.com") &&
+          !img.includes("placeholder")
+        );
+    } else if (typeof product.images === "string") {
+      try {
+        // Try to parse as JSON if it's a string
+        const parsed = JSON.parse(product.images);
+        if (Array.isArray(parsed)) {
+          imagesArray = parsed
+            .map((img: any) => {
+              if (typeof img === "string") return img.trim();
+              if (typeof img === "object" && img !== null) {
+                const url = img.url || img.src || img.path || null;
+                return url && typeof url === "string" ? url.trim() : null;
+              }
+              return null;
+            })
+            .filter((img: any): img is string => 
+              img !== null && 
+              typeof img === "string" && 
+              img.length > 0 &&
+              !img.includes("example.com") &&
+              !img.includes("placeholder")
+            );
+        } else {
+          // Single string value - treat as single image URL
+          const trimmed = product.images.trim();
+          if (trimmed.length > 0 && !trimmed.includes("example.com") && !trimmed.includes("placeholder")) {
+            imagesArray = [trimmed];
+          }
+        }
+      } catch {
+        // If not JSON, treat as single image URL
+        const trimmed = product.images.trim();
+        if (trimmed.length > 0 && !trimmed.includes("example.com") && !trimmed.includes("placeholder")) {
+          imagesArray = [trimmed];
+        }
+      }
+    }
+    
+    // Clean images array using the helper function
+    const images = cleanImagesArray(imagesArray);
+    
+    // Get thumbnail - prefer product.thumbnail, fallback to first image
+    let thumbnailValue = product.thumbnail;
+    if (!thumbnailValue || typeof thumbnailValue !== "string" || thumbnailValue.trim().length === 0) {
+      thumbnailValue = images.length > 0 ? images[0] : null;
+    }
+    
+    const thumbnail = cleanImageUrl(thumbnailValue);
 
     // Fix the data structure for single relations
     return {

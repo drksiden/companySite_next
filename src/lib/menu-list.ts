@@ -15,7 +15,8 @@ import {
   Package,
   Bell,
   Shield,
-  Newspaper
+  Newspaper,
+  MessageSquare
 } from "lucide-react";
 
 type Submenu = {
@@ -90,13 +91,14 @@ export function getMenuList(pathname: string): Group[] {
     {
       groupLabel: "",
       menus: [
-        { label: "Заказы", href: "/admin/orders", icon: FileText },
+//        { label: "Заказы", href: "/admin/orders", icon: FileText },
         { label: "Новости", href: "/admin/news", icon: Newspaper },
+        { label: "Запросы клиентов", href: "/admin/contact-requests", icon: MessageSquare },
         { label: "Пользователи", href: "/admin/users", icon: Users },
-        { label: "Аналитика", href: "/admin/analytics", icon: BarChart3 },
+//        { label: "Аналитика", href: "/admin/analytics", icon: BarChart3 },
       ]
     },
-    {
+/*    {
       groupLabel: "",
       menus: [
         {
@@ -114,6 +116,6 @@ export function getMenuList(pathname: string): Group[] {
                 ]
               },
       ]
-    }
+    }*/
   ];
 }

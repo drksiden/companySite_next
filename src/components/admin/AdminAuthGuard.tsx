@@ -279,13 +279,13 @@ export default function AdminAuthGuard({
                   sessionStorage.setItem("current_user", JSON.stringify(refreshedSession.user));
                 } else {
                   console.error("Token refresh error:", refreshError);
-                  // Если не удалось обновить токен, проверяем авторизацию заново
-                  // Используем setTimeout чтобы избежать проблем с зависимостями
-                  setTimeout(() => {
-                    if (!ignore && user) {
-                      checkAuth(true);
-                    }
-                  }, 0);
+                  // Если не удалось обновить токен, очищаем кэш и состояние
+                  // Это вызовет повторную проверку при следующем запросе
+                  sessionStorage.removeItem("current_user");
+                  sessionStorage.removeItem("user_profile");
+                  setUser(null);
+                  setUserRole(null);
+                  setUserProfile(null);
                 }
               }
             }

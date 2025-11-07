@@ -413,6 +413,105 @@ export function ProductFormNew({
 
       setExistingImages(initialData.images || []);
       
+      // Загружаем технические характеристики (specifications)
+      if (initialData.specifications) {
+        try {
+          // specifications может быть объектом { rows: [...], description: "..." } или просто объектом
+          let specsData: any = initialData.specifications;
+          
+          // Если это строка, парсим JSON
+          if (typeof specsData === 'string') {
+            specsData = JSON.parse(specsData);
+          }
+          
+          // Если это объект с полями rows и description
+          if (specsData && typeof specsData === 'object') {
+            if (specsData.rows && Array.isArray(specsData.rows)) {
+              // Преобразуем в формат SpecificationRow с id и type
+              const specsRows: SpecificationRow[] = specsData.rows.map((row: any, index: number) => {
+                // Если у строки уже есть type, используем его, иначе определяем по наличию key/value
+                const type = row.type || (row.key !== undefined ? "row" : "header");
+                return {
+                  id: row.id || `spec-${Date.now()}-${index}`,
+                  type: type as "header" | "row" | "separator",
+                  key: row.key || "",
+                  value: row.value || "",
+                };
+              });
+              setSpecifications(specsRows);
+            } else if (Array.isArray(specsData)) {
+              // Если это массив напрямую
+              const specsRows: SpecificationRow[] = specsData.map((row: any, index: number) => {
+                const type = row.type || (row.key !== undefined ? "row" : "header");
+                return {
+                  id: row.id || `spec-${Date.now()}-${index}`,
+                  type: type as "header" | "row" | "separator",
+                  key: row.key || "",
+                  value: row.value || "",
+                };
+              });
+              setSpecifications(specsRows);
+            }
+            
+            if (specsData.description) {
+              setSpecificationsDescription(specsData.description);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading specifications:", error);
+        }
+      }
+      
+      // Загружаем документы (documents)
+      if (initialData.documents) {
+        try {
+          let docsData: any = initialData.documents;
+          
+          // Если это строка, парсим JSON
+          if (typeof docsData === 'string') {
+            docsData = JSON.parse(docsData);
+          }
+          
+          // documents может быть массивом групп или массивом документов (старый формат)
+          if (docsData && Array.isArray(docsData)) {
+            // Проверяем, это новый формат (группы) или старый (просто документы)
+            if (docsData.length > 0 && docsData[0].title && docsData[0].documents) {
+              // Новый формат: массив групп
+              const groups: DocumentGroup[] = docsData.map((group: any, groupIndex: number) => ({
+                id: group.id || `group-${Date.now()}-${groupIndex}`,
+                title: group.title || "Без названия",
+                documents: (group.documents || []).map((doc: any, docIndex: number) => ({
+                  id: doc.id || `doc-${Date.now()}-${groupIndex}-${docIndex}`,
+                  title: doc.title || doc.name || "",
+                  url: doc.url || "",
+                  description: doc.description || "",
+                  size: doc.size || "",
+                  type: doc.type || "",
+                })),
+              }));
+              setDocumentGroups(groups);
+            } else {
+              // Старый формат: массив документов, преобразуем в группы
+              const defaultGroup: DocumentGroup = {
+                id: `group-${Date.now()}`,
+                title: "Документы",
+                documents: docsData.map((doc: any, index: number) => ({
+                  id: doc.id || `doc-${Date.now()}-${index}`,
+                  title: doc.title || doc.name || "",
+                  url: doc.url || "",
+                  description: doc.description || "",
+                  size: doc.size || "",
+                  type: doc.type || "",
+                })),
+              };
+              setDocumentGroups([defaultGroup]);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading documents:", error);
+        }
+      }
+      
       // Восстановление данных из localStorage при монтировании (только для новых товаров)
     } else {
       // Восстанавливаем данные только для новых товаров

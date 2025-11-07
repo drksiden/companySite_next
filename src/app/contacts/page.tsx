@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { ContactForm } from '@/components/contact/ContactForm';
 
 const ContactPage = () => {
   const mapState = { center: [43.248150, 76.870680], zoom: 16 };
@@ -141,35 +142,15 @@ const ContactPage = () => {
             </motion.div>
           </div>
 
-          {/* Контактная форма, расположенная под двумя колонками !!! на потом */}
-          {/* <div className="mt-10 lg:mt-16">
-            <Card className="shadow-lg border-border max-w-xl mx-auto">
-              <CardHeader>
-                <CardTitle className="text-2xl text-foreground">
-                  Отправить сообщение
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Ваше имя</Label>
-                    <Input id="name" type="text" placeholder="Иван Иванов" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="example@email.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="message">Сообщение</Label>
-                    <Textarea id="message" placeholder="Ваше сообщение..." required />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Отправить
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div> */}
+          {/* Контактная форма */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-10 lg:mt-16"
+          >
+            <ContactForm className="max-w-2xl mx-auto" />
+          </motion.div>
         </div>
       </section>
     </>

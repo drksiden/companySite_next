@@ -303,66 +303,66 @@ export default function ProductDetailShell({
                 
                 if (specsRows.length > 0) {
                   return (
-                <div className="space-y-6">
-                  <div className="rounded-lg border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead className="w-1/2 font-semibold">
-                            Параметр
-                          </TableHead>
-                          <TableHead className="w-1/2 font-semibold">Значение</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {specsRows.map((spec: any, index: number) => {
-                          if (spec.type === "separator") {
-                            return (
-                              <TableRow key={spec.id || index} className="border-t-2 border-border">
-                                <TableCell colSpan={2} className="p-4">
-                                  <div className="flex-1 border-t"></div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          }
+                    <div className="space-y-6">
+                      <div className="rounded-lg border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="w-1/2 font-semibold">
+                                Параметр
+                              </TableHead>
+                              <TableHead className="w-1/2 font-semibold">Значение</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {specsRows.map((spec: any, index: number) => {
+                              if (spec.type === "separator") {
+                                return (
+                                  <TableRow key={spec.id || index} className="border-t-2 border-border">
+                                    <TableCell colSpan={2} className="p-4">
+                                      <div className="flex-1 border-t"></div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
 
-                          if (spec.type === "header") {
-                            return (
-                              <TableRow
-                                key={spec.id || index}
-                                className="bg-muted/30 border-t-2 border-primary/20"
-                              >
-                                <TableCell
-                                  colSpan={2}
-                                  className="font-bold text-base text-foreground py-4 px-4"
-                                >
-                                  {spec.key || "Заголовок"}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          }
+                              if (spec.type === "header") {
+                                return (
+                                  <TableRow
+                                    key={spec.id || index}
+                                    className="bg-muted/30 border-t-2 border-primary/20"
+                                  >
+                                    <TableCell
+                                      colSpan={2}
+                                      className="font-bold text-base text-foreground py-4 px-4"
+                                    >
+                                      {spec.key || "Заголовок"}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
 
-                          if (spec.type === "row" && spec.key && spec.value) {
-                            return (
-                              <TableRow
-                                key={spec.id || index}
-                                className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}
-                              >
-                                <TableCell className="font-medium text-foreground py-4 px-4">
-                                  {spec.key}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground py-4 px-4">
-                                  <HtmlContent
-                                    content={String(spec.value)}
-                                    variant="compact"
-                                    className="[&_*]:text-muted-foreground [&_strong]:text-foreground"
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            );
-                          }
+                              if (spec.type === "row" && spec.key && spec.value) {
+                                return (
+                                  <TableRow
+                                    key={spec.id || index}
+                                    className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}
+                                  >
+                                    <TableCell className="font-medium text-foreground py-4 px-4">
+                                      {spec.key}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground py-4 px-4">
+                                      <HtmlContent
+                                        content={String(spec.value)}
+                                        variant="compact"
+                                        className="[&_*]:text-muted-foreground [&_strong]:text-foreground"
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
 
-                          return null;
+                              return null;
                             })}
                           </TableBody>
                         </Table>
@@ -377,6 +377,14 @@ export default function ProductDetailShell({
                           />
                         </div>
                       )}
+                      
+                      {/* Disclaimer */}
+                      <div className="mt-6 space-y-4">
+                        <Separator />
+                        <p className="font-bold text-sm text-muted-foreground">
+                          Технические характеристики продукции, представленной в каталоге, носят сугубо информативный характер, могут быть изменены без уведомления и не заменяют консультацию специалиста
+                        </p>
+                      </div>
                     </div>
                   );
                 } else if (product.specifications &&
@@ -386,36 +394,46 @@ export default function ProductDetailShell({
                   Object.keys(product.specifications).length > 0) {
                   return (
                     // Старый формат (объект)
-                    <div className="rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50">
-                            <TableHead className="w-1/3 font-semibold">
-                              Характеристика
-                            </TableHead>
-                            <TableHead className="font-semibold">Значение</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(product.specifications).map(
-                            ([key, value], index) => (
-                              <TableRow
-                                key={key}
-                                className={
-                                  index % 2 === 0 ? "bg-background" : "bg-muted/20"
-                                }
-                              >
-                                <TableCell className="font-medium text-foreground py-4">
-                                  {key}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground py-4">
-                                  {String(value)}
-                                </TableCell>
-                              </TableRow>
-                            ),
-                          )}
-                        </TableBody>
-                      </Table>
+                    <div className="space-y-6">
+                      <div className="rounded-lg border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="w-1/3 font-semibold">
+                                Характеристика
+                              </TableHead>
+                              <TableHead className="font-semibold">Значение</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(product.specifications).map(
+                              ([key, value], index) => (
+                                <TableRow
+                                  key={key}
+                                  className={
+                                    index % 2 === 0 ? "bg-background" : "bg-muted/20"
+                                  }
+                                >
+                                  <TableCell className="font-medium text-foreground py-4">
+                                    {key}
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground py-4">
+                                    {String(value)}
+                                  </TableCell>
+                                </TableRow>
+                              ),
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Disclaimer */}
+                      <div className="mt-6 space-y-4">
+                        <Separator />
+                        <p className="font-bold text-sm text-muted-foreground">
+                          Технические характеристики продукции, представленной в каталоге, носят сугубо информативный характер, могут быть изменены без уведомления и не заменяют консультацию специалиста
+                        </p>
+                      </div>
                     </div>
                   );
                 } else {

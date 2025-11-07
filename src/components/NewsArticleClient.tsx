@@ -308,16 +308,10 @@ export default function NewsArticleClient({
                   </h3>
                   <div className="space-y-2">
                     {article.documents.map((doc, index) => {
-                      // Если документ - строка (URL), используем базовое имя файла
-                      const docUrl = typeof doc === "string" ? doc : doc.url || doc;
-                      const docName =
-                        typeof doc === "string"
-                          ? doc.split("/").pop() || `Документ ${index + 1}`
-                          : doc.name || doc.title || `Документ ${index + 1}`;
-                      const docType =
-                        typeof doc === "string"
-                          ? doc.split(".").pop()?.toUpperCase() || "FILE"
-                          : doc.type?.toUpperCase() || "FILE";
+                      // Документ всегда строка (URL)
+                      const docUrl = doc;
+                      const docName = doc.split("/").pop() || `Документ ${index + 1}`;
+                      const docType = doc.split(".").pop()?.toUpperCase() || "FILE";
 
                       return (
                         <a

@@ -360,6 +360,7 @@ export default async function SubCategoryPage({
               parent_id: cat.parent_id,
               image_url: cat.image_url,
               created_at: cat.created_at,
+              is_active: cat.status === "active",
             }))}
             basePath={`/catalog/${categoryHandle}/${currentSubCategory.slug}`}
           />
@@ -371,7 +372,26 @@ export default async function SubCategoryPage({
           <h2 className="text-2xl lg:text-3xl font-semibold text-foreground mb-8">
             Товары {`в "${currentSubCategory.name}"`}
           </h2>
-          <ProductCardList products={products} />
+          <ProductCardList
+            products={products.map((product) => ({
+              id: product.id,
+              created_at: product.created_at,
+              name: product.name,
+              description: product.description || null,
+              image_urls: product.images || null,
+              category_id: product.category_id || null,
+              brand_id: product.brand_id || null,
+              handle: product.slug || null,
+              sku: product.sku || null,
+              price: product.price || null,
+              original_price: product.sale_price || null,
+              currency_code: "₸",
+              stock_quantity: product.stock_quantity || null,
+              allow_backorder: false,
+              metadata: product.attributes || null,
+              is_active: product.status === "active",
+            }))}
+          />
         </section>
       )}
 

@@ -50,10 +50,19 @@ const newsSchema = z.object({
   date: z.string().min(1, "Дата обязательна"),
   category: z.string().min(1, "Категория обязательна"),
   author: z.string().optional(),
-  is_active: z.boolean().optional().default(true),
+  is_active: z.boolean(),
 });
 
-export type NewsFormData = z.infer<typeof newsSchema>;
+export type NewsFormData = {
+  id?: string;
+  title: string;
+  description: string;
+  content?: string;
+  date: string;
+  category: string;
+  author?: string;
+  is_active: boolean;
+};
 
 interface NewsFormProps {
   onSubmit: (data: globalThis.FormData) => void;

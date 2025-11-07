@@ -15,25 +15,49 @@ interface ProductCardProps {
 
 // Server-side function to determine image source consistently
 const getFinalImageSrc = (product: CatalogProduct): string => {
-  if (
-    product.thumbnail &&
-    !product.thumbnail.includes("example.com") &&
-    !product.thumbnail.includes("placeholder")
-  ) {
-    return product.thumbnail;
-  }
-
-  if (product.images && product.images.length > 0) {
-    const firstImage = product.images[0];
+  // First, try thumbnail
+  if (product.thumbnail) {
+    const thumbnail = typeof product.thumbnail === "string" 
+      ? product.thumbnail.trim() 
+      : null;
     if (
-      firstImage &&
-      !firstImage.includes("example.com") &&
-      !firstImage.includes("placeholder")
+      thumbnail &&
+      thumbnail.length > 0 &&
+      !thumbnail.includes("example.com") &&
+      !thumbnail.includes("placeholder") &&
+      (thumbnail.startsWith("http") || thumbnail.startsWith("/"))
     ) {
-      return firstImage;
+      return thumbnail;
     }
   }
 
+  // Then, try images array
+  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+    // Find first valid image URL
+    for (const img of product.images) {
+      let imageUrl: string | null = null;
+      
+      if (typeof img === "string") {
+        imageUrl = img.trim();
+      } else if (typeof img === "object" && img !== null) {
+        const imgObj = img as { url?: string; src?: string; path?: string };
+        imageUrl = imgObj.url || imgObj.src || imgObj.path || null;
+      }
+      
+      if (
+        imageUrl &&
+        typeof imageUrl === "string" &&
+        imageUrl.length > 0 &&
+        !imageUrl.includes("example.com") &&
+        !imageUrl.includes("placeholder") &&
+        (imageUrl.startsWith("http") || imageUrl.startsWith("/"))
+      ) {
+        return imageUrl;
+      }
+    }
+  }
+
+  // Fallback to placeholder
   return "/images/placeholder-product.svg";
 };
 
@@ -87,13 +111,16 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             <Image
               src={imageSrc}
               alt={product.name}
-              width={300}
-              height={192}
-              className="w-full h-full object-contain transition-all duration-300 group-hover:scale-105"
+              fill
+              className="object-contain transition-all duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               quality={85}
               priority={priority}
-              unoptimized={imageSrc === "/images/placeholder-product.svg"}
+              unoptimized={
+                imageSrc === "/images/placeholder-product.svg" ||
+                imageSrc.includes("r2.asia-ntb.kz") ||
+                imageSrc.includes("r2.dev")
+              }
             />
 
             {/* Badges */}

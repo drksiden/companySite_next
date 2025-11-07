@@ -6,6 +6,7 @@ import {
   ProductPagination,
   CreateProductData,
   UpdateProductData,
+  ProductsResponse,
 } from "@/lib/services/admin/product";
 import { Product } from "@/types/catalog";
 import { UploadInfo } from "@/lib/services/admin/product";
@@ -16,8 +17,9 @@ export function useProductsQuery(
 ) {
   return useQuery({
     queryKey: ["products", filters, pagination],
-    queryFn: () => productService.listProducts(filters, pagination),
-    keepPreviousData: true, // для плавной пагинации
+    queryFn: async (): Promise<ProductsResponse> => {
+      return await productService.listProducts(filters, pagination);
+    },
     staleTime: 2 * 60 * 1000, // 2 минуты
     gcTime: 10 * 60 * 1000, // 10 минут
   });
