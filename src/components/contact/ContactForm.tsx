@@ -121,7 +121,6 @@ export function ContactForm({ className }: ContactFormProps) {
                       <FormLabel>Имя *</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Иван"
                           {...field}
                           disabled={isSubmitting}
                         />
@@ -138,7 +137,6 @@ export function ContactForm({ className }: ContactFormProps) {
                       <FormLabel>Фамилия *</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Иванов"
                           {...field}
                           disabled={isSubmitting}
                         />
@@ -159,7 +157,6 @@ export function ContactForm({ className }: ContactFormProps) {
                       <FormControl>
                         <Input
                           type="tel"
-                          placeholder="+7 (XXX) XXX-XX-XX"
                           {...field}
                           disabled={isSubmitting}
                         />
@@ -180,7 +177,6 @@ export function ContactForm({ className }: ContactFormProps) {
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="example@email.com"
                           {...field}
                           disabled={isSubmitting}
                         />
