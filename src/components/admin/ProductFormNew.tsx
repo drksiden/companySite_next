@@ -630,12 +630,35 @@ export function ProductFormNew({
   };
 
   const addDocumentToGroup = (groupId: string, file?: File) => {
+    // Определяем MIME-тип по расширению, если file.type пустой
+    const getMimeType = (fileName: string, defaultType?: string): string => {
+      if (defaultType && defaultType.trim()) {
+        return defaultType;
+      }
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mimeTypes: { [key: string]: string } = {
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        txt: 'text/plain',
+        rtf: 'application/rtf',
+        odt: 'application/vnd.oasis.opendocument.text',
+        ods: 'application/vnd.oasis.opendocument.spreadsheet',
+        odp: 'application/vnd.oasis.opendocument.presentation',
+      };
+      return ext && mimeTypes[ext] ? mimeTypes[ext] : 'application/pdf';
+    };
+    
+    const fileType = file ? getMimeType(file.name, file.type) : undefined;
+    
     const newDoc: DocumentItem = {
       id: `doc-${Date.now()}-${Math.random()}`,
       title: file?.name || "Новый документ",
       file,
       size: file?.size,
-      type: file?.type,
+      type: fileType,
     };
     setDocumentGroups((prev) =>
       prev.map((g) =>
@@ -781,6 +804,7 @@ export function ProductFormNew({
     });
 
     // Сохраняем структуру документов (без файлов, только метаданные)
+    // Важно: для новых файлов сохраняем тип из файла, чтобы правильно сопоставить после загрузки
     const documentsStructure = documentGroups.map((group) => ({
       title: group.title,
       documents: group.documents.map((doc) => ({
@@ -788,9 +812,11 @@ export function ProductFormNew({
         title: doc.title,
         url: doc.url, // для существующих документов
         description: doc.description,
-        size: doc.size,
-        type: doc.type,
-        // file будет загружен отдельно
+        size: doc.size || doc.file?.size,
+        // Для новых файлов сохраняем тип из файла, для существующих - из doc.type
+        type: doc.file ? (doc.file.type || doc.type) : doc.type,
+        // Добавляем имя файла для сопоставления
+        fileName: doc.file?.name,
       })),
     }));
     formData.append("documentsStructure", JSON.stringify(documentsStructure));
@@ -1840,10 +1866,33 @@ export function ProductFormNew({
                                               onChange={(e) => {
                                                 const file = e.target.files?.[0];
                                                 if (file) {
+                                                  // Определяем MIME-тип по расширению, если file.type пустой
+                                                  const getMimeType = (fileName: string, defaultType?: string): string => {
+                                                    if (defaultType && defaultType.trim()) {
+                                                      return defaultType;
+                                                    }
+                                                    const ext = fileName.split('.').pop()?.toLowerCase();
+                                                    const mimeTypes: { [key: string]: string } = {
+                                                      pdf: 'application/pdf',
+                                                      doc: 'application/msword',
+                                                      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                                      xls: 'application/vnd.ms-excel',
+                                                      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                                      txt: 'text/plain',
+                                                      rtf: 'application/rtf',
+                                                      odt: 'application/vnd.oasis.opendocument.text',
+                                                      ods: 'application/vnd.oasis.opendocument.spreadsheet',
+                                                      odp: 'application/vnd.oasis.opendocument.presentation',
+                                                    };
+                                                    return ext && mimeTypes[ext] ? mimeTypes[ext] : 'application/pdf';
+                                                  };
+                                                  
+                                                  const fileType = getMimeType(file.name, file.type);
+                                                  
                                                   updateDocument(group.id, doc.id, {
                                                     file,
                                                     size: file.size,
-                                                    type: file.type,
+                                                    type: fileType,
                                                     title: doc.title || file.name,
                                                   });
                                                 }

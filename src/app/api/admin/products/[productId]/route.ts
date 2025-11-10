@@ -72,6 +72,54 @@ export async function PUT(
       }
     }
 
+    // Вспомогательная функция для определения MIME-типа по расширению файла из URL
+    const getMimeTypeFromUrl = (url: string): string | null => {
+      try {
+        // Пытаемся извлечь расширение из URL
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const match = pathname.match(/\.([a-z0-9]+)(?:\?|$)/i);
+        if (match) {
+          const ext = match[1].toLowerCase();
+          const mimeTypes: { [key: string]: string } = {
+            pdf: 'application/pdf',
+            doc: 'application/msword',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xls: 'application/vnd.ms-excel',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            txt: 'text/plain',
+            rtf: 'application/rtf',
+            odt: 'application/vnd.oasis.opendocument.text',
+            ods: 'application/vnd.oasis.opendocument.spreadsheet',
+            odp: 'application/vnd.oasis.opendocument.presentation',
+            csv: 'text/csv',
+          };
+          return mimeTypes[ext] || null;
+        }
+      } catch {
+        // Если не валидный URL, пытаемся найти расширение в конце строки
+        const match = url.match(/\.([a-z0-9]+)(?:\?|$)/i);
+        if (match) {
+          const ext = match[1].toLowerCase();
+          const mimeTypes: { [key: string]: string } = {
+            pdf: 'application/pdf',
+            doc: 'application/msword',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xls: 'application/vnd.ms-excel',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            txt: 'text/plain',
+            rtf: 'application/rtf',
+            odt: 'application/vnd.oasis.opendocument.text',
+            ods: 'application/vnd.oasis.opendocument.spreadsheet',
+            odp: 'application/vnd.oasis.opendocument.presentation',
+            csv: 'text/csv',
+          };
+          return mimeTypes[ext] || null;
+        }
+      }
+      return null;
+    };
+
     // Обрабатываем структуру документов с группами (новый формат)
     let allDocuments: any[] = [];
     if (documentsStructureStr) {
@@ -79,30 +127,53 @@ export async function PUT(
         const documentsStructure = JSON.parse(documentsStructureStr);
         let fileIndex = 0;
 
+        // Создаем карту файлов по имени для более точного сопоставления
+        const fileMap = new Map<string, { file: File; url: string; index: number }>();
+        documentFiles.forEach((file, idx) => {
+          if (idx < uploadedFileUrls.length) {
+            fileMap.set(file.name, { file, url: uploadedFileUrls[idx], index: idx });
+          }
+        });
+
         // Преобразуем структуру: проходим по группам и документам, добавляем URL для новых файлов
         const finalDocuments = documentsStructure.map((group: any) => ({
           title: group.title,
           documents: group.documents.map((doc: any) => {
             if (doc.url) {
               // Существующий документ или документ по URL (не загружаем на R2)
-              // Проверяем, является ли URL внешним (не R2)
-              const isExternalUrl = doc.url && !doc.url.includes('r2.dev') && !doc.url.includes('cloudflare');
+              // Определяем тип из URL, если не указан в doc.type
+              const urlMimeType = getMimeTypeFromUrl(doc.url);
               return {
                 title: doc.title,
                 url: doc.url,
                 description: doc.description,
                 size: doc.size,
-                type: doc.type || (isExternalUrl ? 'application/pdf' : undefined),
+                // Приоритет: тип из структуры -> тип из URL -> дефолт для внешних ссылок
+                type: doc.type || urlMimeType || 'application/pdf',
               };
-            } else if (fileIndex < uploadedFileUrls.length) {
-              // Новый документ - берем URL из загруженных файлов
-              const url = uploadedFileUrls[fileIndex++];
+            } else if (doc.fileName && fileMap.has(doc.fileName)) {
+              // Новый документ - находим файл по имени для точного сопоставления
+              const fileData = fileMap.get(doc.fileName)!;
+              return {
+                title: doc.title,
+                url: fileData.url,
+                description: doc.description,
+                size: doc.size || fileData.file.size,
+                // Приоритет: тип из структуры (сохранен из файла), затем из файла, затем дефолт
+                type: doc.type || fileData.file.type || 'application/pdf',
+              };
+            } else if (fileIndex < uploadedFileUrls.length && fileIndex < documentFiles.length) {
+              // Fallback: сопоставление по порядку, если имя файла не совпало
+              const url = uploadedFileUrls[fileIndex];
+              const file = documentFiles[fileIndex];
+              fileIndex++;
               return {
                 title: doc.title,
                 url,
                 description: doc.description,
-                size: doc.size,
-                type: doc.type,
+                size: doc.size || file.size,
+                // Приоритет: тип из структуры (сохранен из файла), затем из файла, затем дефолт
+                type: doc.type || file.type || 'application/pdf',
               };
             }
             return null;
