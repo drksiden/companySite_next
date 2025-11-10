@@ -117,8 +117,8 @@ const categoryInfoMap: Record<
   "security-fire-alarms": {
     description:
       "Комплексные системы охранно-пожарной сигнализации для защиты объектов различного назначения. От радиоканальных систем «Астра» до адресных решений для защиты вашего объекта. Полный спектр оборудования НПО «ТЕКО» в Казахстане.",
-    // image: "/images/categories/security-fire-alarms.jpg",
-    priceListUrl: "/price-lists/security-fire-alarms.pdf",
+    image: "/images/teko/teko-main-visual.png",
+    priceListUrl: "https://r2.asia-ntb.kz/documents/pricelists/%D0%9F%D1%80%D0%B0%D0%B9%D1%81-%D0%BB%D0%B8%D1%81%D1%82%20%D0%A2%D0%95%D0%9A%D0%9E%2C%20%D0%A0%D0%A0%D0%A6%2C%20%D1%81%20%D0%9D%D0%94%D0%A1.xls",
     manufacturer: {
       name: 'НПО "ТЕКО"',
       logo: "/images/logos/teko-logo.svg",
