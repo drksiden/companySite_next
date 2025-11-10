@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { COMPANY_NAME_SHORT } from '@/data/constants';
+import { COMPANY_NAME, COMPANY_NAME_SHORT } from '@/data/constants';
 import { ClientProviders } from './ClientProviders';
 import { cn } from '@/lib/utils';
 import { inter } from '@/styles/fonts';
@@ -12,7 +12,7 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 export const metadata: Metadata = {
   metadataBase: new URL(siteBaseUrl),
   title: {
-    default: COMPANY_NAME_SHORT, // Заголовок по умолчанию
+    default: COMPANY_NAME, // Заголовок по умолчанию
     template: `%s | ${COMPANY_NAME_SHORT}`, // Шаблон для заголовков страниц
   },
   description: 'Ваш надежный системный интегратор в области безопасности и автоматизации в Казахстане. Комплексные решения, монтаж, обслуживание, официальные дилеры.', // Более подробное описание из head.tsx
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     canonical: '/', // Канонический URL для главной страницы
   },
   openGraph: {
-    title: `Системная интеграция и безопасность в Казахстане - ${COMPANY_NAME_SHORT}`, // Обновленный OG заголовок
+    title: `Системная интеграция и безопасность в Казахстане - ${COMPANY_NAME}`, // Обновленный OG заголовок
     description: 'Комплексные решения по безопасности, автоматизации и сетевому оборудованию. Официальные дилеры ведущих производителей.',
     url: '/', // OG URL для главной страницы
     siteName: COMPANY_NAME_SHORT,
