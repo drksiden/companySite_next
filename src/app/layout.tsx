@@ -16,12 +16,6 @@ export const metadata: Metadata = {
     template: `%s | ${COMPANY_NAME_SHORT}`, // Шаблон для заголовков страниц
   },
   description: 'Ваш надежный системный интегратор в области безопасности и автоматизации в Казахстане. Комплексные решения, монтаж, обслуживание, официальные дилеры.', // Более подробное описание из head.tsx
-  icons: [
-    { rel: 'icon', url: '/favicon.ico', type: 'image/x-icon' },
-    { rel: 'icon', url: '/images/logos/asia-ntb/Asia-NTB-logo-eng-dark.svg', type: 'image/svg+xml', sizes: 'any' }, // 'any' или конкретные размеры '32x32'
-    // Рассмотрите, нужен ли Asia-NTB-logo-eng-light.svg из head.tsx и для каких целей
-    // { rel: 'icon', url: '/images/logos/asia-ntb/Asia-NTB-logo-eng-light.svg', type: 'image/svg+xml', sizes: 'any' },
-  ],
   alternates: {
     canonical: '/', // Канонический URL для главной страницы
   },
@@ -44,6 +38,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-title" content="Азия NTB" />
+      </head>
       <body className={cn('min-h-screen bg-background font-sans antialiased', inter.variable)}>
         <ReactQueryClientProvider>
           <ClientProviders>
