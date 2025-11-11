@@ -20,18 +20,25 @@ export const metadata: Metadata = {
     canonical: '/', // Канонический URL для главной страницы
   },
   openGraph: {
-    title: `Системная интеграция и безопасность в Казахстане - ${COMPANY_NAME}`, // Обновленный OG заголовок
+    title: `Системная интеграция и безопасность в Казахстане - ${COMPANY_NAME}`,
     description: 'Комплексные решения по безопасности, автоматизации и сетевому оборудованию. Официальные дилеры ведущих производителей.',
-    url: '/', // OG URL для главной страницы
+    url: '/',
     siteName: COMPANY_NAME_SHORT,
-    // images: [
-    //   {
-    //     url: '/images/logos/asia-ntb/Asia-NTB-logo-rus-dark.svg', // Убедитесь, что этот файл существует и доступен
-    //     width: 1200, // Рекомендуемые размеры
-    //     height: 630,
-    //   },
-    // ],
+    images: [
+      {
+        url: `${siteBaseUrl}/images/logos/asia-ntb/Asia-NTB-logo-rus-dark.svg`,
+        width: 1200,
+        height: 630,
+        alt: COMPANY_NAME,
+      },
+    ],
     type: 'website',
+    locale: 'ru_RU',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `Системная интеграция и безопасность - ${COMPANY_NAME_SHORT}`,
+    description: 'Комплексные решения по безопасности, автоматизации и сетевому оборудованию.',
   },
 };
 

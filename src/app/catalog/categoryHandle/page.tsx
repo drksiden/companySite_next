@@ -46,16 +46,43 @@ export async function generateMetadata({
     const canonicalUrl = `/catalog/${category.slug}`;
     const ogImage = category.image_url || null;
 
+    const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+    const fullUrl = `${siteBaseUrl}${canonicalUrl}`;
+
     return {
       title: pageTitle,
       description: pageDescription,
+      keywords: [
+        category.name,
+        "каталог",
+        "категория",
+        "системы безопасности",
+        "автоматизация",
+        "Казахстан",
+        COMPANY_NAME_SHORT,
+      ],
       alternates: { canonical: canonicalUrl },
       openGraph: {
         title: pageTitle,
         description: pageDescription,
-        url: canonicalUrl,
+        url: fullUrl,
+        siteName: COMPANY_NAME_SHORT,
         type: "website",
-        images: ogImage ? [{ url: ogImage }] : [],
+        locale: "ru_RU",
+        images: ogImage ? [
+          {
+            url: ogImage,
+            width: 1200,
+            height: 630,
+            alt: category.name,
+          }
+        ] : [],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: pageTitle,
+        description: pageDescription,
+        images: ogImage ? [ogImage] : [],
       },
     };
   } catch (error) {

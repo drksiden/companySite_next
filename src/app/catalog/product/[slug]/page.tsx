@@ -27,20 +27,47 @@ export async function generateMetadata({
       };
     }
 
+    const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+    const productUrl = `${siteBaseUrl}/catalog/product/${slug}`;
+    const productImage = product.thumbnail || (product.images && product.images.length > 0 ? product.images[0] : null);
+    const description = product.short_description || product.description || `${product.name}. ${product.brands?.name ? `Бренд ${product.brands.name}. ` : ''}Купить в Казахстане.`;
+
     return {
       title: `${product.name} | Каталог`,
-      description: product.short_description || product.name,
+      description,
       keywords: [
         product.name,
         product.brands?.name,
         product.categories?.name,
         "купить",
-        "интернет-магазин",
+        "Казахстан",
+        "системы безопасности",
+        "автоматизация",
       ].filter(Boolean) as string[],
+      alternates: {
+        canonical: `/catalog/product/${slug}`,
+      },
       openGraph: {
         title: product.name,
-        description: product.short_description || product.name,
-        images: product.thumbnail ? [product.thumbnail] : [],
+        description,
+        url: productUrl,
+        siteName: 'Азия NTB',
+        type: 'website',
+        locale: 'ru_RU',
+        images: productImage ? [
+          {
+            url: productImage,
+            width: 1200,
+            height: 630,
+            alt: product.name,
+          }
+        ] : [],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: product.name,
+        description,
+        images: productImage ? [productImage] : [],
       },
     };
   } catch (error) {

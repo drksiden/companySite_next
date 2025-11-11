@@ -9,12 +9,7 @@ import {
   OLEG_EMAIL,
   COMPANY_CITY_PHONE1, COMPANY_CITY_PHONE2
 } from "@/data/constants";
-import Head from 'next/head';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ContactForm } from '@/components/contact/ContactForm';
 
@@ -24,10 +19,6 @@ const ContactPage = () => {
 
   return (
     <>
-      <Head>
-        <title>Контакты - {COMPANY_NAME}</title>
-        <meta name="description" content={`Свяжитесь с ${COMPANY_NAME}. Адрес, телефоны, email и карта проезда.`} />
-      </Head>
       <section className="py-16 lg:py-20 px-4 bg-background w-full">
         <div className="max-w-6xl mx-auto">
           <motion.h2

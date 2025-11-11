@@ -106,10 +106,14 @@ export async function generateMetadata({
     title: article.title,
     description: article.description,
     keywords: article.tags?.join(", ") || article.category,
+    alternates: {
+      canonical: `/news/${article.id}`,
+    },
     openGraph: {
       title: article.title,
       description: article.description,
       url: `${BASE_URL}/news/${article.id}`,
+      siteName: 'Азия NTB',
       images: imageUrl
         ? [
             {
@@ -121,6 +125,7 @@ export async function generateMetadata({
           ]
         : [],
       type: "article",
+      locale: "ru_RU",
       publishedTime: article.date,
       authors: article.author ? [article.author] : undefined,
     },

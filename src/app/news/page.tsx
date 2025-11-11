@@ -1,7 +1,40 @@
 import { Suspense } from 'react';
+import { Metadata } from 'next';
 import { createServerClient } from "@/lib/supabaseServer";
 import { NewsPageClient } from "@/components/NewsPageClient";
 import { NewsLoadingFallback } from "@/components/NewsLoadingFallback";
+import { COMPANY_NAME_SHORT } from "@/data/constants";
+
+const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+
+export const metadata: Metadata = {
+  title: 'Новости',
+  description: 'Актуальные новости и события компании Азия NTB. Обновления продукции, события отрасли, технические статьи и полезная информация о системах безопасности и автоматизации.',
+  keywords: [
+    'новости',
+    'события',
+    'обновления',
+    'системы безопасности',
+    'автоматизация',
+    COMPANY_NAME_SHORT,
+  ],
+  alternates: {
+    canonical: '/news',
+  },
+  openGraph: {
+    title: `Новости - ${COMPANY_NAME_SHORT}`,
+    description: 'Актуальные новости и события компании. Обновления продукции, события отрасли, технические статьи.',
+    url: '/news',
+    siteName: COMPANY_NAME_SHORT,
+    type: 'website',
+    locale: 'ru_RU',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `Новости - ${COMPANY_NAME_SHORT}`,
+    description: 'Актуальные новости и события компании.',
+  },
+};
 
 interface NewsItem {
   id: string;
