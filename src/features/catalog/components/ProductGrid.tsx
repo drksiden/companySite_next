@@ -1,6 +1,7 @@
 import { CatalogProduct } from "@/lib/services/catalog";
 import ProductCard from "./ProductCard";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface ProductGridProps {
   products: CatalogProduct[];
@@ -54,8 +55,22 @@ export default function ProductGrid({
 
   return (
     <div className={cn("grid gap-4 md:gap-6", gridClasses)}>
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+      {products.map((product, index) => (
+        <motion.div
+          key={product.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.3,
+            delay: Math.min(index * 0.05, 0.5), // Максимальная задержка 0.5s
+            ease: "easeOut",
+          }}
+        >
+          <ProductCard 
+            product={product} 
+            priority={index < 8} // Priority для первых 8 карточек
+          />
+        </motion.div>
       ))}
     </div>
   );

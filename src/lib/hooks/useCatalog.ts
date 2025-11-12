@@ -8,6 +8,8 @@ export const catalogKeys = {
   product: (slug: string) => [...catalogKeys.all, "product", slug] as const,
   categories: () => [...catalogKeys.all, "categories"] as const,
   brands: () => [...catalogKeys.all, "brands"] as const,
+  categoryProducts: (categoryPath: string, slugs: string[]) => 
+    [...catalogKeys.all, "category-products", categoryPath, slugs] as const,
   relatedProducts: (productId: string, categoryId?: string, brandId?: string) =>
     [...catalogKeys.all, "related-products", productId, categoryId, brandId] as const,
 };

@@ -26,16 +26,6 @@ export default function Error({ error, reset }: ErrorProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Error Icon */}
-          <motion.div
-            className="text-6xl mb-8"
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.8, type: "spring", bounce: 0.4 }}
-          >
-            ⚠️
-          </motion.div>
-
           {/* Main Content */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -21,6 +21,25 @@ export function HtmlContent({
       // Устанавливаем HTML контент напрямую
       containerRef.current.innerHTML = content;
       
+      // Удаляем все inline стили фона и цветов фона из всех элементов
+      const allElements = containerRef.current.querySelectorAll("*");
+      allElements.forEach((element) => {
+        const htmlElement = element as HTMLElement;
+        if (htmlElement.style) {
+          // Удаляем background-color и background
+          htmlElement.style.removeProperty("background-color");
+          htmlElement.style.removeProperty("background");
+          htmlElement.style.removeProperty("backgroundColor");
+        }
+        // Удаляем классы, которые могут добавлять фон
+        htmlElement.classList.remove("bg-white", "bg-black", "bg-gray-50", "bg-gray-100", 
+          "bg-gray-200", "bg-gray-300", "bg-gray-400", "bg-gray-500", "bg-gray-600", 
+          "bg-gray-700", "bg-gray-800", "bg-gray-900", "bg-slate-50", "bg-slate-100",
+          "dark:bg-gray-50", "dark:bg-gray-100", "dark:bg-gray-200", "dark:bg-gray-300",
+          "dark:bg-gray-400", "dark:bg-gray-500", "dark:bg-gray-600", "dark:bg-gray-700",
+          "dark:bg-gray-800", "dark:bg-gray-900", "dark:bg-gray-950");
+      });
+      
       // Добавляем обработчики для ссылок, чтобы открывались в новой вкладке
       const links = containerRef.current.querySelectorAll("a");
       links.forEach((link) => {
@@ -33,10 +52,10 @@ export function HtmlContent({
   }, [content]);
 
   const baseStyles = {
-    default: "prose prose-lg max-w-none dark:prose-invert",
-    compact: "prose prose-sm max-w-none dark:prose-invert",
+    default: "prose prose-lg max-w-none dark:prose-invert bg-transparent",
+    compact: "prose prose-sm max-w-none dark:prose-invert bg-transparent",
     product:
-      "prose prose-lg max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground prose-blockquote:border-primary prose-blockquote:text-muted-foreground prose-code:text-primary prose-pre:bg-muted prose-pre:text-foreground",
+      "prose prose-lg max-w-none dark:prose-invert bg-transparent prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground prose-blockquote:border-primary prose-blockquote:text-muted-foreground prose-code:text-primary prose-pre:bg-muted prose-pre:text-foreground",
   };
 
   if (!content || content.trim() === "") {
@@ -70,8 +89,11 @@ export function HtmlContent({
         "[&_th]:text-left [&_th]:p-3 [&_th]:font-semibold [&_th]:text-foreground [&_th]:border-r [&_th]:border-border [&_th]:last:border-r-0",
         "[&_td]:p-3 [&_td]:text-muted-foreground [&_td]:border-r [&_td]:border-border [&_td]:last:border-r-0",
         "[&_tr]:border-b [&_tr]:border-border [&_tr]:hover:bg-muted/50 [&_tr]:transition-colors",
-        "[&_hr]:border-border [&_hr]:my-8 [&_hr]:border-t-2"
+        "[&_hr]:border-border [&_hr]:my-8 [&_hr]:border-t-2",
+        // Принудительно убираем фон у всех элементов
+        "[&_*]:!bg-transparent [&_div]:!bg-transparent [&_section]:!bg-transparent [&_article]:!bg-transparent"
       )}
+      style={{ backgroundColor: 'transparent' }}
     />
   );
 }

@@ -152,7 +152,7 @@ export function ProductCard({
             {/* Image Section */}
             <div className="relative w-full sm:w-48 h-48 sm:h-32 bg-gray-50 flex-shrink-0 overflow-hidden rounded-l-lg">
               <Link
-                href={`/product/${product.slug}`}
+                href={`/catalog/product/${product.slug}`}
                 className="block w-full h-full"
               >
                 <Image
@@ -224,7 +224,7 @@ export function ProductCard({
               <div className="flex flex-col h-full">
                 {/* Header */}
                 <div className="flex-1">
-                  <Link href={`/product/${product.slug}`}>
+                  <Link href={`/catalog/product/${product.slug}`}>
                     <h3 className="font-medium text-foreground hover:text-primary transition-colors line-clamp-2">
                       {product.name}
                     </h3>
@@ -311,7 +311,7 @@ export function ProductCard({
           variant === "compact" ? "aspect-square" : "aspect-square"
         )}>
           <Link
-            href={`/product/${product.slug}`}
+            href={`/catalog/product/${product.slug}`}
             className="block w-full h-full"
           >
             <Image

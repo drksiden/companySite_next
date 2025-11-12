@@ -304,7 +304,7 @@ export function QuickView({
 
                 {/* View Full Details Link */}
                 <div className="pt-4">
-                  <Link href={`/product/${product.slug}`}>
+                  <Link href={`/catalog/product/${product.slug}`}>
                     <Button
                       variant="outline"
                       className="w-full"

@@ -1,14 +1,10 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
-
-import { supabase } from "@/lib/supabaseClient";
-import { Category, Product } from "@/types/supabase";
-import { ProductCardList } from "@/components/ProductCardList"; // Import ProductCardList
-
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-// Separator might not be used directly after refactor, but keep for now
-// import { Separator } from "@/components/ui/separator";
+import { createServerClient } from "@/lib/supabaseServer";
+import { CategoryProductsClient } from "@/components/catalog/CategoryProductsClient";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,189 +14,316 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { LayoutGrid } from "lucide-react";
+import { COMPANY_NAME_SHORT } from "@/data/constants";
+import { CategoryDescription } from "@/components/catalog/CategoryDescription";
+import type { CatalogProduct } from "@/lib/services/catalog";
 
 interface CategoryPageProps {
-  params: Promise<{
-    slugs: string[];
-  }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  params: Promise<{ slugs: string[] }>;
 }
 
-// Updated data structure for the page
-interface CategoryPageData {
-  currentCategory: Category | null;
-  childCategories: Category[];
-  products: Product[];
-}
-
-interface BreadcrumbInfo {
+type Category = {
+  id: string;
   name: string;
-  href: string;
-  handle: string;
-}
+  slug: string;
+  parent_id: string | null;
+  level: number;
+  description?: string | null;
+  description_html?: string | null;
+  image_url?: string | null;
+  is_active: boolean;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  meta_keywords?: string | null;
+};
 
-// Set revalidation interval (e.g., every hour)
+// Используем тип Product из types/supabase для совместимости с ProductCardList
+
 export const revalidate = 3600;
 
-async function getCategoryData(handle: string): Promise<CategoryPageData> {
-  let currentCategory: Category | null = null;
-  let childCategories: Category[] = [];
-  let products: Product[] = [];
-
-  try {
-    // Fetch current category by slug
-    const { data: categoryData, error: categoryError } = await supabase
+// Корректная строгая проверка slug -> parent_id для цепочки любой глубины
+async function resolveCategoryChain(slugs: string[], supabase: any) {
+  let parentId: string | null = null;
+  let category: Category | null = null;
+  const chain: Category[] = [];
+  
+  for (let idx = 0; idx < slugs.length; idx++) {
+    const slug = slugs[idx];
+    let query = supabase
       .from("categories")
-      .select("*")
-      .eq("slug", handle)
-      .eq("is_active", true)
-      .maybeSingle(); // Use maybeSingle to handle null without error
+      .select("id, name, slug, parent_id, level, description, description_html, image_url, is_active, meta_title, meta_description, meta_keywords")
+      .eq("slug", slug)
+      .eq("is_active", true);
 
-    if (categoryError) {
-      // Only log non-404 errors
-      if (
-        !categoryError.message.includes("no rows") &&
-        !categoryError.message.includes("does not exist")
-      ) {
-        console.error(
-          `Error fetching category with slug "${handle}":`,
-          categoryError.message,
-        );
-      }
-      // Still return a structure that won't break the page, but currentCategory will be null
-    }
-    currentCategory = categoryData || null;
-
-    if (currentCategory) {
-      // Fetch child categories
-      const { data: childrenData, error: childrenError } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("parent_id", currentCategory.id)
-        .eq("is_active", true)
-        .order("rank", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
-
-      if (childrenError)
-        console.error(
-          "Error fetching child categories:",
-          childrenError.message,
-        );
-      else childCategories = childrenData || [];
-
-      // Fetch products for the current category
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select(
-          `
-        *,
-        brand:brands (id, name, handle)
-      `,
-        )
-        .eq("category_id", currentCategory.id)
-        .eq("is_active", true)
-        // TODO: Add ordering for products if needed, e.g., by name or a rank field
-        .order("name", { ascending: true });
-
-      if (productError)
-        console.error("Error fetching products:", productError.message);
-      else products = productData || [];
+    if (idx === 0) {
+      // Для первого slug — ищем level = 0 (корневые)
+      query = query.eq("level", 0).is("parent_id", null);
     } else {
-      // Category not found, so no children or products can be fetched.
-      console.warn(
-        `Category with handle "${handle}" not found. Cannot fetch children or products.`,
-      );
+      // Для всех остальных — ищем, чтобы parent совпадал с прошлым id
+      query = query.eq("parent_id", parentId);
     }
 
-    return { currentCategory, childCategories, products };
-  } catch (error) {
-    // Catch any unexpected errors during the process
-    console.error(
-      `Unexpected error in getCategoryData for handle ${handle}:`,
-      error,
-    );
-    return { currentCategory: null, childCategories: [], products: [] };
+    const { data, error } = await query.maybeSingle();
+    
+    if (error) {
+      console.error(`Error fetching category "${slug}":`, error.message);
+      return null;
+    }
+    
+    if (!data) {
+      return null;
+    }
+    
+    chain.push(data as Category);
+    category = data as Category;
+    parentId = data.id;
   }
+  
+  return { category, chain };
 }
 
-async function getBreadcrumbData(slugs: string[]): Promise<BreadcrumbInfo[]> {
-  const breadcrumbs: BreadcrumbInfo[] = [];
-  let currentPath = "/catalog";
+async function getChildCategories(parentId: string, supabase: any) {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug, description, image_url")
+    .eq("parent_id", parentId)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
-  for (const slug of slugs) {
-    currentPath += `/${slug}`;
-    try {
-      const { data: category, error } = await supabase
-        .from("categories")
-        .select("name, handle")
-        .eq("handle", slug)
-        .eq("is_active", true)
-        .single();
-
-      if (error || !category) {
-        console.warn(
-          `Breadcrumb part not found for slug: ${slug} at path ${currentPath}. Error: ${error?.message}`,
-        );
-        // Push a placeholder if not found, so the breadcrumb path isn't broken
-        // The page logic will later use notFound() if the final category isn't resolved
-        breadcrumbs.push({ name: slug, href: currentPath, handle: slug });
-      } else {
-        breadcrumbs.push({
-          name: category.name,
-          href: currentPath,
-          handle: category.handle,
-        });
-      }
-    } catch (err) {
-      // Catch any unexpected errors
-      console.error(
-        `Unexpected error fetching breadcrumb for slug ${slug}:`,
-        err,
-      );
-      breadcrumbs.push({ name: slug, href: currentPath, handle: slug });
-    }
+  if (error) {
+    console.error("Error fetching child categories:", error.message);
+    return [];
   }
-  return breadcrumbs;
+  return data || [];
+}
+
+async function getProducts(categoryId: string, supabase: any): Promise<CatalogProduct[]> {
+  // Получаем все категории для поиска дочерних
+  const { data: allCategories, error: categoriesError } = await supabase
+    .from("categories")
+    .select("id, parent_id")
+    .eq("is_active", true);
+
+  if (categoriesError) {
+    console.error("Error fetching categories:", categoriesError.message);
+    return [];
+  }
+
+  // Создаем Set с начальной категорией и рекурсивно находим все дочерние
+  const expandedCategories = new Set<string>([categoryId]);
+
+  const findChildren = (parentId: string) => {
+    allCategories?.forEach((cat: { id: string; parent_id: string | null }) => {
+      if (cat.parent_id === parentId) {
+        expandedCategories.add(cat.id);
+        findChildren(cat.id); // Рекурсивно находим дочерние категории
+      }
+    });
+  };
+
+  findChildren(categoryId);
+
+  // Получаем товары из всех категорий (включая дочерние)
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      brand:brands (id, name, slug)
+    `
+    )
+    .in("category_id", Array.from(expandedCategories))
+    .eq("status", "active")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching products:", error.message);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Трансформируем данные в формат CatalogProduct для ProductGrid
+  return data.map((product: any) => {
+    // Обработка изображений
+    let images: string[] = [];
+    if (product.images) {
+      if (Array.isArray(product.images)) {
+        images = product.images
+          .map((img: any) => {
+            if (typeof img === "string") return img.trim();
+            if (typeof img === "object" && img?.url) return img.url.trim();
+            return null;
+          })
+          .filter((url: any): url is string => 
+            url && typeof url === "string" && url.length > 0
+          );
+      } else if (typeof product.images === "string") {
+        try {
+          const parsed = JSON.parse(product.images);
+          if (Array.isArray(parsed)) {
+            images = parsed
+              .map((img: any) => typeof img === "string" ? img : img?.url)
+              .filter(Boolean);
+          }
+        } catch {
+          images = [product.images];
+        }
+      }
+    }
+
+    return {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      sku: product.sku,
+      short_description: product.short_description,
+      description: product.description,
+      base_price: product.base_price || 0,
+      sale_price: product.sale_price,
+      thumbnail: product.thumbnail,
+      images: images,
+      inventory_quantity: product.inventory_quantity || 0,
+      track_inventory: product.track_inventory || false,
+      is_featured: product.is_featured || false,
+      status: product.status || "active",
+      created_at: product.created_at,
+      view_count: product.view_count || 0,
+      sales_count: product.sales_count || 0,
+      brands: product.brand ? {
+        id: product.brand.id,
+        name: product.brand.name,
+        slug: product.brand.slug,
+      } : null,
+      categories: product.category ? {
+        id: product.category.id,
+        name: product.category.name,
+        slug: product.category.slug,
+        level: product.category.level || 0,
+      } : null,
+    } as CatalogProduct;
+  });
+}
+
+// Генерация метаданных для SEO
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const slugs = resolvedParams.slugs;
+
+  if (!slugs || slugs.length === 0) {
+    return {
+      title: "Категория не найдена",
+    };
+  }
+
+  const supabase = await createServerClient();
+  const resolved = await resolveCategoryChain(slugs, supabase);
+
+  if (!resolved || !resolved.category) {
+    return {
+      title: "Категория не найдена",
+    };
+  }
+
+  const { category } = resolved;
+  const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+  const categoryPath = `/catalog/${slugs.join("/")}`;
+  const categoryUrl = `${siteBaseUrl}${categoryPath}`;
+  
+  const title = category.meta_title || `${category.name} | Каталог - ${COMPANY_NAME_SHORT}`;
+  const description = category.meta_description || category.description || 
+    `${category.name}. ${COMPANY_NAME_SHORT} - официальный дилер систем безопасности и автоматизации в Казахстане.`;
+  const keywords = category.meta_keywords?.split(",").map(k => k.trim()).filter(Boolean) || 
+    [category.name, "каталог", "Казахстан", COMPANY_NAME_SHORT];
+
+  return {
+    title,
+    description,
+    keywords: keywords.length > 0 ? keywords : undefined,
+    alternates: {
+      canonical: categoryPath,
+    },
+    openGraph: {
+      title: category.name,
+      description,
+      url: categoryUrl,
+      siteName: COMPANY_NAME_SHORT,
+      type: 'website',
+      locale: 'ru_RU',
+      images: category.image_url ? [
+        {
+          url: category.image_url,
+          width: 1200,
+          height: 630,
+          alt: category.name,
+        }
+      ] : [],
+    },
+    twitter: {
+      card: category.image_url ? 'summary_large_image' : 'summary',
+      title: category.name,
+      description,
+      images: category.image_url ? [category.image_url] : [],
+    },
+  };
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
-  const { slugs } = await params;
-  const currentCategoryHandle = slugs[slugs.length - 1];
+  const resolvedParams = await params;
+  const slugs = resolvedParams.slugs;
 
-  const breadcrumbItems = await getBreadcrumbData(slugs);
-
-  // Validate breadcrumbs: if any part before the last one couldn't be resolved (name equals handle),
-  // or if the last resolved breadcrumb doesn't match the current handle, then it's a 404.
-  const lastResolvedBreadcrumb =
-    breadcrumbItems.length > 0
-      ? breadcrumbItems[breadcrumbItems.length - 1]
-      : null;
-  if (
-    !lastResolvedBreadcrumb ||
-    lastResolvedBreadcrumb.handle !== currentCategoryHandle ||
-    breadcrumbItems.slice(0, -1).some((b) => b.name === b.handle)
-  ) {
+  // Валидация slugs
+  if (!slugs || slugs.length === 0) {
     notFound();
   }
 
-  const { currentCategory, childCategories, products } = await getCategoryData(
-    currentCategoryHandle,
-  );
+  const supabase = await createServerClient();
 
-  if (!currentCategory) {
+  // 1. Получаем категорию по цепочке parent_id/slug
+  const resolved = await resolveCategoryChain(slugs, supabase);
+  if (!resolved || !resolved.category) {
     notFound();
   }
+
+  const { category: currentCategory, chain: breadcrumbCategories } = resolved;
+
+  // 2. Дочерние категории
+  const childCategories = await getChildCategories(currentCategory.id, supabase);
+
+  // 3. Товары НЕ загружаем на сервере - загружаются только на клиенте через TanStack Query
+  // Это ускоряет первую загрузку страницы
+
+  // 4. Хлебные крошки
+  let currentPath = "/catalog";
+  const breadcrumbItems = breadcrumbCategories.map((cat) => {
+    currentPath += `/${cat.slug}`;
+    return {
+      name: cat.name,
+      href: currentPath,
+      slug: cat.slug,
+    };
+  });
+
+  // 5. HTML описание (с базовой санитизацией)
+  const categoryDescription = currentCategory.description_html || currentCategory.description || "";
 
   return (
-    <div className="bg-white dark:bg-gray-950 min-h-screen py-12 font-sans">
-      <div className="container mx-auto px-4">
-        <Breadcrumb className="mb-8 text-sm md:text-base">
+    <div className="min-h-screen bg-background py-8 md:py-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+        {/* Хлебные крошки */}
+        <Breadcrumb className="mb-6 md:mb-8">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link
                   href="/catalog"
-                  className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Каталог
                 </Link>
@@ -208,17 +331,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             </BreadcrumbItem>
             {breadcrumbItems.map((item, index) => (
               <React.Fragment key={item.href}>
-                <BreadcrumbSeparator className="text-gray-400 dark:text-gray-600" />
+                <BreadcrumbSeparator className="text-muted-foreground/50" />
                 <BreadcrumbItem>
                   {index === breadcrumbItems.length - 1 ? (
-                    <BreadcrumbPage className="font-medium text-gray-800 dark:text-gray-200">
-                      {currentCategory.name}
+                    <BreadcrumbPage className="font-medium text-foreground">
+                      {item.name}
                     </BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink asChild>
                       <Link
                         href={item.href}
-                        className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {item.name}
                       </Link>
@@ -230,79 +353,85 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <header className="mb-10 md:mb-12 pb-6 border-b border-gray-200 dark:border-gray-800">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white">
-            {currentCategory.name}
-          </h1>
-          {currentCategory.description && (
-            <p className="mt-3 text-base md:text-lg text-gray-600 dark:text-gray-300">
-              {currentCategory.description}
-            </p>
-          )}
-        </header>
-
-        {childCategories && childCategories.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8">
-              Подкатегории
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {childCategories.map(
-                (
-                  childCat, // Renamed to avoid conflict with currentCategory
-                ) => (
-                  <Link
-                    key={childCat.id}
-                    href={`/catalog/${slugs.join("/")}/${childCat.handle}`}
-                    passHref
-                    legacyBehavior // Still needed if wrapping an <a> tag
-                  >
-                    <a className="block group">
-                      <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-blue-400 dark:hover:border-blue-500 transform hover:-translate-y-1">
-                        <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center rounded-t-2xl">
-                          {/* TODO: Consider using category image if available, fallback to icon */}
-                          <LayoutGrid className="h-14 w-14 text-blue-500 dark:text-blue-400 opacity-75" />
-                        </div>
-                        <CardHeader className="p-5 flex-grow">
-                          <CardTitle className="text-lg font-semibold text-center text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
-                            {childCat.name}
-                          </CardTitle>
-                        </CardHeader>
-                        {childCat.description && (
-                          <CardContent className="p-5 pt-0">
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 text-center">
-                              {childCat.description}
-                            </p>
-                          </CardContent>
-                        )}
-                      </Card>
-                    </a>
-                  </Link>
-                ),
+        {/* Описание и баннер категории */}
+        <section className="mb-8 md:mb-12 pb-6 md:pb-8 border-b border-border">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            {/* Текстовая часть */}
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+                {currentCategory.name}
+              </h1>
+              {categoryDescription && (
+                <div className="mt-4">
+                  <CategoryDescription content={categoryDescription} />
+                </div>
               )}
+            </div>
+            
+            {/* Изображение категории - показываем только если нет длинного описания */}
+            {currentCategory.image_url && (!categoryDescription || categoryDescription.replace(/<[^>]*>/g, '').length < 300) && (
+              <div className="flex-shrink-0 w-full lg:w-80 xl:w-96">
+                <div className="relative w-full aspect-square lg:aspect-[4/3] rounded-xl overflow-hidden border border-border shadow-lg bg-muted">
+                  <Image
+                    src={currentCategory.image_url}
+                    alt={currentCategory.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 384px"
+                    priority
+                    quality={85}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Подкатегории - компактная сетка */}
+        {childCategories.length > 0 && (
+          <section className="mb-12 md:mb-16">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {childCategories.map((childCat: { id: string; name: string; slug: string; description?: string | null; image_url?: string | null }) => (
+                <Link
+                  key={childCat.id}
+                  href={`/catalog/${[...slugs, childCat.slug].join("/")}`}
+                  className="group flex flex-col items-center p-4 bg-card border border-border rounded-lg hover:border-primary hover:shadow-md transition-all duration-200"
+                >
+                  {/* Изображение категории */}
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-3 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                    {childCat.image_url ? (
+                      <Image
+                        src={childCat.image_url}
+                        alt={childCat.name}
+                        fill
+                        className="object-contain p-2 group-hover:scale-110 transition-transform duration-200"
+                        sizes="(max-width: 640px) 64px, 80px"
+                        loading="lazy"
+                        quality={75}
+                      />
+                    ) : (
+                      <LayoutGrid className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground opacity-50" />
+                    )}
+                  </div>
+                  
+                  {/* Название категории */}
+                  <h3 className="text-sm sm:text-base font-medium text-foreground text-center group-hover:text-primary transition-colors line-clamp-2">
+                    {childCat.name}
+                  </h3>
+                </Link>
+              ))}
             </div>
           </section>
         )}
 
+        {/* Сетка товаров */}
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8">
-            Товары в категории &quot;{currentCategory.name}&quot;
-          </h2>
-          {products && products.length > 0 ? (
-            <ProductCardList products={products} />
-          ) : (
-            childCategories.length === 0 && ( // Only show "no products" if there are also no subcategories to explore
-              <p className="text-center text-gray-600 dark:text-gray-400 text-lg py-4">
-                В этой категории пока нет товаров.
-              </p>
-            )
-          )}
-          {childCategories.length > 0 && products.length === 0 && (
-            <p className="text-center text-gray-600 dark:text-gray-400 text-lg py-4">
-              Выберите подкатегорию для просмотра товаров или в этой категории
-              нет товаров для прямого отображения.
-            </p>
-          )}
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+              Товары
+            </h2>
+          </div>
+          <CategoryProductsClient slugs={slugs} />
         </section>
       </div>
     </div>

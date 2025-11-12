@@ -272,7 +272,7 @@ export function Catalog({
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full" disabled={!inStock}>
-                          <Link href={`/product/${product.slug}`}>
+                          <Link href={`/catalog/product/${product.slug}`}>
                             {inStock ? "Подробнее" : "Нет в наличии"}
                           </Link>
                         </Button>

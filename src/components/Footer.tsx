@@ -38,7 +38,7 @@ export function Footer() {
             <Link href="/about" className="hover:text-primary transition-all duration-300">
               О нас
             </Link>
-            <Link href="/contact" className="hover:text-primary transition-all duration-300">
+            <Link href="/contacts" className="hover:text-primary transition-all duration-300">
               Контакты
             </Link>
           </nav>

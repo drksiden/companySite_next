@@ -19,7 +19,7 @@ export default function ProductSeo({ product }: ProductSeoProps) {
   const title = product.name;
   const description = product.description || 'Описание товара отсутствует';
   const images = product.image_urls || [];
-  const url = `/product/${product.handle}`;
+  const url = `/catalog/product/${product.handle}`;
 
   return (
     <Head>

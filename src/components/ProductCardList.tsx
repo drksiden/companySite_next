@@ -78,7 +78,7 @@ export function ProductCardList({ products }: ProductCardListProps) {
             >
               <Card className="h-full flex flex-col overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300">
                 <CardHeader className="p-0">
-                  <Link href={`/product/${productHandle}`} className="block">
+                  <Link href={`/catalog/product/${productHandle}`} className="block">
                     <div className="relative w-full h-48 bg-muted">
                       {imageUrl ? (
                         <Image
@@ -113,7 +113,7 @@ export function ProductCardList({ products }: ProductCardListProps) {
                   <h3 className="text-lg font-semibold text-foreground mb-1 line-clamp-2 hover:text-primary transition-colors">
                     {" "}
                     {/* Adjusted mb */}
-                    <Link href={`/product/${productHandle}`}>
+                    <Link href={`/catalog/product/${productHandle}`}>
                       {productName || "Без названия"}
                     </Link>
                   </h3>
@@ -149,7 +149,7 @@ export function ProductCardList({ products }: ProductCardListProps) {
                     variant={inStock ? "default" : "outline"}
                     disabled={!inStock}
                   >
-                    <Link href={`/product/${productHandle}`}>
+                    <Link href={`/catalog/product/${productHandle}`}>
                       <ShoppingBag className="mr-2 h-4 w-4" />
                       {inStock ? "Подробнее" : "Нет в наличии"}
                     </Link>

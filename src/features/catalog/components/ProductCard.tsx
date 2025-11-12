@@ -114,8 +114,11 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
               fill
               className="object-contain transition-all duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-              quality={85}
+              quality={65}
               priority={priority}
+              loading={priority ? undefined : "lazy"}
+              placeholder="blur"
+              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
               unoptimized={
                 imageSrc === "/images/placeholder-product.svg" ||
                 imageSrc.includes("r2.asia-ntb.kz") ||

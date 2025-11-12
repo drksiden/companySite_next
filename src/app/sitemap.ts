@@ -49,18 +49,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Получаем все активные категории
+  // Используем path для правильного формирования URL вложенных категорий
   const { data: categories, error: categoriesError } = await supabase
     .from('categories')
-    .select('slug, updated_at, created_at')
+    .select('slug, path, updated_at, created_at')
     .eq('is_active', true)
     .order('updated_at', { ascending: false });
 
-  const categoryPages: MetadataRoute.Sitemap = (categories || []).map((category) => ({
-    url: `${baseUrl}/catalog/${category.slug}`,
+  const categoryPages: MetadataRoute.Sitemap = (categories || []).map((category) => {
+    // Используем path если он есть, иначе fallback на slug
+    const categoryPath = category.path || category.slug;
+    return {
+      url: `${baseUrl}/catalog/${categoryPath}`,
     lastModified: category.updated_at ? new Date(category.updated_at) : new Date(category.created_at),
     changeFrequency: 'weekly' as const,
     priority: 0.7,
-  }));
+    };
+  });
 
   // Получаем все активные товары
   const { data: products, error: productsError } = await supabase
