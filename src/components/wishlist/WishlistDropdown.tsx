@@ -173,7 +173,13 @@ export function WishlistDropdown({ wishlistCount }: WishlistDropdownProps) {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
+      <DropdownMenuContent 
+        align="end" 
+        sideOffset={8}
+        alignOffset={0}
+        collisionPadding={16}
+        className="w-[calc(100vw-2rem)] sm:w-80 max-w-[90vw] p-0"
+      >
         <DropdownMenuLabel className="px-4 py-3 border-b">
           <div className="flex items-center justify-between">
             <span>Избранное</span>

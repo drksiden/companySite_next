@@ -354,9 +354,54 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex-1 max-w-[300px]">
+            {/* Поиск - только на десктопе */}
+            <div className="hidden lg:flex flex-1 max-w-[300px]">
               <SearchCombobox />
             </div>
+            
+            {/* Иконка поиска для мобильных */}
+            <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
+                  aria-label="Открыть меню"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="right"
+                className="lg:hidden w-full max-w-[320px] sm:max-w-[400px] p-0 border-l border-border bg-card"
+              >
+                <SheetHeader className="p-4 border-b border-border bg-muted/30">
+                  <div className="flex justify-between items-center">
+                    <SheetTitle className="text-left text-lg font-semibold text-foreground">
+                      Меню
+                    </SheetTitle>
+                  </div>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-100px)]">
+                  <div className="py-4 px-3">
+                    {/* Поиск в мобильном меню */}
+                    <div className="mb-4 relative z-10">
+                      <SearchCombobox />
+                    </div>
+                    <nav className="flex flex-col gap-1">
+                      {navItems.map((item) => (
+                        <NavItem
+                          key={item.href}
+                          item={item}
+                          mobile
+                          onClose={() => setOpenMobileMenu(false)}
+                        />
+                      ))}
+                    </nav>
+                  </div>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
             
             {/* Wishlist Dropdown */}
             <WishlistDropdown wishlistCount={wishlistCount} />
@@ -374,49 +419,6 @@ export function Header() {
                 <Moon className="h-5 w-5" />
               )}
             </Button>
-
-            <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
-                  aria-label="Открыть меню"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="right"
-                className="lg:hidden w-full max-w-[200px] sm:max-w-[250px] p-0 border-l border-border bg-card"
-              >
-                <SheetHeader className="p-4 border-b border-border bg-muted/30">
-                  <div className="flex justify-between items-center">
-                    <SheetTitle className="text-left text-lg font-semibold text-foreground">
-                      Меню
-                    </SheetTitle>
-                  </div>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-100px)]">
-                  <div className="py-4 px-3">
-                    {/* Поиск в мобильном меню - скрыт, так как есть в десктопной версии */}
-                    {/* <div className="mb-4 md:hidden">
-                      <SearchCombobox />
-                    </div> */}
-                    <nav className="flex flex-col gap-1">
-                      {navItems.map((item) => (
-                        <NavItem
-                          key={item.href}
-                          item={item}
-                          mobile
-                          onClose={() => setOpenMobileMenu(false)}
-                        />
-                      ))}
-                    </nav>
-                  </div>
-                </ScrollArea>
-              </SheetContent>
-            </Sheet>
 
             {/* User menu */}
             {loadingUser ? (

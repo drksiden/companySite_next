@@ -152,7 +152,7 @@ export function SearchCombobox() {
         </div>
       </form>
       {isOpen && query.length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-[100] max-h-[400px] overflow-y-auto" id="search-results" role="listbox" aria-label="Результаты поиска">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-[100] max-h-[400px] overflow-y-auto overflow-x-hidden" id="search-results" role="listbox" aria-label="Результаты поиска">
             {isLoading ? (
               <div className="flex items-center justify-center p-8" role="status" aria-live="polite">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
