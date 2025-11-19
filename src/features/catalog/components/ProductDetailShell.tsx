@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ShoppingCart, Heart, Share2, ArrowLeft, FileText, Download, ExternalLink, Zap } from "lucide-react";
+import { ShoppingCart, Heart, Share2, ArrowLeft, FileText, Download, ExternalLink, Zap, Home } from "lucide-react";
+import { ShareButton } from "@/components/share/ShareButton";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { formatPrice } from "@/lib/utils";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
@@ -29,6 +38,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { trackProductView, trackAddToCart } from "@/lib/analytics/ecommerce";
+import { addToViewHistory } from "@/lib/history/viewHistory";
 
 interface ProductDetailShellProps {
   product: CatalogProduct;
@@ -40,6 +51,15 @@ export default function ProductDetailShell({
   relatedProducts = [],
 }: ProductDetailShellProps) {
   const [quantity, setQuantity] = useState(1);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // Проверяем избранное из localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const wishlist = JSON.parse(localStorage.getItem('catalog-wishlist') || '[]');
+      setIsInWishlist(wishlist.includes(product.id));
+    }
+  }, [product.id]);
 
   const images =
     product.images && product.images.length > 0
@@ -60,81 +80,118 @@ export default function ProductDetailShell({
 
   const isInStock = product.inventory_quantity > 0;
 
+  // Отслеживание просмотра товара для ecommerce и истории
+  useEffect(() => {
+    if (product && product.id) {
+      trackProductView({
+        id: product.id,
+        name: product.name,
+        brand: product.brands?.name,
+        category: product.categories?.name,
+        price: finalPrice / 100, // Конвертируем из копеек в тенге
+        currency: product.currencies?.code || "KZT",
+        sku: product.sku,
+      });
+
+      // Добавляем в историю просмотров
+      addToViewHistory({
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        thumbnail: product.thumbnail || (product.images && product.images[0]) || undefined,
+        price: finalPrice,
+      });
+    }
+  }, [product.id, product.name, product.slug, finalPrice, product.brands?.name, product.categories?.name, product.currencies?.code, product.sku, product.thumbnail, product.images]);
+
   const handleAddToCart = () => {
     // TODO: Implement add to cart functionality
     console.log(`Added ${quantity} of ${product.name} to cart`);
-  };
-
-  const handleShare = async () => {
-    const shareData = {
-      title: product.name,
-      text: product.short_description || `Посмотрите на ${product.name}`,
-      url: window.location.href,
-    };
-
-    // Проверяем поддержку Web Share API
-    if (
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare(shareData)
-    ) {
-      try {
-        await navigator.share(shareData);
-        // Не показываем toast для успешного sharing через нативный интерфейс
-      } catch (error) {
-        // Если пользователь отменил sharing, не показываем ошибку
-        if ((error as Error).name !== "AbortError") {
-          toast.error("Не удалось поделиться контентом");
-        }
-      }
-    } else {
-      // Fallback: копируем ссылку в буфер обмена
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Ссылка скопирована в буфер обмена!");
-      } catch (error) {
-        // Fallback для старых браузеров
-        const textArea = document.createElement("textarea");
-        textArea.value = window.location.href;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        try {
-          document.execCommand("copy");
-          toast.success("Ссылка скопирована в буфер обмена!");
-        } catch (err) {
-          toast.error("Не удалось скопировать ссылку");
-        }
-
-        document.body.removeChild(textArea);
-      }
+    
+    // Отслеживание добавления в корзину для ecommerce
+    if (product && product.id) {
+      trackAddToCart({
+        id: product.id,
+        name: product.name,
+        brand: product.brands?.name,
+        category: product.categories?.name,
+        price: finalPrice / 100,
+        quantity: quantity,
+        currency: product.currencies?.code || "KZT",
+        sku: product.sku,
+      });
     }
   };
+
+  // Обработчик избранного
+  const handleWishlistToggle = () => {
+    if (typeof window !== 'undefined') {
+      const wishlist = JSON.parse(localStorage.getItem('catalog-wishlist') || '[]');
+      const newWishlist = [...wishlist];
+      
+      if (isInWishlist) {
+        const index = newWishlist.indexOf(product.id);
+        if (index > -1) {
+          newWishlist.splice(index, 1);
+          toast.success("Удалено из избранного");
+        }
+      } else {
+        newWishlist.push(product.id);
+        toast.success("Добавлено в избранное");
+      }
+      
+      localStorage.setItem('catalog-wishlist', JSON.stringify(newWishlist));
+      setIsInWishlist(!isInWishlist);
+      
+      // Отправляем событие для обновления счетчика
+      window.dispatchEvent(new CustomEvent('wishlist-updated', { 
+        detail: { count: newWishlist.length } 
+      }));
+    }
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link
-          href="/catalog"
-          className="hover:text-foreground flex items-center gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Каталог
-        </Link>
-        {product.categories && (
-          <>
-            <span>/</span>
-            <span>{product.categories.name}</span>
-          </>
-        )}
-        <span>/</span>
-        <span className="text-foreground">{product.name}</span>
-      </nav>
+      <Breadcrumb className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/" className="text-muted-foreground hover:text-foreground">
+                <Home className="h-4 w-4" />
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/catalog" className="text-muted-foreground hover:text-foreground">
+                Каталог
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {product.categories && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link
+                    href={product.categories.path ? `/catalog/${product.categories.path}` : `/catalog/${product.categories.slug}`}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    {product.categories.name}
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+            </>
+          )}
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="line-clamp-1">{product.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Images */}
@@ -149,12 +206,21 @@ export default function ProductDetailShell({
                 {product.name}
               </h1>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={handleShare}>
-                  <Share2 className="h-4 w-4" />
+                <ShareButton
+                  title={product.name}
+                  text={product.short_description || `Посмотрите на ${product.name}`}
+                  variant="ghost"
+                  size="sm"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleWishlistToggle}
+                  className={isInWishlist ? 'text-red-500' : 'text-foreground'}
+                  aria-label={isInWishlist ? "Удалить из избранного" : "Добавить в избранное"}
+                >
+                  <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
                 </Button>
-                {/* <Button variant="ghost" size="sm">
-                  <Heart className="h-4 w-4" />
-                </Button> */}
               </div>
             </div>
 

@@ -6,6 +6,16 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Phone, MessageCircle } from "lucide-react";
 import ServiceAccordionList from "@/components/ServiceAccordionList";
 import { ALEXEY_PHONE, COMPANY_CITY_PHONE1 } from "@/data/constants";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import Link from "next/link";
 
 const ServicesPage: FC = () => {
   const router = useRouter();
@@ -45,8 +55,33 @@ const ServicesPage: FC = () => {
     router.push("/contacts");
   };
 
+  const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+  const breadcrumbItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'Услуги', url: '/services' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background">
+    <>
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <div className="container mx-auto px-4 py-4">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/" className="text-muted-foreground hover:text-foreground">
+                  Главная
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Услуги</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background">
       {/* Hero Section */}
       <section className="relative pt-20 flex items-center justify-center px-4 overflow-hidden">
         {/* Background Elements */}
@@ -141,6 +176,7 @@ const ServicesPage: FC = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };
 

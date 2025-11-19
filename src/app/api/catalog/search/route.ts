@@ -23,6 +23,48 @@ export async function GET(req: NextRequest) {
     const supabase = await createServerClient();
     const searchTerm = query.trim();
 
+    // Нормализация поискового запроса: создаем варианты с разными разделителями
+    // Это позволяет находить "астра-2131" при поиске "астра 2131" и наоборот
+    const normalizeSearchTerm = (term: string): string[] => {
+      const variants = new Set<string>();
+      
+      // Оригинальный запрос
+      variants.add(term);
+      
+      // Заменяем пробелы на дефисы
+      variants.add(term.replace(/\s+/g, '-'));
+      
+      // Заменяем дефисы на пробелы
+      variants.add(term.replace(/-+/g, ' '));
+      
+      // Убираем все пробелы и дефисы
+      variants.add(term.replace(/[\s-]+/g, ''));
+      
+      // Заменяем пробелы и дефисы на подстановочный символ для гибкого поиска
+      const flexible = term.replace(/[\s-]+/g, '%');
+      if (flexible !== term) {
+        variants.add(flexible);
+      }
+      
+      return Array.from(variants);
+    };
+
+    const searchVariants = normalizeSearchTerm(searchTerm);
+    
+    // Создаем условия поиска для всех вариантов
+    const buildSearchConditions = (field: string, variants: string[]): string => {
+      return variants
+        .map(v => `${field}.ilike.%${v}%`)
+        .join(',');
+    };
+
+    const productSearchConditions = [
+      buildSearchConditions('name', searchVariants),
+      buildSearchConditions('short_description', searchVariants),
+      buildSearchConditions('sku', searchVariants),
+      buildSearchConditions('description', searchVariants),
+    ].join(',');
+
     // Поиск товаров
     const { data: products, error: productsError } = await supabase
       .from("products")
@@ -36,6 +78,7 @@ export async function GET(req: NextRequest) {
         base_price,
         sale_price,
         thumbnail,
+        images,
         inventory_quantity,
         is_featured,
         brands:brand_id(
@@ -57,28 +100,28 @@ export async function GET(req: NextRequest) {
       `,
       )
       .eq("status", "active")
-      .or(
-        `name.ilike.%${searchTerm}%,short_description.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`,
-      )
+      .or(productSearchConditions)
       .limit(limit)
       .order("is_featured", { ascending: false })
       .order("view_count", { ascending: false });
 
-    // Поиск брендов
+    // Поиск брендов с нормализацией
+    const brandSearchConditions = buildSearchConditions('name', searchVariants);
     const { data: brands, error: brandsError } = await supabase
       .from("brands")
       .select("id, name, slug, logo_url")
       .eq("is_active", true)
-      .ilike("name", `%${searchTerm}%`)
+      .or(brandSearchConditions)
       .limit(10)
       .order("sort_order", { ascending: true });
 
-    // Поиск категорий
+    // Поиск категорий с нормализацией
+    const categorySearchConditions = buildSearchConditions('name', searchVariants);
     const { data: categories, error: categoriesError } = await supabase
       .from("categories")
       .select("id, name, slug, path, level, image_url")
       .eq("is_active", true)
-      .ilike("name", `%${searchTerm}%`)
+      .or(categorySearchConditions)
       .limit(10)
       .order("level", { ascending: true })
       .order("sort_order", { ascending: true });

@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import ProductCard from "./ProductCard";
 import { cn } from "@/lib/utils";
@@ -8,13 +9,23 @@ interface ProductGridProps {
   loading?: boolean;
 }
 
-export default function ProductGrid({
+function ProductGrid({
   products,
   loading = false,
 }: ProductGridProps) {
   // Улучшенные классы для адаптивного дизайна
   const gridClasses =
     "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
+
+  // Мемоизируем список продуктов с приоритетами (должно быть до ранних возвратов)
+  const productsWithPriority = useMemo(
+    () => products.map((product, index) => ({
+      product,
+      priority: index < 8,
+      delay: Math.min(index * 0.05, 0.5),
+    })),
+    [products]
+  );
 
   if (loading) {
     return (
@@ -55,23 +66,26 @@ export default function ProductGrid({
 
   return (
     <div className={cn("grid gap-4 md:gap-6", gridClasses)}>
-      {products.map((product, index) => (
+      {productsWithPriority.map(({ product, priority, delay }) => (
         <motion.div
           key={product.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.3,
-            delay: Math.min(index * 0.05, 0.5), // Максимальная задержка 0.5s
+            delay,
             ease: "easeOut",
           }}
         >
           <ProductCard 
             product={product} 
-            priority={index < 8} // Priority для первых 8 карточек
+            priority={priority}
           />
         </motion.div>
       ))}
     </div>
   );
 }
+
+// Мемоизированная версия для оптимизации производительности
+export default memo(ProductGrid);

@@ -12,13 +12,47 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ContactForm } from '@/components/contact/ContactForm';
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import Link from 'next/link';
 
 const ContactPage = () => {
   const mapState = { center: [43.248150, 76.870680], zoom: 16 };
   const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
 
+  const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+  const breadcrumbItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'Контакты', url: '/contacts' },
+  ];
+
   return (
     <>
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <div className="container mx-auto px-4 py-4">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/" className="text-muted-foreground hover:text-foreground">
+                  Главная
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Контакты</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
       <section className="py-16 lg:py-20 px-4 bg-background w-full">
         <div className="max-w-6xl mx-auto">
           <motion.h2

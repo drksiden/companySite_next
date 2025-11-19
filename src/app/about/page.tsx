@@ -1,6 +1,16 @@
 import type { Metadata } from 'next';
 import AboutUs from './AboutUs';
 import { COMPANY_NAME, COMPANY_NAME_SHORT } from '@/data/constants';
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import Link from 'next/link';
 
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 
@@ -35,5 +45,33 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <AboutUs />;
+  const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+  const breadcrumbItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'О компании', url: '/about' },
+  ];
+
+  return (
+    <>
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <div className="container mx-auto px-4 py-4">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/" className="text-muted-foreground hover:text-foreground">
+                  Главная
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>О компании</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <AboutUs />
+    </>
+  );
 }

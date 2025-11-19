@@ -194,13 +194,38 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   const router = useRouter();
   const params = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams?.query || "");
+  
+  // Загружаем сохраненные фильтры из localStorage
+  const getSavedFilters = () => {
+    if (typeof window === 'undefined') return { query: '', categories: [], brands: [] };
+    try {
+      const saved = localStorage.getItem('catalog-filters');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error loading saved filters:', e);
+    }
+    return { query: '', categories: [], brands: [] };
+  };
+
+  const savedFilters = getSavedFilters();
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams?.query || savedFilters.query || ""
+  );
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    searchParams?.category?.split(",").filter(Boolean) || [],
+    searchParams?.category?.split(",").filter(Boolean) || savedFilters.categories || [],
   );
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
-    searchParams?.brand?.split(",").filter(Boolean) || [],
+    searchParams?.brand?.split(",").filter(Boolean) || savedFilters.brands || [],
   );
+
+  // Сохраняем фильтры в localStorage
+  const saveFilters = useCallback((query: string, categories: string[], brands: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('catalog-filters', JSON.stringify({ query, categories, brands }));
+    }
+  }, []);
 
   useEffect(() => {
     setSelectedCategories(
@@ -219,8 +244,9 @@ export default function FilterSidebar({
     } else {
       newParams.delete("query");
     }
+    saveFilters(searchQuery, selectedCategories, selectedBrands);
     router.push(`/catalog?${newParams.toString()}`, { scroll: false });
-  }, [searchQuery, params, router]);
+  }, [searchQuery, selectedCategories, selectedBrands, params, router, saveFilters]);
 
   const handleFilterChange = useCallback(
     (type: "category" | "brand", id: string, checked: boolean) => {
@@ -243,17 +269,23 @@ export default function FilterSidebar({
       } else {
         newParams.delete(type);
       }
+      
+      const finalCategories = type === "category" ? updatedFilters : selectedCategories;
+      const finalBrands = type === "brand" ? updatedFilters : selectedBrands;
+      saveFilters(searchQuery, finalCategories, finalBrands);
+      
       router.push(`/catalog?${newParams.toString()}`, { scroll: false });
     },
-    [params, router],
+    [params, router, searchQuery, selectedCategories, selectedBrands, saveFilters],
   );
 
   const clearFilters = useCallback(() => {
     setSearchQuery("");
     setSelectedCategories([]);
     setSelectedBrands([]);
+    saveFilters("", [], []);
     router.push("/catalog", { scroll: false });
-  }, [router]);
+  }, [router, saveFilters]);
 
   const hasFilters =
     !!searchQuery || selectedCategories.length > 0 || selectedBrands.length > 0;

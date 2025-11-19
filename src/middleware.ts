@@ -139,7 +139,35 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Добавляем заголовок X-Robots-Tag для предотвращения индексации админ-страниц и страниц авторизации
+  if (pathname.startsWith("/admin") || pathname.startsWith("/auth")) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
+  }
+
+  // Заголовки безопасности
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  
+  // Content Security Policy (базовая версия, можно расширить)
+  if (!pathname.startsWith("/admin")) {
+    // Для публичных страниц более мягкая CSP
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://r2.asia-ntb.kz; frame-ancestors 'none';"
+    );
+  } else {
+    // Для админки более строгая CSP
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none';"
+    );
+  }
+
+  return response;
 }
 
 export const config = {

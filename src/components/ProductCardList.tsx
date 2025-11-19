@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,7 +21,7 @@ interface ProductCardListProps {
 
 import { formatPrice } from "@/lib/utils";
 
-export function ProductCardList({ products }: ProductCardListProps) {
+function ProductCardList({ products }: ProductCardListProps) {
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -59,15 +60,13 @@ export function ProductCardList({ products }: ProductCardListProps) {
         {products.map((product) => {
           const imageUrl = product.image_urls?.[0];
           const productName = product.name;
-          const productHandle = product.handle; // Assuming 'handle' is used for links
+          const productHandle = product.handle;
           const displayPrice = product.price;
           const currencyCode = product.currency_code || "KZT";
-
-          // Simplified stock logic
           const inStock =
             typeof product.stock_quantity === "number"
               ? product.stock_quantity > 0
-              : true; // Default to true if stock_quantity is not a number
+              : true;
 
           return (
             <motion.div
@@ -163,3 +162,7 @@ export function ProductCardList({ products }: ProductCardListProps) {
     </motion.div>
   );
 }
+
+// Мемоизированная версия для оптимизации производительности
+export const MemoizedProductCardList = memo(ProductCardList);
+export { ProductCardList };

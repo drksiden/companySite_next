@@ -6,6 +6,7 @@ import ProductDetailShell from "@/features/catalog/components/ProductDetailShell
 import { Skeleton } from "@/components/ui/skeleton";
 import { createAdminClient } from "@/lib/supabaseServer";
 import { formatPrice } from "@/lib/utils";
+import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 interface ProductPageProps {
   params: Promise<{
@@ -24,12 +25,25 @@ export async function generateMetadata({
     if (!product) {
       return {
         title: "Товар не найден",
+        robots: {
+          index: false,
+          follow: false,
+        },
       };
     }
 
     const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
     const productUrl = `${siteBaseUrl}/catalog/product/${slug}`;
-    const productImage = product.thumbnail || (product.images && product.images.length > 0 ? product.images[0] : null);
+    
+    // Получаем изображение товара (абсолютный URL для OG)
+    let productImage: string | null = product.thumbnail || (product.images && product.images.length > 0 ? product.images[0] : null);
+    if (productImage && !productImage.startsWith('http')) {
+      // Если относительный URL, делаем абсолютным
+      productImage = productImage.startsWith('/') 
+        ? `${siteBaseUrl}${productImage}`
+        : `${siteBaseUrl}/${productImage}`;
+    }
+    
     const description = product.short_description || product.description || `${product.name}. ${product.brands?.name ? `Бренд ${product.brands.name}. ` : ''}Купить в Казахстане.`;
 
     return {
@@ -73,6 +87,10 @@ export async function generateMetadata({
   } catch (error) {
     return {
       title: "Ошибка загрузки товара",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 }
@@ -332,8 +350,49 @@ async function ProductPageContent({ slug }: { slug: string }) {
       console.error("Error loading related products:", error);
     }
 
+    const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+    const productUrl = `${siteBaseUrl}/catalog/product/${product.slug}`;
+    const productImage = product.thumbnail || (product.images && product.images.length > 0 ? product.images[0] : null);
+    const finalPrice = product.sale_price || product.base_price;
+    
+    // Breadcrumbs для JSON-LD
+    const breadcrumbItems = [
+      { name: 'Главная', url: '/' },
+      { name: 'Каталог', url: '/catalog' },
+    ];
+    
+    if (product.categories) {
+      // Можно добавить категорию в breadcrumbs, если нужно
+      breadcrumbItems.push({
+        name: product.categories.name,
+        url: product.categories.path ? `/catalog/${product.categories.path}` : `/catalog/${product.categories.slug}`,
+      });
+    }
+    
+    breadcrumbItems.push({
+      name: product.name,
+      url: `/catalog/product/${product.slug}`,
+    });
+
     return (
-      <ProductDetailShell product={product} relatedProducts={relatedProducts} />
+      <>
+        <ProductJsonLd
+          product={{
+            name: product.name,
+            description: product.short_description || product.description || product.name,
+            image: productImage || undefined,
+            sku: product.sku,
+            price: finalPrice,
+            currency: product.currencies?.code || 'KZT',
+            brand: product.brands?.name,
+            category: product.categories?.name,
+            availability: (product.inventory_quantity > 0 || !product.track_inventory) ? 'InStock' : 'OutOfStock',
+            url: productUrl,
+          }}
+        />
+        <BreadcrumbJsonLd items={breadcrumbItems} />
+        <ProductDetailShell product={product} relatedProducts={relatedProducts} />
+      </>
     );
   } catch (error) {
     console.error("Product page error:", error);

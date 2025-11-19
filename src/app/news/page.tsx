@@ -4,6 +4,16 @@ import { createServerClient } from "@/lib/supabaseServer";
 import { NewsPageClient } from "@/components/NewsPageClient";
 import { NewsLoadingFallback } from "@/components/NewsLoadingFallback";
 import { COMPANY_NAME_SHORT } from "@/data/constants";
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import Link from 'next/link';
 
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 
@@ -83,11 +93,36 @@ export default async function NewsPage() {
 async function NewsPageContent() {
     const initialNews = await fetchAllNews();
     const categories = await fetchCategories(initialNews);
+    const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+    const breadcrumbItems = [
+      { name: 'Главная', url: '/' },
+      { name: 'Новости', url: '/news' },
+    ];
     
     return (
-        <NewsPageClient
-            initialNews={initialNews}
-            categories={categories}
-        />
+        <>
+            <BreadcrumbJsonLd items={breadcrumbItems} />
+            <div className="container mx-auto px-4 py-4">
+                <Breadcrumb className="mb-6">
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Link href="/" className="text-muted-foreground hover:text-foreground">
+                                    Главная
+                                </Link>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage>Новости</BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
+            </div>
+            <NewsPageClient
+                initialNews={initialNews}
+                categories={categories}
+            />
+        </>
     );
 }

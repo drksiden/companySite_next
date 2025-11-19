@@ -1,10 +1,10 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+// Анимации удалены для избежания проблем с гидратацией
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo, memo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,8 @@ import { COMPANY_NAME_SHORT } from "@/data/constants";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { supabase } from "@/lib/supabaseClient";
+import { SearchCombobox } from "./search/SearchCombobox";
+import { WishlistDropdown } from "./wishlist/WishlistDropdown";
 
 const navItems = [
   { href: "/catalog", label: "Каталог" },
@@ -55,38 +57,7 @@ const navItems = [
   { href: "/contacts", label: "Контакты" },
 ];
 
-const easeTransition = {
-  type: "spring",
-  stiffness: 260,
-  damping: 20,
-} as const;
-
-// const underlineVariants = {
-//   initial: { scaleX: 0, opacity: 0 },
-//   animate: {
-//     scaleX: 1,
-//     opacity: 1,
-//   },
-//   exit: {
-//     scaleX: 0,
-//     opacity: 0,
-//   },
-// };
-
-const dropdownVariants = {
-  hidden: { opacity: 0, y: -5 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-};
-
-const badgeVariants = {
-  initial: { scale: 0, opacity: 0 },
-  animate: {
-    scale: 1,
-    opacity: 1,
-    transition: { type: "spring", stiffness: 400, damping: 17 },
-  },
-  exit: { scale: 0, opacity: 0, transition: { duration: 0.2 } },
-};
+// Константы анимаций удалены, так как анимации больше не используются
 
 const formatPrice = (amount?: number, currencyCode: string = "KZT"): string => {
   if (typeof amount !== "number" || amount === null) {
@@ -121,7 +92,40 @@ export function Header() {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const router = useRouter();
+
+  // Отслеживаем изменения избранного
+  useEffect(() => {
+    const updateWishlistCount = () => {
+      if (typeof window !== 'undefined') {
+        const wishlist = JSON.parse(localStorage.getItem('catalog-wishlist') || '[]');
+        setWishlistCount(wishlist.length);
+      }
+    };
+
+    updateWishlistCount();
+    
+    // Слушаем кастомное событие обновления избранного
+    const handleWishlistUpdate = () => {
+      updateWishlistCount();
+    };
+    
+    // Слушаем изменения localStorage (для других вкладок)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'catalog-wishlist') {
+        updateWishlistCount();
+      }
+    };
+    
+    window.addEventListener('wishlist-updated', handleWishlistUpdate);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('wishlist-updated', handleWishlistUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // Supabase auth state
   const [user, setUser] = useState<any>(null);
@@ -180,7 +184,7 @@ export function Header() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
@@ -188,9 +192,9 @@ export function Header() {
       setIsSearchOpen(false);
       if (openMobileMenu) setOpenMobileMenu(false);
     }
-  };
+  }, [searchQuery, router, openMobileMenu]);
 
-  const NavItem = ({ item, mobile = false, onClose }: NavItemProps) => {
+  const NavItem = memo(({ item, mobile = false, onClose }: NavItemProps) => {
     const isActive =
       pathname === item.href || pathname?.startsWith(`${item.href}/`);
     const [isHovered, setIsHovered] = useState(false);
@@ -219,31 +223,23 @@ export function Header() {
             />
           </button>
 
-          <AnimatePresence>
-            {isDropdownOpen && (
-              <motion.div
-                className="absolute top-full left-0 mt-1 py-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50"
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                variants={dropdownVariants}
-              >
-                {item.children.map((child) => (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className="block px-4 py-2 text-foreground hover:bg-accent hover:text-primary transition-colors duration-200"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      if (onClose) onClose();
-                    }}
-                  >
-                    {child.label}
-                  </Link>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {isDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1 py-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
+              {item.children.map((child) => (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  className="block px-4 py-2 text-foreground hover:bg-accent hover:text-primary transition-colors duration-200"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    if (onClose) onClose();
+                  }}
+                >
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -310,33 +306,23 @@ export function Header() {
         >
           {item.label}
         </Link>
-        <AnimatePresence>
-          {(isActive || isHovered) && (
-            <motion.div
-              className="bg-primary rounded-full origin-left"
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              // variants={underlineVariants}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            />
-          )}
-        </AnimatePresence>
+        {(isActive || isHovered) && (
+          <div className="bg-primary rounded-full origin-left" />
+        )}
       </div>
     );
-  };
+  });
 
-  if (!mounted)
-    return (
-      <header className="sticky top-0 z-50 h-16 sm:h-20 bg-card/80 border-b border-border"></header>
-    );
+  NavItem.displayName = "NavItem";
+
+  // Header рендерится всегда, но с suppressHydrationWarning для избежания ошибок гидратации
+  // Это предотвращает визуальный "прыжок" при появлении Header после монтирования
 
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={easeTransition}
+    <header
+      id="main-navigation"
       className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border shadow-sm"
+      suppressHydrationWarning
     >
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 sm:h-20">
@@ -367,7 +353,14 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex-1 max-w-[300px]">
+              <SearchCombobox />
+            </div>
+            
+            {/* Wishlist Dropdown */}
+            <WishlistDropdown wishlistCount={wishlistCount} />
+            
             <Button
               variant="ghost"
               size="icon"
@@ -375,22 +368,11 @@ export function Header() {
               className="text-foreground hover:bg-accent/30 hover:text-primary transition-colors"
               aria-label="Сменить тему"
             >
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={theme}
-                  initial={{ y: theme === "dark" ? 20 : -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: theme === "dark" ? -20 : 20, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-center"
-                >
-                  {theme === "dark" ? (
-                    <Sun className="h-5 w-5" />
-                  ) : (
-                    <Moon className="h-5 w-5" />
-                  )}
-                </motion.div>
-              </AnimatePresence>
+              {mounted && theme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </Button>
 
             <Sheet open={openMobileMenu} onOpenChange={setOpenMobileMenu}>
@@ -417,6 +399,10 @@ export function Header() {
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-100px)]">
                   <div className="py-4 px-3">
+                    {/* Поиск в мобильном меню - скрыт, так как есть в десктопной версии */}
+                    {/* <div className="mb-4 md:hidden">
+                      <SearchCombobox />
+                    </div> */}
                     <nav className="flex flex-col gap-1">
                       {navItems.map((item) => (
                         <NavItem
@@ -510,6 +496,6 @@ export function Header() {
           </div>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabaseServer";
 import NewsArticleClient from "@/components/NewsArticleClient";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 // Интерфейсы, соответствующие Supabase
 interface NewsItem {
@@ -93,6 +94,10 @@ export async function generateMetadata({
   if (!article) {
     return {
       title: "Новость не найдена",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
@@ -148,5 +153,33 @@ export default async function NewsArticlePage({ params }: NewsPageProps) {
 
   const relatedNews = await fetchRelatedNews(article);
 
-  return <NewsArticleClient article={article} relatedNews={relatedNews} />;
+  const articleUrl = `${BASE_URL}/news/${article.id}`;
+  const articleImage = article.images && article.images.length > 0 
+    ? `${BASE_URL}${article.images[0]}` 
+    : undefined;
+
+  // Breadcrumbs для JSON-LD
+  const breadcrumbItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'Новости', url: '/news' },
+    { name: article.title, url: `/news/${article.id}` },
+  ];
+
+  return (
+    <>
+      <ArticleJsonLd
+        article={{
+          headline: article.title,
+          description: article.description,
+          image: articleImage,
+          datePublished: article.date,
+          dateModified: article.date, // Можно добавить поле updated_at если есть
+          author: article.author || undefined,
+          url: articleUrl,
+        }}
+      />
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <NewsArticleClient article={article} relatedNews={relatedNews} />
+    </>
+  );
 }

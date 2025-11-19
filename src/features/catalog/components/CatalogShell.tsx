@@ -25,7 +25,17 @@ import {
   KeyRound,
   Cable,
   Plug,
+  Download,
+  ChevronDown,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PRICELISTS } from "@/data/constants";
 
 interface CatalogShellProps {
   searchParams?: {
@@ -211,6 +221,37 @@ export default async function CatalogShell({ searchParams }: CatalogShellProps) 
         <h1 className="text-3xl font-bold text-black dark:text-white">
           Каталог товаров
         </h1>
+        {PRICELISTS && PRICELISTS.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Скачать прайслист</span>
+                <span className="sm:hidden">Прайслист</span>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {PRICELISTS.map((pricelist, index) => (
+                <DropdownMenuItem
+                  key={index}
+                  asChild
+                >
+                  <a
+                    href={pricelist.url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    <span className="line-clamp-2">{pricelist.name}</span>
+                  </a>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <Suspense fallback={

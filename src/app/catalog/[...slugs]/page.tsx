@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabaseServer";
 import { CategoryProductsClient } from "@/components/catalog/CategoryProductsClient";
+import { BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -219,6 +220,10 @@ export async function generateMetadata({
   if (!slugs || slugs.length === 0) {
     return {
       title: "Категория не найдена",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
@@ -228,6 +233,10 @@ export async function generateMetadata({
   if (!resolved || !resolved.category) {
     return {
       title: "Категория не найдена",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
@@ -313,8 +322,21 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   // 5. HTML описание (с базовой санитизацией)
   const categoryDescription = currentCategory.description_html || currentCategory.description || "";
 
+  // Breadcrumbs для JSON-LD
+  const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
+  const breadcrumbJsonLdItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'Каталог', url: '/catalog' },
+    ...breadcrumbItems.map(item => ({
+      name: item.name,
+      url: item.href,
+    })),
+  ];
+
   return (
-    <div className="min-h-screen bg-background py-8 md:py-12">
+    <>
+      <BreadcrumbJsonLd items={breadcrumbJsonLdItems} />
+      <div className="min-h-screen bg-background py-8 md:py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
         {/* Хлебные крошки */}
         <Breadcrumb className="mb-6 md:mb-8">
@@ -435,5 +457,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </section>
       </div>
     </div>
+    </>
   );
 }

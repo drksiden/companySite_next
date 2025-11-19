@@ -20,3 +20,18 @@ export const COMPANY_CITY_PHONE2 = "+7 (727) 301-50-24";
 export const facebookUrl = "https://facebook.com";
 export const instagramUrl = "https://instagram.com";
 export const youtubeUrl = "https://youtube.com";
+
+// Структура прайслистов
+export interface Pricelist {
+  name: string;
+  url: string;
+}
+
+// Массив прайслистов (можно расширить через переменные окружения)
+export const PRICELISTS: Pricelist[] = [
+  {
+    name: "Прайс-лист ТЕКО, РРЦ, с НДС",
+    url: "https://r2.asia-ntb.kz/documents/pricelists/%D0%9F%D1%80%D0%B0%D0%B9%D1%81-%D0%BB%D0%B8%D1%81%D1%82%20%D0%A2%D0%95%D0%9A%D0%9E%2C%20%D0%A0%D0%A0%D0%A6%2C%20%D1%81%20%D0%9D%D0%94%D0%A1.xls",
+  },
+  // Можно добавить больше прайслистов здесь или через переменные окружения
+];

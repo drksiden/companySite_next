@@ -1,6 +1,16 @@
 import { Metadata } from "next";
 import CatalogShell from "@/features/catalog/components/CatalogShell";
 import { COMPANY_NAME_SHORT } from "@/data/constants";
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import Link from 'next/link';
 
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 
@@ -48,10 +58,34 @@ interface CatalogPageProps {
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const resolvedSearchParams = await searchParams;
+  const breadcrumbItems = [
+    { name: 'Главная', url: '/' },
+    { name: 'Каталог', url: '/catalog' },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <CatalogShell searchParams={resolvedSearchParams} />
-    </div>
+    <>
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <div className="container mx-auto px-4 py-4">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/" className="text-muted-foreground hover:text-foreground">
+                  Главная
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Каталог</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="min-h-screen bg-background">
+        <CatalogShell searchParams={resolvedSearchParams} />
+      </div>
+    </>
   );
 }

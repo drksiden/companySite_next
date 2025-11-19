@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -20,12 +21,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
+const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const contactFormSchema = z.object({
-  first_name: z.string().min(2, "Имя должно содержать минимум 2 символа"),
-  last_name: z.string().min(2, "Фамилия должна содержать минимум 2 символа"),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  message: z.string().min(10, "Сообщение должно содержать минимум 10 символов"),
+  first_name: z
+    .string()
+    .min(2, "Имя должно содержать минимум 2 символа")
+    .max(50, "Имя не должно превышать 50 символов")
+    .regex(/^[а-яА-ЯёЁa-zA-Z\s-]+$/, "Имя может содержать только буквы, пробелы и дефисы"),
+  last_name: z
+    .string()
+    .min(2, "Фамилия должна содержать минимум 2 символа")
+    .max(50, "Фамилия не должна превышать 50 символов")
+    .regex(/^[а-яА-ЯёЁa-zA-Z\s-]+$/, "Фамилия может содержать только буквы, пробелы и дефисы"),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || phoneRegex.test(val.replace(/\s/g, "")),
+      "Неверный формат телефона. Пример: +7 (707) 123-45-67"
+    ),
+  email: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || emailRegex.test(val),
+      "Неверный формат email. Пример: example@mail.com"
+    ),
+  message: z
+    .string()
+    .min(10, "Сообщение должно содержать минимум 10 символов")
+    .max(2000, "Сообщение не должно превышать 2000 символов"),
 }).refine((data) => data.phone || data.email, {
   message: "Необходимо указать телефон или email",
   path: ["phone"],
@@ -155,14 +182,14 @@ export function ContactForm({ className }: ContactFormProps) {
                     <FormItem>
                       <FormLabel>Телефон</FormLabel>
                       <FormControl>
-                        <Input
-                          type="tel"
+                        <PhoneInput
                           {...field}
                           disabled={isSubmitting}
+                          aria-describedby="phone-hint"
                         />
                       </FormControl>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground">
+                      <p id="phone-hint" className="text-xs text-muted-foreground">
                         Укажите телефон или email
                       </p>
                     </FormItem>
@@ -177,8 +204,10 @@ export function ContactForm({ className }: ContactFormProps) {
                       <FormControl>
                         <Input
                           type="email"
+                          placeholder="example@mail.com"
                           {...field}
                           disabled={isSubmitting}
+                          autoComplete="email"
                         />
                       </FormControl>
                       <FormMessage />

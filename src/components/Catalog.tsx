@@ -1,7 +1,7 @@
 // @/components/Catalog.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,32 +55,38 @@ export function Catalog({
     }
   }, [shouldFetchCategories]);
 
-  const filteredCategories = categories.filter(
-    (cat) => cat.parent_id === parentCategoryId,
+  // Мемоизируем фильтрацию категорий
+  const filteredCategories = useMemo(
+    () => categories.filter((cat) => cat.parent_id === parentCategoryId),
+    [categories, parentCategoryId]
   );
 
-  const filteredProducts = products
-    .filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name, "ru", { sensitivity: "base" });
-        case "price-asc":
-          const priceA = a.price ?? 0;
-          const priceB = b.price ?? 0;
-          return priceA - priceB;
-        case "price-desc":
-          const priceADesc = a.price ?? 0;
-          const priceBDesc = b.price ?? 0;
-          return priceBDesc - priceADesc;
-        default:
-          return 0;
-      }
-    });
+  // Мемоизируем фильтрацию и сортировку продуктов
+  const filteredProducts = useMemo(() => {
+    const lowerQuery = searchQuery.toLowerCase();
+    return products
+      .filter(
+        (product) =>
+          product.name.toLowerCase().includes(lowerQuery) ||
+          product.description?.toLowerCase().includes(lowerQuery)
+      )
+      .sort((a, b) => {
+        switch (sortBy) {
+          case "name":
+            return a.name.localeCompare(b.name, "ru", { sensitivity: "base" });
+          case "price-asc":
+            const priceA = a.price ?? 0;
+            const priceB = b.price ?? 0;
+            return priceA - priceB;
+          case "price-desc":
+            const priceADesc = a.price ?? 0;
+            const priceBDesc = b.price ?? 0;
+            return priceBDesc - priceADesc;
+          default:
+            return 0;
+        }
+      });
+  }, [products, searchQuery, sortBy]);
 
   const formatPrice = (amount: number, currencyCode?: string): string => {
     const currency = currencyCode || "KZT";

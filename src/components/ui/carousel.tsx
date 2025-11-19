@@ -58,8 +58,9 @@ function Carousel({
     },
     plugins
   )
-  const [canScrollPrev, setCanScrollPrev] = React.useState(false)
-  const [canScrollNext, setCanScrollNext] = React.useState(false)
+  // Инициализируем как false для SSR, чтобы избежать гидратации
+  const [canScrollPrev, setCanScrollPrev] = React.useState<boolean>(false)
+  const [canScrollNext, setCanScrollNext] = React.useState<boolean>(false)
 
   const onSelect = React.useCallback((api: CarouselApi) => {
     if (!api) return

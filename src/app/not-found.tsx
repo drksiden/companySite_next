@@ -2,6 +2,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Home, ArrowLeft } from "@/components/icons/SimpleIcons";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+  title: "Страница не найдена",
+};
 
 export default function NotFound() {
   return (

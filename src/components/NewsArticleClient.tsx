@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   Calendar,
   ArrowLeft,
-  Share2,
   BookOpen,
   Tag,
   Newspaper,
@@ -21,6 +20,7 @@ import { toast } from "sonner";
 import Autoplay from "embla-carousel-autoplay";
 import { HtmlContent } from "@/components/ui/html-content";
 import { FileText, Download, ExternalLink } from "lucide-react";
+import { ShareButton } from "@/components/share/ShareButton";
 
 // Интерфейс NewsItem, соответствующий Supabase
 interface NewsItem {
@@ -108,50 +108,6 @@ export default function NewsArticleClient({
     Autoplay({ delay: 4000, stopOnInteraction: true })
   );
 
-  const handleShare = async () => {
-    const shareData = {
-      title: article.title,
-      text: article.description,
-      url: window.location.href,
-    };
-
-    if (
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare(shareData)
-    ) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          toast.error("Не удалось поделиться контентом");
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Ссылка скопирована в буфер обмена!");
-      } catch (error) {
-        const textArea = document.createElement("textarea");
-        textArea.value = window.location.href;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        try {
-          document.execCommand("copy");
-          toast.success("Ссылка скопирована в буфер обмена!");
-        } catch (err) {
-          toast.error("Не удалось скопировать ссылку");
-        }
-
-        document.body.removeChild(textArea);
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen">
@@ -240,15 +196,13 @@ export default function NewsArticleClient({
                   </div>
                 </div>
               )}
-              <Button
-                onClick={handleShare}
+              <ShareButton
+                title={article.title}
+                text={article.description}
                 variant="outline"
                 size="sm"
                 className="text-white border-white/30 dark:border-white/30 bg-white/5 dark:bg-white/5 hover:bg-white/10 hover:text-white backdrop-blur-sm font-medium"
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Поделиться
-              </Button>
+              />
             </motion.div>
           </motion.div>
         </div>

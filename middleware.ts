@@ -19,19 +19,22 @@ const CACHEABLE_API_PATHS = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const response = NextResponse.next();
-
-  // В dev режиме применяем только минимальные оптимизации
+  
+  // В dev режиме полностью пропускаем статические файлы Next.js
+  // Это критично для работы dev-сервера
   if (process.env.NODE_ENV === "development") {
-    // Только кэширование статических ресурсов
-    if (STATIC_PATHS.some((path) => pathname.startsWith(path))) {
-      response.headers.set(
-        "Cache-Control",
-        `public, max-age=${STATIC_CACHE_DURATION}, immutable`,
-      );
+    // Пропускаем все статические файлы Next.js без обработки
+    // Включая файлы с query параметрами (например, ?v=...)
+    if (
+      pathname.startsWith("/_next/") ||
+      pathname === "/favicon.ico" ||
+      pathname.match(/\.(js|css|map|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/i)
+    ) {
+      return NextResponse.next();
     }
-    return response;
   }
+  
+  const response = NextResponse.next();
 
   // В production применяем полные оптимизации
   setSecurityHeaders(response);
@@ -246,9 +249,9 @@ setInterval(
 export const config = {
   matcher: [
     /*
-     * В dev режиме применяем минимально
-     * В production - полные оптимизации
+     * Исключаем все статические файлы Next.js и статические ресурсы
+     * В dev режиме middleware полностью пропускает их в начале функции
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next|favicon.ico|.*\\.(js|css|map|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$).*)",
   ],
 };

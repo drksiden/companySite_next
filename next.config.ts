@@ -1,7 +1,8 @@
 // next.config.ts
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  // standalone output только для production
+  ...(process.env.NODE_ENV === 'production' && { output: "standalone" }),
   images: {
     remotePatterns: [
       {
