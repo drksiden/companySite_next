@@ -3,6 +3,10 @@
 const nextConfig = {
   // standalone output только для production
   ...(process.env.NODE_ENV === 'production' && { output: "standalone" }),
+  // Разрешаем cross-origin запросы в dev режиме для работы по IP
+  ...(process.env.NODE_ENV === 'development' && {
+    allowedDevOrigins: ['192.168.31.235:3000', 'localhost:3000'],
+  }),
   images: {
     remotePatterns: [
       {
