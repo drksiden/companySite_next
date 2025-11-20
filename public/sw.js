@@ -17,7 +17,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Pre-caching offline page');
+        // Логирование только в dev режиме
+        if (typeof self !== 'undefined' && self.location && self.location.hostname === 'localhost') {
+          console.log('[SW] Pre-caching offline page');
+        }
         return cache.addAll(PRECACHE_URLS);
       })
       .then(() => self.skipWaiting())
@@ -34,7 +37,10 @@ self.addEventListener('activate', (event) => {
             return cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE;
           })
           .map((cacheName) => {
-            console.log('[SW] Removing old cache', cacheName);
+            // Логирование только в dev режиме
+            if (typeof self !== 'undefined' && self.location && self.location.hostname === 'localhost') {
+              console.log('[SW] Removing old cache', cacheName);
+            }
             return caches.delete(cacheName);
           })
       );
@@ -50,11 +56,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Пропускаем запросы к API и админке
+  // Пропускаем запросы к API, админке, внешним ресурсам и аналитике
+  const url = new URL(event.request.url);
   if (
     event.request.url.includes('/api/') ||
     event.request.url.includes('/admin') ||
-    event.request.url.includes('/_next/')
+    event.request.url.includes('/_next/') ||
+    url.origin !== self.location.origin ||
+    event.request.url.includes('mc.yandex.ru') ||
+    event.request.url.includes('google-analytics') ||
+    event.request.url.includes('googletagmanager')
   ) {
     return;
   }
@@ -86,10 +97,14 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Если сеть недоступна, возвращаем офлайн-страницу
+            // Если сеть недоступна, возвращаем офлайн-страницу для документов
             if (event.request.destination === 'document') {
-              return caches.match('/');
+              return caches.match('/').then((offlinePage) => {
+                return offlinePage || new Response('Offline', { status: 503 });
+              });
             }
+            // Для других ресурсов возвращаем пустой ответ
+            return new Response('', { status: 503 });
           });
       })
   );

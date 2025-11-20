@@ -57,42 +57,113 @@ import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 // Zod schema для формы продукта
 const productSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Название товара обязательно"),
-  slug: z.string().optional(),
-  sku: z.string().optional(),
-  barcode: z.string().optional(),
-  short_description: z.string().optional(),
-  description: z.string().optional(),
-  technical_description: z.string().optional(),
-  category_id: z.string().min(1, "Выберите категорию"),
-  brand_id: z.string().optional().or(z.literal("no-brand")),
-  collection_id: z.string().optional().or(z.literal("no-collection")),
-  base_price: z.coerce.number().min(0.01, "Цена должна быть больше 0"),
-  sale_price: z.coerce.number().optional(),
-  cost_price: z.coerce.number().optional(),
-  currency_id: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "Название товара обязательно")
+    .max(255, { message: "Название не должно превышать 255 символов." }),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+      message: "Slug должен содержать только строчные буквы, цифры и дефисы.",
+    })
+    .max(255, { message: "Slug не должен превышать 255 символов." })
+    .optional(),
+  sku: z
+    .string()
+    .max(100, { message: "SKU не должен превышать 100 символов." })
+    .optional(),
+  barcode: z
+    .string()
+    .max(100, { message: "Штрих-код не должен превышать 100 символов." })
+    .optional(),
+  short_description: z
+    .string()
+    .max(500, { message: "Краткое описание не должно превышать 500 символов." })
+    .optional(),
+  description: z
+    .string()
+    .max(10000, { message: "Описание не должно превышать 10000 символов." })
+    .optional(),
+  technical_description: z
+    .string()
+    .max(20000, { message: "Техническое описание не должно превышать 20000 символов." })
+    .optional(),
+  category_id: z.string().min(1, "Выберите категорию").uuid({ message: "Некорректный ID категории." }),
+  brand_id: z.string().uuid({ message: "Некорректный ID бренда." }).optional().or(z.literal("no-brand")),
+  collection_id: z
+    .string()
+    .uuid({ message: "Некорректный ID коллекции." })
+    .optional()
+    .or(z.literal("no-collection")),
+  base_price: z.coerce.number().min(0.01, "Цена должна быть больше 0").max(999999999, {
+    message: "Цена не должна превышать 999,999,999.",
+  }),
+  sale_price: z.coerce
+    .number()
+    .min(0.01, "Цена со скидкой должна быть больше 0")
+    .max(999999999, { message: "Цена со скидкой не должна превышать 999,999,999." })
+    .optional(),
+  cost_price: z.coerce
+    .number()
+    .min(0, "Себестоимость не может быть отрицательной")
+    .max(999999999, { message: "Себестоимость не должна превышать 999,999,999." })
+    .optional(),
+  currency_id: z.string().uuid({ message: "Некорректный ID валюты." }).optional(),
   track_inventory: z.boolean().optional().default(true),
-  inventory_quantity: z.coerce.number().int().min(0).optional().default(0),
-  min_stock_level: z.coerce.number().int().min(0).optional().default(0),
+  inventory_quantity: z.coerce
+    .number()
+    .int({ message: "Количество должно быть целым числом." })
+    .min(0, "Количество не может быть отрицательным")
+    .max(999999, { message: "Количество не должно превышать 999,999." })
+    .optional()
+    .default(0),
+  min_stock_level: z.coerce
+    .number()
+    .int({ message: "Минимальный уровень запаса должен быть целым числом." })
+    .min(0, "Минимальный уровень запаса не может быть отрицательным")
+    .max(999999, { message: "Минимальный уровень запаса не должен превышать 999,999." })
+    .optional()
+    .default(0),
   allow_backorder: z.boolean().optional().default(false),
-  weight: z.coerce.number().optional(),
+  weight: z.coerce
+    .number()
+    .min(0, "Вес не может быть отрицательным")
+    .max(999999, { message: "Вес не должен превышать 999,999." })
+    .optional(),
   dimensions: z
     .object({
-      length: z.coerce.number().optional(),
-      width: z.coerce.number().optional(),
-      height: z.coerce.number().optional(),
+      length: z.coerce.number().min(0).max(999999).optional(),
+      width: z.coerce.number().min(0).max(999999).optional(),
+      height: z.coerce.number().min(0).max(999999).optional(),
     })
     .optional(),
   status: z
-    .enum(["draft", "active", "archived", "out_of_stock"])
+    .enum(["draft", "active", "archived", "out_of_stock"], {
+      message: "Некорректный статус товара.",
+    })
     .optional()
     .default("draft"),
   is_featured: z.boolean().optional().default(false),
   is_digital: z.boolean().optional().default(false),
-  meta_title: z.string().optional(),
-  meta_description: z.string().optional(),
-  meta_keywords: z.string().optional(),
-  sort_order: z.coerce.number().int().min(0).optional().default(0),
+  meta_title: z
+    .string()
+    .max(60, { message: "Meta title не должен превышать 60 символов (рекомендация для SEO)." })
+    .optional(),
+  meta_description: z
+    .string()
+    .max(160, { message: "Meta description не должен превышать 160 символов (рекомендация для SEO)." })
+    .optional(),
+  meta_keywords: z
+    .string()
+    .max(255, { message: "Meta keywords не должны превышать 255 символов." })
+    .optional(),
+  sort_order: z.coerce
+    .number()
+    .int({ message: "Порядок сортировки должен быть целым числом." })
+    .min(0, "Порядок сортировки не может быть отрицательным")
+    .max(9999, { message: "Порядок сортировки не должен превышать 9999." })
+    .optional()
+    .default(0),
 });
 
 export type ProductFormData = z.infer<typeof productSchema>;

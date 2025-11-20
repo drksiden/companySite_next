@@ -202,7 +202,12 @@ export function SearchCombobox() {
                                 fill
                                 className="object-cover"
                                 sizes="48px"
-                                unoptimized={imageSrc === "/images/placeholder-product.svg" || imageSrc.includes("r2.asia-ntb.kz")}
+                                quality={75}
+                                unoptimized={
+                                  imageSrc === "/images/placeholder-product.svg" ||
+                                  imageSrc.includes("r2.asia-ntb.kz") ||
+                                  imageSrc.includes("r2.dev")
+                                }
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   if (target.src !== "/images/placeholder-product.svg") {

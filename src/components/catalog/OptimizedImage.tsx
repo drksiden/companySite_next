@@ -118,9 +118,12 @@ const OptimizedImage = forwardRef<HTMLDivElement, OptimizedImageProps>(
                            !hasError;
 
     // Определяем нужно ли использовать unoptimized
+    // R2 изображения не могут быть оптимизированы Next.js из-за таймаутов
+    // Они уже оптимизированы на стороне Cloudflare R2
     const shouldUseUnoptimized = unoptimized ||
-                                (currentImage?.includes("r2.dev")) ||
-                                (currentImage?.includes("supabase"));
+                                (currentImage === "/images/placeholder-product.svg") ||
+                                (currentImage?.includes("r2.asia-ntb.kz")) ||
+                                (currentImage?.includes("r2.dev"));
 
     // Компонент плейсхолдера
     const ImagePlaceholder = () => (

@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       thisMonthRevenueResult,
       lastMonthRevenueResult,
       pendingOrdersResult,
+      lowStockProductsResult,
     ] = await Promise.all([
       // Total orders
       supabase.from("orders").select("*", { count: "exact", head: true }),
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       supabase.from("orders").select("total").eq("payment_status", "paid"),
 
       // Total users
-      supabase.from("users").select("*", { count: "exact", head: true }),
+      supabase.from("user_profiles").select("*", { count: "exact", head: true }),
 
       // Total products
       supabase.from("products").select("*", { count: "exact", head: true }),
@@ -86,6 +87,12 @@ export async function GET(request: NextRequest) {
         .from("orders")
         .select("*", { count: "exact", head: true })
         .eq("status", "pending"),
+
+      // Low stock products (inventory_quantity < min_stock_level or < 10)
+      supabase
+        .from("products")
+        .select("id, inventory_quantity, min_stock_level")
+        .or("inventory_quantity.lt.min_stock_level,inventory_quantity.lt.10"),
     ]);
 
     // Calculate stats
@@ -119,6 +126,13 @@ export async function GET(request: NextRequest) {
       ) || 0;
 
     const pendingOrders = pendingOrdersResult.count || 0;
+    
+    // Calculate low stock products
+    const lowStockProducts = lowStockProductsResult.data?.filter((product) => {
+      const quantity = product.inventory_quantity || 0;
+      const minStock = product.min_stock_level || 10;
+      return quantity < minStock || quantity < 10;
+    }).length || 0;
 
     // Calculate percentage changes
     const revenueChange =
@@ -151,6 +165,7 @@ export async function GET(request: NextRequest) {
       todayRevenue,
       todayOrders: todayOrdersCount,
       pendingOrders,
+      lowStockProducts,
       changes: {
         revenue: Math.round(revenueChange * 100) / 100,
         orders: Math.round(ordersChange * 100) / 100,

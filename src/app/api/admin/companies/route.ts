@@ -1,13 +1,22 @@
 // src/app/api/admin/companies/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabaseServer";
+import { createAdminClient, createServerClient } from "@/lib/supabaseServer";
 import { Company } from "@/lib/services/admin/user"; // Assuming Company type is defined or imported
 
 // GET /api/admin/companies - List all companies
 export async function GET(req: NextRequest) {
-  // TODO: Implement authentication/authorization check here (optional for public list, but good for admin panel context)
-
   try {
+    const supabase = await createServerClient();
+
+    // Check if user is authenticated
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { data: companies, error } = await createAdminClient()
       .from("companies") // Assuming public.companies is accessible
       .select("*")

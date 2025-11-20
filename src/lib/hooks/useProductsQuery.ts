@@ -30,10 +30,29 @@ export function useCreateProduct() {
   return useMutation<
     Product & { uploadInfo?: UploadInfo },
     Error,
-    CreateProductData
+    CreateProductData,
+    { previousQueries: Array<[any, any]> }
   >({
     mutationFn: productService.createProduct,
-    onSuccess: () => {
+    onMutate: async (newProduct) => {
+      // Отменяем исходящие запросы
+      await queryClient.cancelQueries({ queryKey: ["products"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousQueries = queryClient.getQueriesData({ queryKey: ["products"] });
+      
+      return { previousQueries };
+    },
+    onError: (err, newProduct, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: (data) => {
+      // Инвалидируем запросы для обновления данных
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
@@ -44,20 +63,90 @@ export function useUpdateProduct() {
   return useMutation<
     Product & { uploadInfo?: UploadInfo },
     Error,
-    UpdateProductData
+    UpdateProductData,
+    { previousQueries: Array<[any, any]> }
   >({
     mutationFn: productService.updateProduct,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+    onMutate: async (updatedProduct) => {
+      // Отменяем исходящие запросы
+      await queryClient.cancelQueries({ queryKey: ["products"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousQueries = queryClient.getQueriesData({ queryKey: ["products"] });
+      
+      // Оптимистично обновляем кэш (обновление будет видно после успешного ответа)
+      // Не обновляем здесь, так как formData содержит FormData, а не объект Product
+      
+      return { previousQueries };
+    },
+    onError: (err, updatedProduct, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: (data) => {
+      // Обновляем кэш с реальными данными с сервера
+      queryClient.setQueriesData<ProductsResponse>(
+        { queryKey: ["products"] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            products: old.products.map((p) =>
+              p.id === data.id ? data : p
+            ),
+          };
+        }
+      );
     },
   });
 }
 
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
-  return useMutation<void, Error, string>({
+  return useMutation<
+    void,
+    Error,
+    string,
+    { previousQueries: Array<[any, any]>; deletedProductId: string }
+  >({
     mutationFn: productService.deleteProduct,
+    onMutate: async (productId) => {
+      // Отменяем исходящие запросы
+      await queryClient.cancelQueries({ queryKey: ["products"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousQueries = queryClient.getQueriesData({ queryKey: ["products"] });
+      
+      // Оптимистично удаляем из кэша
+      queryClient.setQueriesData<ProductsResponse>(
+        { queryKey: ["products"] },
+        (old) => {
+          if (!old) return old;
+          const deletedProduct = old.products.find((p) => p.id === productId);
+          return {
+            ...old,
+            products: old.products.filter((p) => p.id !== productId),
+            total: old.total - 1,
+          };
+        }
+      );
+      
+      return { previousQueries, deletedProductId: productId };
+    },
+    onError: (err, productId, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
     onSuccess: () => {
+      // Инвалидируем запросы для обновления данных
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });

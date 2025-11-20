@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, ReactNode, useRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -33,6 +34,24 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ContentLayout } from "@/components/admin-panel/content-layout";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Динамический импорт графиков для избежания SSR ошибок
+const RevenueChart = dynamic(
+  () => import("@/components/admin/DashboardCharts").then((mod) => ({ default: mod.RevenueChart })),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+    ssr: false,
+  }
+);
+
+const OrdersChart = dynamic(
+  () => import("@/components/admin/DashboardCharts").then((mod) => ({ default: mod.OrdersChart })),
+  {
+    loading: () => <Skeleton className="h-[300px] w-full" />,
+    ssr: false,
+  }
+);
 
 // Types
 interface DashboardStats {
@@ -256,11 +275,29 @@ const useDashboard = () => {
         setIsLoading(true);
         setError(null);
 
+        let fetchedStats: DashboardStats | null = null;
+        let fetchedActivity: RecentActivity[] = [];
+        let fetchedTopProducts: TopProduct[] = [];
+
         // Fetch dashboard stats
         const statsResponse = await fetch("/api/admin/dashboard/stats");
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
-          setStats(statsData);
+          // Преобразуем данные API в формат компонента
+          fetchedStats = {
+            totalProducts: statsData.totalProducts || 0,
+            totalUsers: statsData.totalUsers || 0,
+            totalOrders: statsData.totalOrders || 0,
+            totalRevenue: statsData.totalRevenue || 0,
+            productsChange: 0, // API не предоставляет изменение продуктов
+            usersChange: 0, // API не предоставляет изменение пользователей
+            ordersChange: statsData.changes?.orders || 0,
+            revenueChange: statsData.changes?.revenue || 0,
+            activeUsers: statsData.totalUsers || 0, // Можно добавить фильтр активных
+            pendingOrders: statsData.pendingOrders || 0,
+            lowStockProducts: statsData.lowStockProducts || 0,
+          };
+          setStats(fetchedStats);
         } else {
           // Fallback stats from individual APIs
           const [usersRes, ordersRes, productsRes] = await Promise.allSettled([
@@ -361,30 +398,85 @@ const useDashboard = () => {
                   0) < 10,
             ).length,
           });
+          fetchedStats = {
+            totalProducts: products.length,
+            totalUsers: users.length,
+            totalOrders: orders.length,
+            totalRevenue: orders.reduce(
+              (sum: number, o: unknown) =>
+                sum + ((o as { total?: number }).total || 0),
+              0,
+            ),
+            productsChange: 0,
+            usersChange:
+              yesterdayUsers > 0
+                ? ((todayUsers - yesterdayUsers) / yesterdayUsers) * 100
+                : 0,
+            ordersChange:
+              yesterdayOrders > 0
+                ? ((todayOrders - yesterdayOrders) / yesterdayOrders) * 100
+                : 0,
+            revenueChange:
+              yesterdayRevenue > 0
+                ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
+                : 0,
+            activeUsers: users.filter(
+              (u: unknown) => (u as { status: string }).status === "active",
+            ).length,
+            pendingOrders: orders.filter(
+              (o: unknown) => (o as { status: string }).status === "pending",
+            ).length,
+            lowStockProducts: products.filter(
+              (p: unknown) =>
+                ((p as { inventory_quantity?: number }).inventory_quantity ||
+                  0) < 10,
+            ).length,
+          };
         }
 
         // Fetch recent activity
         const activityResponse = await fetch("/api/admin/dashboard/activity");
         if (activityResponse.ok) {
           const activityData = await activityResponse.json();
-          setRecentActivity(activityData);
+          // API возвращает объект с activities, преобразуем в формат компонента
+          const activities = activityData.activities || [];
+          fetchedActivity = activities.map((act: any) => ({
+            id: act.id,
+            type: act.type || "system",
+            title: act.title || "",
+            description: act.description || "",
+            time: act.timestamp || act.time || new Date().toISOString(),
+            status: act.status === "created" ? "success" : 
+                   act.status === "error" ? "error" :
+                   act.status === "warning" ? "warning" : "info",
+          }));
+          setRecentActivity(fetchedActivity);
         }
 
         // Fetch top products
         const topProductsResponse = await fetch(
           "/api/admin/dashboard/top-products",
         );
-        let topProductsData: TopProduct[] = [];
         if (topProductsResponse.ok) {
-          topProductsData = await topProductsResponse.json();
-          setTopProducts(topProductsData);
+          const topProductsData = await topProductsResponse.json();
+          // API возвращает объект с products, преобразуем в формат компонента
+          const products = topProductsData.products || [];
+          fetchedTopProducts = products.map((p: any) => ({
+            id: p.id || p.productId || "",
+            name: p.name || p.productName || "",
+            sales: p.totalQuantity || p.quantity || 0,
+            revenue: p.totalRevenue || p.revenue || 0,
+            change: p.change || 0,
+            category: p.category || p.categoryName,
+          }));
+          setTopProducts(fetchedTopProducts);
         }
 
-        // Update cache
+        // Update cache with fresh data
         cacheRef.current = {
-          stats,
-          recentActivity,
-          topProducts: topProductsData,
+          stats: fetchedStats,
+          recentActivity: fetchedActivity,
+          topProducts: fetchedTopProducts,
           timestamp: now,
         };
       } catch (err) {
@@ -536,6 +628,12 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left Column */}
         <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
+          {/* Revenue Chart */}
+          <RevenueChart days={30} />
+
+          {/* Orders Chart */}
+          <OrdersChart days={30} />
+
           {/* Quick Actions */}
           <Card>
             <CardHeader>

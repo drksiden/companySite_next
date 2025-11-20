@@ -40,17 +40,46 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import Image from "next/image";
+import { toast } from "sonner";
 
 // Zod schema для формы новости
 const newsSchema = z.object({
   id: z.string().optional(),
-  title: z.string().min(1, "Заголовок обязателен"),
-  description: z.string().min(1, "Краткое описание обязательно"),
-  content: z.string().optional(),
-  date: z.string().min(1, "Дата обязательна"),
-  category: z.string().min(1, "Категория обязательна"),
-  author: z.string().optional(),
+  title: z
+    .string()
+    .min(1, "Заголовок обязателен")
+    .max(200, { message: "Заголовок не должен превышать 200 символов." }),
+  description: z
+    .string()
+    .min(1, "Краткое описание обязательно")
+    .max(500, { message: "Краткое описание не должно превышать 500 символов." }),
+  content: z
+    .string()
+    .max(50000, { message: "Содержание не должно превышать 50000 символов." })
+    .optional(),
+  date: z
+    .string()
+    .min(1, "Дата обязательна")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Дата должна быть в формате YYYY-MM-DD." }),
+  category: z
+    .string()
+    .min(1, "Категория обязательна")
+    .max(100, { message: "Категория не должна превышать 100 символов." }),
+  author: z
+    .string()
+    .max(100, { message: "Имя автора не должно превышать 100 символов." })
+    .optional(),
   is_active: z.boolean(),
+  images: z
+    .array(z.string().url({ message: "Некорректный URL изображения." }))
+    .max(10, { message: "Максимум 10 изображений." })
+    .optional()
+    .nullable(),
+  tags: z
+    .array(z.string().max(50, { message: "Тег не должен превышать 50 символов." }))
+    .max(20, { message: "Максимум 20 тегов." })
+    .optional()
+    .nullable(),
 });
 
 export type NewsFormData = {
@@ -128,10 +157,49 @@ export function NewsFormNew({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const imageFiles = files.filter((file) =>
-      file.type.startsWith("image/")
-    );
-    setImageFiles((prev) => [...prev, ...imageFiles]);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    // Валидация размера файлов (максимум 5MB на файл)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    imageFiles.forEach((file) => {
+      if (file.size > maxSize) {
+        errors.push(`Файл "${file.name}" слишком большой (максимум 5MB)`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    // Проверяем общее количество изображений
+    const totalImages = existingImages.length + imageFiles.length + validFiles.length;
+    if (totalImages > 10) {
+      errors.push(`Максимум 10 изображений. Сейчас: ${totalImages}`);
+      // Ограничиваем количество добавляемых файлов
+      const allowedCount = 10 - existingImages.length - imageFiles.length;
+      if (allowedCount > 0) {
+        validFiles.splice(allowedCount);
+      } else {
+        validFiles.length = 0;
+      }
+    }
+
+    if (errors.length > 0) {
+      toast.error(errors.join(", "));
+    }
+
+    if (validFiles.length > 0) {
+      setImageFiles((prev) => {
+        const total = prev.length + validFiles.length + existingImages.length;
+        if (total > 10) {
+          toast.error("Максимум 10 изображений. Некоторые файлы не были добавлены.");
+          return prev;
+        }
+        return [...prev, ...validFiles];
+      });
+    }
+
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }

@@ -39,35 +39,95 @@ export const CLIENT_TYPES = ['individual', 'legal_entity'] as const;
 
 // --- Zod Схемы ---
 
+// Валидация телефона (поддержка различных форматов)
+const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+
+// Валидация пароля (минимум 8 символов, хотя бы одна буква и одна цифра)
+const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
+
 const BaseUserSchema = z.object({
-  email: z.string().email({ message: 'Некорректный email.' }).optional(),
-  first_name: z.string().max(100).nullable().optional(),
-  last_name: z.string().max(100).nullable().optional(),
-  phone: z.string().max(20).nullable().optional(),
-  avatar_url: z.string().url({ message: 'Некорректный URL аватара.' }).nullable().optional(),
+  email: z
+    .string()
+    .email({ message: 'Некорректный email адрес.' })
+    .max(255, { message: 'Email не должен превышать 255 символов.' })
+    .optional(),
+  first_name: z
+    .string()
+    .max(100, { message: 'Имя не должно превышать 100 символов.' })
+    .nullable()
+    .optional(),
+  last_name: z
+    .string()
+    .max(100, { message: 'Фамилия не должна превышать 100 символов.' })
+    .nullable()
+    .optional(),
+  phone: z
+    .string()
+    .max(20, { message: 'Телефон не должен превышать 20 символов.' })
+    .regex(phoneRegex, { message: 'Некорректный формат телефона.' })
+    .nullable()
+    .optional()
+    .or(z.literal('')),
+  avatar_url: z
+    .string()
+    .url({ message: 'Некорректный URL аватара.' })
+    .max(500, { message: 'URL не должен превышать 500 символов.' })
+    .nullable()
+    .optional()
+    .or(z.literal('')),
   role: z.enum(USER_ROLES, { message: 'Некорректная роль.' }).default('customer'),
   is_active: z.boolean().default(true),
   client_type: z.enum(CLIENT_TYPES, { message: 'Некорректный тип клиента.' }).default('individual'),
-  company_id: z.string().uuid({ message: 'Некорректный ID компании.' }).nullable().optional(),
-  position: z.string().max(100).nullable().optional(),
+  company_id: z
+    .string()
+    .uuid({ message: 'Некорректный ID компании.' })
+    .nullable()
+    .optional()
+    .or(z.literal('')),
+  position: z
+    .string()
+    .max(100, { message: 'Должность не должна превышать 100 символов.' })
+    .nullable()
+    .optional(),
 });
 
 export const userCreateSchema = BaseUserSchema.extend({
-  email: z.string().email({ message: 'Email обязателен.' }),
-  password: z.string().min(6, { message: 'Пароль должен быть не менее 6 символов.' }),
-  first_name: z.string().max(100).nullable(),
+  email: z
+    .string()
+    .min(1, { message: 'Email обязателен для заполнения.' })
+    .email({ message: 'Некорректный email адрес.' })
+    .max(255, { message: 'Email не должен превышать 255 символов.' }),
+  password: z
+    .string()
+    .min(8, { message: 'Пароль должен быть не менее 8 символов.' })
+    .regex(passwordRegex, {
+      message: 'Пароль должен содержать минимум 8 символов, хотя бы одну букву и одну цифру.',
+    }),
+  first_name: z
+    .string()
+    .max(100, { message: 'Имя не должно превышать 100 символов.' })
+    .nullable(),
   role: z.enum(USER_ROLES, { message: 'Некорректная роль.' }),
   is_active: z.boolean(),
   client_type: z.enum(CLIENT_TYPES, { message: 'Некорректный тип клиента.' }),
 });
 
-export const userUpdateSchema = BaseUserSchema.partial();
+export const userUpdateSchema = BaseUserSchema.partial().extend({
+  password: z
+    .string()
+    .min(8, { message: 'Пароль должен быть не менее 8 символов.' })
+    .regex(passwordRegex, {
+      message: 'Пароль должен содержать минимум 8 символов, хотя бы одну букву и одну цифру.',
+    })
+    .optional()
+    .or(z.literal('')),
+});
 
 // --- Пропсы компонента UserForm ---
 interface UserFormProps {
   initialData?: UserProfile | null;
   companies: Company[];
-  onSuccess: () => void;
+  onSuccess: (newUser?: UserProfile, updatedUser?: UserProfile) => void;
   onClose: () => void;
 }
 
@@ -125,7 +185,11 @@ export const UserForm: React.FC<UserFormProps> = ({
           throw new Error(errorData.message || 'Ошибка при обновлении пользователя.');
         }
 
+        const updatedUser = await response.json();
         toast.success('Пользователь успешно обновлен.');
+        onSuccess(undefined, updatedUser);
+        onClose();
+        return;
       } else {
         // Logic for creating new user
         // Ensure that values corresponds to userCreateSchema when creating
@@ -157,10 +221,12 @@ export const UserForm: React.FC<UserFormProps> = ({
           throw new Error(errorData.message || 'Ошибка при создании пользователя.');
         }
 
+        const newUser = await response.json();
         toast.success('Пользователь успешно создан.');
+        onSuccess(newUser, undefined);
+        onClose();
+        return;
       }
-      onSuccess();
-      onClose();
     } catch (error: any) {
       toast.error(error.message || 'Произошла непредвиденная ошибка.');
     } finally {

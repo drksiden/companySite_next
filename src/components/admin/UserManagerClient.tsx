@@ -19,6 +19,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   PlusCircle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,6 +66,16 @@ import {
   DialogFooter,
 } from "@/components/ui/enhanced-dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -86,6 +97,8 @@ import {
   userCreateSchema,
   userUpdateSchema,
 } from "./UserForm";
+import { TableSkeleton } from "./TableSkeleton";
+import { ErrorDisplay } from "./ErrorDisplay";
 import z from "zod";
 
 type UserFormData =
@@ -117,6 +130,8 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterClientType, setFilterClientType] = useState<string>("all");
+  const [usersToDelete, setUsersToDelete] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // `isFormOpen` и `selectedUser` уже объявлены, нет нужды их дублировать
   // const [isFormOpen, setIsFormOpen] = useState(false);
@@ -205,16 +220,36 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
     setEditingUser(null);
   };
 
-  const handleFormSuccess = () => {
-    fetchUsers(); // Обновляем список пользователей
+  const handleFormSuccess = (newUser?: UserProfile, updatedUser?: UserProfile) => {
+    if (newUser) {
+      // Оптимистичное добавление нового пользователя
+      setUsers((prevUsers) => [newUser, ...prevUsers]);
+    } else if (updatedUser && editingUser) {
+      // Оптимистичное обновление пользователя
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+      );
+    } else {
+      // Если нет данных, обновляем через API
+      fetchUsers();
+    }
     // fetchCompanies(); // Если компании могут меняться через форму, их тоже нужно обновить
     handleCloseModal();
   };
 
-  const handleDeleteUsers = async (ids: string[]) => {
-    if (!confirm("Вы уверены, что хотите удалить выбранных пользователей?")) {
-      return;
-    }
+  const handleDeleteClick = (ids: string[]) => {
+    setUsersToDelete(ids);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUsers = async () => {
+    if (usersToDelete.length === 0) return;
+
+    // Оптимистичное удаление из UI
+    const deletedUsers = users.filter((u) => usersToDelete.includes(u.id));
+    setUsers((prevUsers) => prevUsers.filter((u) => !usersToDelete.includes(u.id)));
+    setRowSelection({}); // Очищаем выбор
+
     try {
       setLoading(true);
       const response = await fetch("/api/admin/users/batch", {
@@ -222,7 +257,7 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ ids: usersToDelete }),
       });
 
       if (!response.ok) {
@@ -233,25 +268,34 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
       }
 
       toast.success("Пользователи успешно удалены.");
-      setRowSelection({}); // Очищаем выбор
-      fetchUsers(); // Обновляем список
+      setDeleteDialogOpen(false);
+      setUsersToDelete([]);
+      // Данные уже обновлены оптимистично, но можно обновить для синхронизации
+      fetchUsers();
     } catch (err: any) {
+      // Откатываем удаление при ошибке
+      setUsers((prevUsers) => [...prevUsers, ...deletedUsers]);
+      
       toast.error(
         err.message || "Произошла непредвиденная ошибка при удалении.",
       );
+      setDeleteDialogOpen(false);
+      setUsersToDelete([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeactivateUsers = async (ids: string[], is_active: boolean) => {
-    if (
-      !confirm(
-        `Вы уверены, что хотите ${is_active ? "активировать" : "деактивировать"} выбранных пользователей?`,
+    // Оптимистичное обновление UI
+    const previousUsers = [...users];
+    setUsers((prevUsers) =>
+      prevUsers.map((u) =>
+        ids.includes(u.id) ? { ...u, is_active } : u
       )
-    ) {
-      return;
-    }
+    );
+    setRowSelection({}); // Очищаем выбор
+
     try {
       setLoading(true);
       const response = await fetch("/api/admin/users/batch", {
@@ -273,9 +317,12 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
       toast.success(
         `Пользователи успешно ${is_active ? "активированы" : "деактивированы"}.`,
       );
-      setRowSelection({}); // Очищаем выбор
-      fetchUsers(); // Обновляем список
+      // Данные уже обновлены оптимистично, но можно обновить для синхронизации
+      fetchUsers();
     } catch (err: any) {
+      // Откатываем изменения при ошибке
+      setUsers(previousUsers);
+      
       toast.error(
         err.message || "Произошла непредвиденная ошибка при изменении статуса.",
       );
@@ -566,7 +613,7 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
                     </DropdownMenuSubContent>
                   </DropdownMenuPortal>
                 </DropdownMenuSub>
-                <DropdownMenuItem onClick={() => handleDeleteUsers([user.id])}>
+                <DropdownMenuItem onClick={() => handleDeleteClick([user.id])}>
                   Удалить
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -609,16 +656,41 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedUserIds = selectedRows.map((row) => row.original.id);
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
-      <div className="p-4 text-center">
-        Загрузка данных пользователей и компаний...
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Пользователи</CardTitle>
+          <CardDescription>
+            Управление пользователями, их ролями и доступом.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TableSkeleton rows={5} columns={6} showActions />
+        </CardContent>
+      </Card>
     );
   }
 
-  if (error) {
-    return <div className="p-4 text-center text-red-500">Ошибка: {error}</div>;
+  if (error && users.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Пользователи</CardTitle>
+          <CardDescription>
+            Управление пользователями, их ролями и доступом.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ErrorDisplay
+            title="Ошибка загрузки пользователей"
+            message={error}
+            onRetry={fetchUsers}
+            variant="card"
+          />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -744,12 +816,40 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
         </div>
       </CardContent>
       <CardFooter>
-        <div className="flex items-center justify-between w-full">
+        <div className="flex items-center justify-between w-full flex-wrap gap-4">
           <div className="flex-1 text-sm text-muted-foreground">
             {table.getFilteredSelectedRowModel().rows.length} из{" "}
             {table.getFilteredRowModel().rows.length} строк(а) выбрано.
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap">
+            {selectedUserIds.length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeactivateUsers(selectedUserIds, true)}
+                  disabled={loading}
+                >
+                  Активировать
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeactivateUsers(selectedUserIds, false)}
+                  disabled={loading}
+                >
+                  Деактивировать
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteClick(selectedUserIds)}
+                  disabled={loading}
+                >
+                  Удалить выбранных
+                </Button>
+              </>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -769,6 +869,37 @@ export const UserManagerClient: React.FC<UserManagerClientProps> = ({
           </div>
         </div>
       </CardFooter>
+
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить пользователей?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить {usersToDelete.length}{" "}
+              {usersToDelete.length === 1 ? "пользователя" : "пользователей"}? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUsersToDelete([])}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUsers}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                "Удалить"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

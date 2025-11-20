@@ -100,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <meta name="apple-mobile-web-app-title" content="Азия NTB" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=no" />
@@ -110,9 +111,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <OrganizationJsonLd />
         {/* RSS Feed */}
         <link rel="alternate" type="application/rss+xml" title={`${COMPANY_NAME_SHORT} - Новости`} href="/news/rss.xml" />
-        {/* Preconnect to external domains */}
+        {/* Preconnect to external domains for faster image loading */}
         <link rel="preconnect" href="https://r2.asia-ntb.kz" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://r2.asia-ntb.kz" />
+        <link rel="preconnect" href="https://pub-1506276de6ac4a07aa6fe582457507c1.r2.dev" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://pub-1506276de6ac4a07aa6fe582457507c1.r2.dev" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Prefetch important pages */}

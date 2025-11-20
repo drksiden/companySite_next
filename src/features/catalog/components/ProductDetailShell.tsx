@@ -105,21 +105,38 @@ export default function ProductDetailShell({
   }, [product.id, product.name, product.slug, finalPrice, product.brands?.name, product.categories?.name, product.currencies?.code, product.sku, product.thumbnail, product.images]);
 
   const handleAddToCart = () => {
-    // TODO: Implement add to cart functionality
-    console.log(`Added ${quantity} of ${product.name} to cart`);
+    if (!isInStock) {
+      toast.error("Товар отсутствует в наличии");
+      return;
+    }
     
-    // Отслеживание добавления в корзину для ecommerce
-    if (product && product.id) {
-      trackAddToCart({
-        id: product.id,
-        name: product.name,
-        brand: product.brands?.name,
-        category: product.categories?.name,
-        price: finalPrice / 100,
-        quantity: quantity,
-        currency: product.currencies?.code || "KZT",
-        sku: product.sku,
-      });
+    if (typeof window !== 'undefined') {
+      const cart = JSON.parse(localStorage.getItem('catalog-cart') || '{}');
+      const currentQty = cart[product.id] || 0;
+      cart[product.id] = currentQty + quantity;
+      localStorage.setItem('catalog-cart', JSON.stringify(cart));
+      
+      // Отправляем кастомное событие для обновления счетчика в Header
+      const newCount = Object.values(cart).reduce((sum: number, qty: any) => sum + qty, 0);
+      window.dispatchEvent(new CustomEvent('cart-updated', { 
+        detail: { count: newCount } 
+      }));
+      
+      toast.success(`Товар добавлен в корзину (${quantity} шт.)`);
+      
+      // Отслеживание добавления в корзину для ecommerce
+      if (product && product.id) {
+        trackAddToCart({
+          id: product.id,
+          name: product.name,
+          brand: product.brands?.name,
+          category: product.categories?.name,
+          price: finalPrice / 100,
+          quantity: quantity,
+          currency: product.currencies?.code || "KZT",
+          sku: product.sku,
+        });
+      }
     }
   };
 
@@ -285,6 +302,63 @@ export default function ProductDetailShell({
               </p>
             </div>
           )}
+
+          {/* Quantity and Add to Cart */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="quantity" className="text-sm font-medium">
+                Количество:
+              </label>
+              <div className="flex items-center border rounded-md">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  aria-label="Уменьшить количество"
+                >
+                  <span className="text-lg">−</span>
+                </Button>
+                <input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  max={product.inventory_quantity || 999}
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    const max = product.inventory_quantity || 999;
+                    setQuantity(Math.max(1, Math.min(val, max)));
+                  }}
+                  className="w-16 text-center border-0 focus:ring-0 focus:outline-none text-sm font-medium"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => {
+                    const max = product.inventory_quantity || 999;
+                    setQuantity(Math.min(max, quantity + 1));
+                  }}
+                  disabled={product.inventory_quantity ? quantity >= product.inventory_quantity : false}
+                  aria-label="Увеличить количество"
+                >
+                  <span className="text-lg">+</span>
+                </Button>
+              </div>
+            </div>
+            
+            <Button
+              onClick={handleAddToCart}
+              disabled={!isInStock}
+              className="flex-1 sm:flex-initial sm:min-w-[200px]"
+              size="lg"
+            >
+              <ShoppingCart className="h-5 w-5 mr-2" />
+              {isInStock ? "В корзину" : "Нет в наличии"}
+            </Button>
+          </div>
 
           {/* Additional Information */}
           {(product as any).technical_description && (

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -204,121 +206,164 @@ const getPaymentStatusLabel = (status: OrderDetails["paymentStatus"]) => {
   }
 };
 
+// Fetch order details
+async function fetchOrderDetails(orderId: string): Promise<OrderDetails> {
+  const response = await fetch(`/api/admin/orders/${orderId}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to fetch order");
+  }
+  const result = await response.json();
+  const order = result.order;
+
+  // Transform to OrderDetails format
+  const shippingAddress = typeof order.shipping_address === 'string' 
+    ? JSON.parse(order.shipping_address || '{}')
+    : order.shipping_address || {};
+
+  return {
+    id: order.id,
+    orderNumber: order.order_number,
+    status: order.status,
+    paymentStatus: order.payment_status,
+    paymentMethod: order.payment_method || "Не указан",
+    createdAt: order.created_at,
+    updatedAt: order.updated_at || order.created_at,
+    customer: {
+      id: order.user_id || "",
+      name: order.customer_name || "Не указано",
+      email: order.customer_email || "Не указано",
+      phone: order.customer_phone || "Не указано",
+    },
+    shippingAddress: {
+      street: shippingAddress.street || shippingAddress.address || "",
+      city: shippingAddress.city || "",
+      postalCode: shippingAddress.postal_code || shippingAddress.postalCode || "",
+      country: shippingAddress.country || "Казахстан",
+    },
+    items: order.items || [],
+    subtotal: order.subtotal || order.total || 0,
+    shippingCost: order.shipping_cost || 0,
+    tax: order.tax || 0,
+    total: order.total || 0,
+    notes: order.notes || "",
+    trackingNumber: order.tracking_number || "",
+  };
+}
+
+// Update order status
+async function updateOrderStatus(
+  orderId: string,
+  status: OrderDetails["status"],
+): Promise<OrderDetails> {
+  const response = await fetch("/api/admin/orders", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: orderId, status }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to update order status");
+  }
+
+  const result = await response.json();
+  // Refetch order details after update
+  return fetchOrderDetails(orderId);
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const orderId = params.id as string;
 
-  const [order, setOrder] = useState<OrderDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const { data: order, isLoading: loading, error } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => fetchOrderDetails(orderId),
+    enabled: !!orderId,
+  });
 
-  // Моковые данные заказа
-  useEffect(() => {
-    const fetchOrder = async () => {
-      setLoading(true);
-      try {
-        // Симуляция загрузки данных
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+  const updateStatusMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderDetails["status"] }) =>
+      updateOrderStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["order", id] });
 
-        const mockOrder: OrderDetails = {
-          id: orderId,
-          orderNumber: "ORD-2024-001",
-          status: "processing",
-          paymentStatus: "paid",
-          paymentMethod: "Банковская карта",
-          createdAt: "2024-01-15T10:30:00Z",
-          updatedAt: "2024-01-15T14:20:00Z",
-          customer: {
-            id: "1",
-            name: "Иван Петров",
-            email: "ivan@example.com",
-            phone: "+7 777 123 4567",
-          },
-          shippingAddress: {
-            street: "ул. Абая 150, кв. 25",
-            city: "Алматы",
-            postalCode: "050000",
-            country: "Казахстан",
-          },
-          items: [
-            {
-              id: "1",
-              productId: "p1",
-              productName: "iPhone 15 Pro 256GB",
-              quantity: 1,
-              price: 450000,
-              total: 450000,
-            },
-            {
-              id: "2",
-              productId: "p2",
-              productName: "AirPods Pro (2nd generation)",
-              quantity: 2,
-              price: 125000,
-              total: 250000,
-            },
-          ],
-          subtotal: 700000,
-          shippingCost: 5000,
-          tax: 0,
-          total: 705000,
-          notes: "Доставить до 18:00",
-          trackingNumber: "TR123456789KZ",
-        };
+      // Snapshot previous value
+      const previousOrder = queryClient.getQueryData<OrderDetails>(["order", id]);
 
-        setOrder(mockOrder);
-      } catch (error) {
-        console.error("Error fetching order:", error);
-      } finally {
-        setLoading(false);
+      // Optimistically update cache
+      queryClient.setQueryData<OrderDetails>(["order", id], (old) =>
+        old ? { ...old, status } : old,
+      );
+
+      return { previousOrder };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousOrder) {
+        queryClient.setQueryData(["order", variables.id], context.previousOrder);
       }
-    };
-
-    fetchOrder();
-  }, [orderId]);
+    },
+    onSuccess: (data) => {
+      // Update cache with server data
+      queryClient.setQueryData(["order", orderId], data);
+      // Invalidate orders list
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
 
   const handleStatusUpdate = async (newStatus: OrderDetails["status"]) => {
     if (!order) return;
 
-    setUpdatingStatus(true);
     try {
-      // Здесь будет логика обновления статуса
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
+      await updateStatusMut.mutateAsync({ id: order.id, status: newStatus });
+      toast.success("Статус заказа обновлен");
     } catch (error) {
-      console.error("Error updating status:", error);
-    } finally {
-      setUpdatingStatus(false);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Ошибка при обновлении статуса",
+      );
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin" />
-          <span>Загрузка заказа...</span>
+      <ContentLayout title="Детали заказа">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="h-6 w-6 animate-spin" />
+            <span>Загрузка заказа...</span>
+          </div>
         </div>
-      </div>
+      </ContentLayout>
     );
   }
 
-  if (!order) {
+  if (error || !order) {
     return (
-      <div className="text-center py-8">
-        <h2 className="text-xl font-semibold mb-2">Заказ не найден</h2>
-        <p className="text-muted-foreground mb-4">
-          Заказ с ID {orderId} не существует или был удален
-        </p>
-        <Button asChild>
-          <Link href="/admin/orders">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Вернуться к заказам
-          </Link>
-        </Button>
-      </div>
+      <ContentLayout title="Детали заказа">
+        <div className="text-center py-8">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Заказ не найден</h2>
+          <p className="text-muted-foreground mb-4">
+            {error instanceof Error
+              ? error.message
+              : `Заказ с ID ${orderId} не существует или был удален`}
+          </p>
+          <Button asChild>
+            <Link href="/admin/orders">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Вернуться к заказам
+            </Link>
+          </Button>
+        </div>
+      </ContentLayout>
     );
   }
 
@@ -424,7 +469,7 @@ export default function OrderDetailPage() {
                   <Select
                     value={order.status}
                     onValueChange={handleStatusUpdate}
-                    disabled={updatingStatus}
+                    disabled={updateStatusMut.isPending}
                   >
                     <SelectTrigger className="w-48">
                       <SelectValue />
@@ -437,7 +482,7 @@ export default function OrderDetailPage() {
                       <SelectItem value="cancelled">Отменен</SelectItem>
                     </SelectContent>
                   </Select>
-                  {updatingStatus && (
+                  {updateStatusMut.isPending && (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   )}
                 </div>

@@ -41,7 +41,20 @@ import {
 import { toast } from "sonner";
 import { NewsFormNew } from "./NewsFormNew";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { TableSkeleton } from "./TableSkeleton";
+import { ErrorDisplay } from "./ErrorDisplay";
 
 interface NewsItem {
   id: string;
@@ -67,6 +80,7 @@ interface Filters {
 export function NewsManagerNew() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
@@ -76,10 +90,15 @@ export function NewsManagerNew() {
     is_active: "all",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [newsToDelete, setNewsToDelete] = useState<string | null>(null);
+  const [selectedNews, setSelectedNews] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   // Загрузка новостей
   const loadNews = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (filters.search) params.append("search", filters.search);
@@ -90,12 +109,17 @@ export function NewsManagerNew() {
       const response = await fetch(
         `/api/admin/news?${params.toString()}`
       );
-      if (!response.ok) throw new Error("Failed to load news");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to load news");
+      }
       const data = await response.json();
       setNews(data);
     } catch (error) {
       console.error("Error loading news:", error);
-      toast.error("Ошибка при загрузке новостей");
+      const errorMessage = error instanceof Error ? error.message : "Ошибка при загрузке новостей";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +141,25 @@ export function NewsManagerNew() {
 
   const handleCreateNews = async (data: globalThis.FormData) => {
     setIsSubmitting(true);
+    
+    // Создаем временный объект для оптимистичного обновления
+    const tempId = `temp-${Date.now()}`;
+    const tempNews: NewsItem = {
+      id: tempId,
+      title: data.get("title") as string || "",
+      description: data.get("description") as string || "",
+      content: data.get("content") as string || "",
+      date: data.get("date") as string || new Date().toISOString(),
+      category: data.get("category") as string || "",
+      author: data.get("author") as string || "",
+      is_active: data.get("is_active") === "true",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Оптимистичное добавление в UI
+    setNews((prevNews) => [tempNews, ...prevNews]);
+    
     try {
       const response = await fetch("/api/admin/news", {
         method: "POST",
@@ -130,12 +173,17 @@ export function NewsManagerNew() {
 
       const createdNews = await response.json();
       
-      // Добавляем новую новость в начало списка
-      setNews((prevNews) => [createdNews, ...prevNews]);
+      // Заменяем временную новость на реальную
+      setNews((prevNews) =>
+        prevNews.map((item) => (item.id === tempId ? createdNews : item))
+      );
       
       toast.success("Новость успешно создана");
       handleCloseDialog();
     } catch (error) {
+      // Откатываем оптимистичное обновление при ошибке
+      setNews((prevNews) => prevNews.filter((item) => item.id !== tempId));
+      
       console.error("Error creating news:", error);
       toast.error(
         error instanceof Error ? error.message : "Ошибка при создании новости"
@@ -148,6 +196,29 @@ export function NewsManagerNew() {
   const handleUpdateNews = async (data: globalThis.FormData) => {
     if (!editingNews?.id) return;
     setIsSubmitting(true);
+    
+    // Сохраняем оригинальную новость для отката
+    const originalNews = editingNews;
+    
+    // Оптимистичное обновление UI
+    const optimisticNews: NewsItem = {
+      ...editingNews,
+      title: data.get("title") as string || editingNews.title,
+      description: data.get("description") as string || editingNews.description,
+      content: data.get("content") as string || editingNews.content,
+      date: data.get("date") as string || editingNews.date,
+      category: data.get("category") as string || editingNews.category,
+      author: data.get("author") as string || editingNews.author,
+      is_active: data.get("is_active") === "true",
+      updated_at: new Date().toISOString(),
+    };
+    
+    setNews((prevNews) =>
+      prevNews.map((item) =>
+        item.id === editingNews.id ? optimisticNews : item
+      )
+    );
+    
     try {
       const response = await fetch(`/api/admin/news/${editingNews.id}`, {
         method: "PUT",
@@ -161,7 +232,7 @@ export function NewsManagerNew() {
 
       const updatedNews = await response.json();
       
-      // Обновляем новость в списке
+      // Обновляем новость в списке с данными с сервера
       setNews((prevNews) =>
         prevNews.map((item) =>
           item.id === updatedNews.id ? updatedNews : item
@@ -171,6 +242,13 @@ export function NewsManagerNew() {
       toast.success("Новость успешно обновлена");
       handleCloseDialog();
     } catch (error) {
+      // Откатываем оптимистичное обновление при ошибке
+      setNews((prevNews) =>
+        prevNews.map((item) =>
+          item.id === originalNews.id ? originalNews : item
+        )
+      );
+      
       console.error("Error updating news:", error);
       toast.error(
         error instanceof Error ? error.message : "Ошибка при обновлении новости"
@@ -180,15 +258,25 @@ export function NewsManagerNew() {
     }
   };
 
-  const handleDeleteNews = async (id: string) => {
-    if (!confirm("Вы уверены, что хотите удалить эту новость?")) return;
+  const handleDeleteClick = (id: string) => {
+    setNewsToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteNews = async () => {
+    if (!newsToDelete) return;
 
     // Оптимистичное удаление из UI
-    const deletedNews = news.find((item) => item.id === id);
-    setNews((prevNews) => prevNews.filter((item) => item.id !== id));
+    const deletedNews = news.find((item) => item.id === newsToDelete);
+    setNews((prevNews) => prevNews.filter((item) => item.id !== newsToDelete));
+    setSelectedNews((prev) => {
+      const next = new Set(prev);
+      next.delete(newsToDelete);
+      return next;
+    });
 
     try {
-      const response = await fetch(`/api/admin/news/${id}`, {
+      const response = await fetch(`/api/admin/news/${newsToDelete}`, {
         method: "DELETE",
       });
 
@@ -197,6 +285,8 @@ export function NewsManagerNew() {
       }
 
       toast.success("Новость удалена");
+      setDeleteDialogOpen(false);
+      setNewsToDelete(null);
     } catch (error) {
       // Откатываем удаление при ошибке
       if (deletedNews) {
@@ -205,8 +295,84 @@ export function NewsManagerNew() {
       
       console.error("Error deleting news:", error);
       toast.error("Ошибка при удалении новости");
+      setDeleteDialogOpen(false);
+      setNewsToDelete(null);
     }
   };
+
+  // Функции для работы с выделением
+  const handleSelectNews = (newsId: string, checked: boolean) => {
+    setSelectedNews((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(newsId);
+      } else {
+        next.delete(newsId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedNews(new Set(news.map((n) => n.id)));
+    } else {
+      setSelectedNews(new Set());
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedNews.size === 0) return;
+
+    const newsIds = Array.from(selectedNews);
+    const deletedNewsItems = news.filter((item) => newsIds.includes(item.id));
+    
+    // Оптимистичное удаление из UI
+    setNews((prevNews) => prevNews.filter((item) => !newsIds.includes(item.id)));
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const newsId of newsIds) {
+        try {
+          const response = await fetch(`/api/admin/news/${newsId}`, {
+            method: "DELETE",
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to delete news");
+          }
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Error deleting news ${newsId}:`, error);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Успешно удалено новостей: ${successCount}`);
+      }
+      if (errorCount > 0) {
+        // Откатываем удаление при ошибке
+        setNews((prevNews) => [...prevNews, ...deletedNewsItems.filter((item) => {
+          const index = newsIds.indexOf(item.id);
+          return index >= successCount;
+        })]);
+        toast.error(`Ошибок при удалении: ${errorCount}`);
+      }
+
+      setBulkDeleteDialogOpen(false);
+      setSelectedNews(new Set());
+    } catch (error) {
+      // Откатываем удаление при ошибке
+      setNews((prevNews) => [...prevNews, ...deletedNewsItems]);
+      console.error("Error in bulk delete:", error);
+      toast.error("Ошибка при массовом удалении новостей");
+    }
+  };
+
+  const isAllSelected = news.length > 0 && selectedNews.size === news.length;
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     // Оптимистичное обновление UI
@@ -438,17 +604,50 @@ export function NewsManagerNew() {
 
       {/* Таблица новостей */}
       <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Список новостей</CardTitle>
-          <CardDescription>
-            Всего найдено: {filteredNews.length}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div className="flex-1">
+            <CardTitle>Список новостей</CardTitle>
+            <CardDescription>
+              Всего найдено: {filteredNews.length}
+              {selectedNews.size > 0 && (
+                <span className="ml-2 text-primary font-semibold">
+                  (Выбрано: {selectedNews.size})
+                </span>
+              )}
+            </CardDescription>
+          </div>
+          {selectedNews.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              disabled={isSubmitting}
+              className="transition-all duration-200"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Удалить ({selectedNews.size})
+                </>
+              )}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton rows={5} columns={6} showImage showActions />
+          ) : error ? (
+            <ErrorDisplay
+              title="Ошибка загрузки новостей"
+              message={error}
+              onRetry={() => loadNews()}
+              variant="card"
+            />
           ) : filteredNews.length === 0 ? (
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -461,6 +660,14 @@ export function NewsManagerNew() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                        aria-label="Выбрать все"
+                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    </TableHead>
                     <TableHead className="w-[50px]">Изображение</TableHead>
                     <TableHead className="w-[300px] max-w-[300px]">Заголовок</TableHead>
                     <TableHead className="w-[150px]">Категория</TableHead>
@@ -472,7 +679,20 @@ export function NewsManagerNew() {
                 </TableHeader>
                 <TableBody>
                   {filteredNews.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow
+                      key={item.id}
+                      className={selectedNews.has(item.id) ? "bg-muted/50" : ""}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedNews.has(item.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectNews(item.id, checked === true)
+                          }
+                          aria-label={`Выбрать ${item.title}`}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                      </TableCell>
                       <TableCell>
                         {item.images && item.images.length > 0 ? (
                           <div className="relative w-16 h-16 rounded-md overflow-hidden">
@@ -543,7 +763,7 @@ export function NewsManagerNew() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteNews(item.id)}
+                            onClick={() => handleDeleteClick(item.id)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -557,6 +777,66 @@ export function NewsManagerNew() {
           )}
         </CardContent>
       </Card>
+
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить новость?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить эту новость? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setNewsToDelete(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteNews}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                "Удалить"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert Dialog for Bulk Delete Confirmation */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить выбранные новости?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить {selectedNews.size} новость(ей)? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkDeleteDialogOpen(false)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                `Удалить (${selectedNews.size})`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

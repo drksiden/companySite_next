@@ -48,6 +48,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { supabase } from "@/lib/supabaseClient";
 import { SearchCombobox } from "./search/SearchCombobox";
 import { WishlistDropdown } from "./wishlist/WishlistDropdown";
+import { CartDropdown } from "./cart/CartDropdown";
 
 const navItems = [
   { href: "/catalog", label: "Каталог" },
@@ -93,6 +94,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
 
   // Отслеживаем изменения избранного
@@ -123,6 +125,39 @@ export function Header() {
     
     return () => {
       window.removeEventListener('wishlist-updated', handleWishlistUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Отслеживаем изменения корзины
+  useEffect(() => {
+    const updateCartCount = () => {
+      if (typeof window !== 'undefined') {
+        const cart = JSON.parse(localStorage.getItem('catalog-cart') || '{}');
+        const count = Object.values(cart).reduce((sum: number, qty: any) => sum + qty, 0);
+        setCartCount(count);
+      }
+    };
+
+    updateCartCount();
+    
+    // Слушаем кастомное событие обновления корзины
+    const handleCartUpdate = () => {
+      updateCartCount();
+    };
+    
+    // Слушаем изменения localStorage (для других вкладок)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'catalog-cart') {
+        updateCartCount();
+      }
+    };
+    
+    window.addEventListener('cart-updated', handleCartUpdate);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('cart-updated', handleCartUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
@@ -326,24 +361,24 @@ export function Header() {
     >
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          <Link href="/" className="flex items-center shrink-0">
+          <Link href="/" className="flex items-center shrink-0 max-w-[140px] sm:max-w-[180px]">
             <Image
               src="/images/logos/asia-ntb/Asia-NTB-logo-eng-light.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="block dark:hidden h-10 w-auto"
-              style={{ width: "auto", height: "40px" }}
+              className="block dark:hidden h-8 sm:h-10 w-auto object-contain"
               priority
+              unoptimized
             />
             <Image
               src="/images/logos/asia-ntb/Asia-NTB-logo-eng-dark.svg"
               alt={COMPANY_NAME_SHORT}
               width={140}
               height={40}
-              className="hidden dark:block h-10 w-auto"
-              style={{ width: "auto", height: "40px" }}
+              className="hidden dark:block h-8 sm:h-10 w-auto object-contain"
               priority
+              unoptimized
             />
           </Link>
 
@@ -405,6 +440,9 @@ export function Header() {
             
             {/* Wishlist Dropdown */}
             <WishlistDropdown wishlistCount={wishlistCount} />
+            
+            {/* Cart Dropdown */}
+            <CartDropdown cartCount={cartCount} />
             
             <Button
               variant="ghost"

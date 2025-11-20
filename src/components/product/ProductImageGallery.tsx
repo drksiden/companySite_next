@@ -217,17 +217,22 @@ export function ProductImageGallery({
                     src={image}
                     alt={`${productName} - изображение ${index + 1}`}
                     fill
-                    // Оставлено sm:object-cover для страницы товара, если нужно. 
-                    // Для новости можно оставить object-contain.
-                    className="object-contain  transition-transform duration-300 hover:scale-105 cursor-zoom-in" 
-                    // Sizes обновлены для учета полной ширины на больших экранах
-                    sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 100vw"
+                    className="object-contain transition-transform duration-300 hover:scale-105 cursor-zoom-in" 
+                    sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 800px"
+                    quality={85}
                     priority={index === 0}
+                    loading={index === 0 ? undefined : "lazy"}
+                    placeholder={index === 0 ? "blur" : "empty"}
+                    blurDataURL={index === 0 ? "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjgwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjgwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg==" : undefined}
                     onClick={() => {
                       setSelectedImage(index);
                       setIsFullscreen(true);
                     }}
-                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
+                    unoptimized={
+                      image === "/images/placeholder-product.svg" ||
+                      image.includes("r2.asia-ntb.kz") ||
+                      image.includes("r2.dev")
+                    }
                   />
                 </div>
               </CarouselItem>
@@ -284,7 +289,13 @@ export function ProductImageGallery({
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 56px, 80px"
-                    unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
+                    quality={70}
+                    loading="lazy"
+                    unoptimized={
+                      image === "/images/placeholder-product.svg" ||
+                      image.includes("r2.asia-ntb.kz") ||
+                      image.includes("r2.dev")
+                    }
                   />
                 </button>
               </CarouselItem>
@@ -341,9 +352,11 @@ export function ProductImageGallery({
                   height={1200}
                   className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain select-none"
                   sizes="100vw"
+                  quality={90}
                   unoptimized={
-                    validImages[selectedImage]?.includes("r2.dev") ||
-                    validImages[selectedImage]?.includes("r2.asia-ntb.kz")
+                    validImages[selectedImage] === "/images/placeholder-product.svg" ||
+                    validImages[selectedImage]?.includes("r2.asia-ntb.kz") ||
+                    validImages[selectedImage]?.includes("r2.dev")
                   }
                   draggable={false}
                 />
@@ -454,7 +467,13 @@ export function ProductImageGallery({
                       fill
                       className="object-cover"
                       sizes="48px"
-                      unoptimized={image.includes("r2.dev") || image.includes("r2.asia-ntb.kz")}
+                      quality={70}
+                      loading="lazy"
+                      unoptimized={
+                      image === "/images/placeholder-product.svg" ||
+                      image.includes("r2.asia-ntb.kz") ||
+                      image.includes("r2.dev")
+                    }
                     />
                   </button>
                 ))}

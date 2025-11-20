@@ -70,6 +70,14 @@ function ImageGallery({ images, initialIndex = 0, productName }: ImageGalleryPro
           fill
           className="object-contain"
           sizes="(max-width: 768px) 100vw, 512px"
+          quality={85}
+          priority={currentIndex === 0}
+          loading={currentIndex === 0 ? undefined : "lazy"}
+          unoptimized={
+          currentImage.url === "/images/placeholder-product.svg" ||
+          currentImage.url.includes("r2.asia-ntb.kz") ||
+          currentImage.url.includes("r2.dev")
+        }
         />
 
         {/* Навигация */}
@@ -226,6 +234,13 @@ export function ProductImageDisplay({
         fill
         className="object-cover transition-transform duration-200 group-hover:scale-105"
         sizes={size === "sm" ? "40px" : size === "md" ? "48px" : "64px"}
+        quality={75}
+        loading="lazy"
+        unoptimized={
+          displayImage === "/images/placeholder-product.svg" ||
+          displayImage.includes("r2.asia-ntb.kz") ||
+          displayImage.includes("r2.dev")
+        }
       />
 
       {/* Overlay при наведении */}
@@ -323,6 +338,13 @@ export function ProductImageGrid({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 25vw, 100px"
+            quality={70}
+            loading="lazy"
+            unoptimized={
+              image.url === "/images/placeholder-product.svg" ||
+              image.url.includes("r2.asia-ntb.kz") ||
+              image.url.includes("r2.dev")
+            }
           />
           {image.is_primary && (
             <div className="absolute top-1 right-1">
