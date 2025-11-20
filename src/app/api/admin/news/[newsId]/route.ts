@@ -9,6 +9,15 @@ export async function GET(
     const { newsId } = await params;
     const supabase = await createServerClient();
 
+    // Check if user is authenticated and is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { data, error } = await supabase
       .from("news")
       .select("*")
@@ -43,6 +52,15 @@ export async function PUT(
   try {
     const { newsId } = await params;
     const supabase = await createServerClient();
+
+    // Check if user is authenticated and is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Проверяем, это JSON или FormData
     const contentType = req.headers.get("content-type");
@@ -122,6 +140,34 @@ export async function PUT(
     const author = formData.get("author") as string;
     const is_active = formData.get("is_active") === "true";
     const tagsStr = formData.get("tags") as string;
+
+    // Валидация обязательных полей
+    if (!title || !description || !date || !category) {
+      return NextResponse.json(
+        { error: "Заполните все обязательные поля" },
+        { status: 400 }
+      );
+    }
+
+    // Валидация длины полей
+    if (title.length > 200) {
+      return NextResponse.json(
+        { error: "Заголовок не должен превышать 200 символов" },
+        { status: 400 }
+      );
+    }
+    if (description.length > 500) {
+      return NextResponse.json(
+        { error: "Краткое описание не должно превышать 500 символов" },
+        { status: 400 }
+      );
+    }
+    if (content && content.length > 50000) {
+      return NextResponse.json(
+        { error: "Содержание не должно превышать 50000 символов" },
+        { status: 400 }
+      );
+    }
 
     // Парсим теги
     let tags: string[] = [];
@@ -298,6 +344,15 @@ export async function DELETE(
   try {
     const { newsId } = await params;
     const supabase = await createServerClient();
+
+    // Check if user is authenticated and is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { error } = await supabase.from("news").delete().eq("id", newsId);
 

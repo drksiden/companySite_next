@@ -16,20 +16,30 @@ export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: categoryService.createCategory,
-    onSuccess: () => {
-      // Инвалидация в фоне, не блокируя завершение мутации
-      // Используем refetchType: 'active' чтобы обновить только активные запросы
+    onMutate: async (newCategory) => {
+      // Отменяем исходящие запросы
+      await qc.cancelQueries({ queryKey: ["categories"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousCategories = qc.getQueryData<Category[]>(["categories"]);
+      
+      return { previousCategories };
+    },
+    onError: (err, newCategory, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousCategories) {
+        qc.setQueryData(["categories"], context.previousCategories);
+      }
+    },
+    onSuccess: (data) => {
+      // Оптимистично добавляем новую категорию в кэш
+      qc.setQueryData<Category[]>(["categories"], (old = []) => [data, ...old]);
+      
+      // Инвалидируем для синхронизации
       qc.invalidateQueries({ 
         queryKey: ["categories"],
         refetchType: 'active'
-      }).then(() => {
-        console.log("Categories cache invalidated after create");
-      }).catch((err) => {
-        console.error("Error invalidating cache:", err);
       });
-    },
-    onError: (error) => {
-      console.error("Error creating category:", error);
     },
   });
 }
@@ -39,20 +49,31 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: CategoryFormData }) =>
       categoryService.updateCategory(id, data),
-    onSuccess: () => {
-      // Инвалидация в фоне, не блокируя завершение мутации
-      // Используем refetchType: 'active' чтобы обновить только активные запросы
-      qc.invalidateQueries({ 
-        queryKey: ["categories"],
-        refetchType: 'active'
-      }).then(() => {
-        console.log("Categories cache invalidated after update");
-      }).catch((err) => {
-        console.error("Error invalidating cache:", err);
-      });
+    onMutate: async ({ id, data }) => {
+      // Отменяем исходящие запросы
+      await qc.cancelQueries({ queryKey: ["categories"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousCategories = qc.getQueryData<Category[]>(["categories"]);
+      
+      // Оптимистично обновляем кэш
+      qc.setQueryData<Category[]>(["categories"], (old = []) =>
+        old.map((cat) => (cat.id === id ? { ...cat, ...data } : cat))
+      );
+      
+      return { previousCategories };
     },
-    onError: (error) => {
-      console.error("Error updating category:", error);
+    onError: (err, variables, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousCategories) {
+        qc.setQueryData(["categories"], context.previousCategories);
+      }
+    },
+    onSuccess: (data) => {
+      // Обновляем кэш с реальными данными с сервера
+      qc.setQueryData<Category[]>(["categories"], (old = []) =>
+        old.map((cat) => (cat.id === data.id ? data : cat))
+      );
     },
   });
 }
@@ -61,7 +82,30 @@ export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: categoryService.deleteCategory,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onMutate: async (categoryId) => {
+      // Отменяем исходящие запросы
+      await qc.cancelQueries({ queryKey: ["categories"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousCategories = qc.getQueryData<Category[]>(["categories"]);
+      
+      // Оптимистично удаляем из кэша
+      qc.setQueryData<Category[]>(["categories"], (old = []) =>
+        old.filter((cat) => cat.id !== categoryId)
+      );
+      
+      return { previousCategories };
+    },
+    onError: (err, categoryId, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousCategories) {
+        qc.setQueryData(["categories"], context.previousCategories);
+      }
+    },
+    onSuccess: () => {
+      // Инвалидируем для синхронизации
+      qc.invalidateQueries({ queryKey: ["categories"] });
+    },
   });
 }
 
@@ -70,6 +114,31 @@ export function useToggleActiveCategory() {
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       categoryService.toggleActive(id, isActive),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onMutate: async ({ id, isActive }) => {
+      // Отменяем исходящие запросы
+      await qc.cancelQueries({ queryKey: ["categories"] });
+      
+      // Сохраняем предыдущее значение для отката
+      const previousCategories = qc.getQueryData<Category[]>(["categories"]);
+      
+      // Оптимистично обновляем статус
+      qc.setQueryData<Category[]>(["categories"], (old = []) =>
+        old.map((cat) => (cat.id === id ? { ...cat, is_active: isActive } : cat))
+      );
+      
+      return { previousCategories };
+    },
+    onError: (err, variables, context) => {
+      // Откатываем изменения при ошибке
+      if (context?.previousCategories) {
+        qc.setQueryData(["categories"], context.previousCategories);
+      }
+    },
+    onSuccess: (data) => {
+      // Обновляем кэш с реальными данными с сервера
+      qc.setQueryData<Category[]>(["categories"], (old = []) =>
+        old.map((cat) => (cat.id === data.id ? data : cat))
+      );
+    },
   });
 }

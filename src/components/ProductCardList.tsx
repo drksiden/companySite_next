@@ -85,11 +85,17 @@ function ProductCardList({ products }: ProductCardListProps) {
                           alt={productName || "Изображение товара"}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          className="object-contain p-4" // Changed to object-contain for better general use
-                          priority={false} // Adjust priority as needed, e.g., for first few items
-                          // Consider a more specific placeholder if possible
+                          className="object-contain p-4"
+                          quality={80}
+                          priority={false}
+                          loading="lazy"
                           placeholder="blur"
-                          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                          blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
+                          unoptimized={
+                            imageUrl === "/images/placeholder-product.svg" ||
+                            imageUrl.includes("r2.asia-ntb.kz") ||
+                            imageUrl.includes("r2.dev")
+                          }
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">

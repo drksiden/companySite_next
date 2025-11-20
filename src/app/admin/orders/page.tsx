@@ -21,7 +21,13 @@ import {
   Truck,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
-import { useOrders, Order } from "@/hooks/admin/useOrders";
+import { Order } from "@/hooks/admin/useOrders";
+import {
+  useOrdersQuery,
+  useOrderStatsQuery,
+  useUpdateOrderStatus,
+  useDeleteOrder,
+} from "@/lib/hooks/useOrdersQuery";
 
 import {
   Card,
@@ -39,6 +45,18 @@ import {
   DataTableRowActions,
   DataTableSkeleton,
 } from "@/components/ui/data-table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ErrorDisplay } from "@/components/admin/ErrorDisplay";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ContentLayout } from "@/components/admin-panel/content-layout";
 
@@ -177,16 +195,47 @@ StatCard.displayName = "StatCard";
 
 // Main component
 export default function OrdersPage() {
-  const {
-    orders,
-    stats,
-    isLoading,
-    error,
-    updateOrderStatus,
-    deleteOrder,
-    refetch,
-  } = useOrders();
+  const { data: orders = [], isLoading, error } = useOrdersQuery();
+  const { data: stats } = useOrderStatsQuery();
+  const updateOrderStatusMut = useUpdateOrderStatus();
+  const deleteOrderMut = useDeleteOrder();
+
   const [selectedOrders, setSelectedOrders] = useState<Order[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+
+  const updateOrderStatus = async (orderId: string, status: Order["status"]) => {
+    try {
+      await updateOrderStatusMut.mutateAsync({ id: orderId, status });
+      toast.success("Статус заказа обновлен");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Ошибка при обновлении статуса заказа",
+      );
+    }
+  };
+
+  const handleDeleteClick = (order: Order) => {
+    setOrderToDelete(order);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!orderToDelete) return;
+
+    try {
+      await deleteOrderMut.mutateAsync(orderToDelete.id);
+      toast.success("Заказ удален");
+      setDeleteDialogOpen(false);
+      setOrderToDelete(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Ошибка при удалении заказа",
+      );
+    }
+  };
 
   // Define columns for the data table
   const columns: ColumnDef<Order>[] = [
@@ -325,10 +374,8 @@ export default function OrdersPage() {
             },
             {
               label: "Удалить",
-              onClick: async (order) => {
-                if (confirm("Вы уверены, что хотите удалить этот заказ?")) {
-                  await deleteOrder(order.id);
-                }
+              onClick: (order) => {
+                handleDeleteClick(order);
               },
               icon: Trash2,
               variant: "destructive",
@@ -377,20 +424,14 @@ export default function OrdersPage() {
   // Show error state
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="text-center py-12">
-          <h2 className="text-lg font-semibold text-destructive">
-            Ошибка загрузки данных
-          </h2>
-          <p className="text-muted-foreground mt-2">{error}</p>
-          <button
-            onClick={refetch}
-            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            Попробовать снова
-          </button>
-        </div>
-      </div>
+      <ContentLayout title="Заказы">
+        <ErrorDisplay
+          title="Ошибка загрузки заказов"
+          message={error instanceof Error ? error.message : "Неизвестная ошибка"}
+          onRetry={() => window.location.reload()}
+          variant="card"
+        />
+      </ContentLayout>
     );
   }
 
@@ -493,6 +534,31 @@ export default function OrdersPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Заказ "{orderToDelete?.order_number}" будет
+              удален навсегда.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteOrderMut.isPending}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteOrderMut.isPending}
+            >
+              {deleteOrderMut.isPending ? "Удаление..." : "Удалить"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </ContentLayout>
   );

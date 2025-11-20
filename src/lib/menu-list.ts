@@ -16,7 +16,8 @@ import {
   Bell,
   Shield,
   Newspaper,
-  MessageSquare
+  MessageSquare,
+  Warehouse
 } from "lucide-react";
 
 type Submenu = {
@@ -93,6 +94,7 @@ export function getMenuList(pathname: string): Group[] {
       menus: [
 //        { label: "Заказы", href: "/admin/orders", icon: FileText },
         { label: "Новости", href: "/admin/news", icon: Newspaper },
+        { label: "Склад", href: "/admin/warehouse", icon: Warehouse },
         { label: "Запросы клиентов", href: "/admin/contact-requests", icon: MessageSquare },
         { label: "Пользователи", href: "/admin/users", icon: Users },
 //        { label: "Аналитика", href: "/admin/analytics", icon: BarChart3 },

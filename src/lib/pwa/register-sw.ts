@@ -10,7 +10,10 @@ export function registerServiceWorker() {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
-          console.log('[SW] Service Worker registered:', registration.scope);
+          // Логирование только в dev режиме
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[SW] Service Worker registered:', registration.scope);
+          }
           
           // Проверяем обновления каждые 60 секунд
           setInterval(() => {
@@ -18,7 +21,10 @@ export function registerServiceWorker() {
           }, 60000);
         })
         .catch((error) => {
-          console.error('[SW] Service Worker registration failed:', error);
+          // Логирование ошибок только в dev режиме
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[SW] Service Worker registration failed:', error);
+          }
         });
     });
   }

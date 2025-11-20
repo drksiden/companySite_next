@@ -32,6 +32,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Product as CatalogProduct,
   Category,
   Brand,
@@ -59,9 +69,11 @@ import {
   FileText,
   Sparkles,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ProductFormNew } from "./ProductFormNew";
 import { LoadingSkeleton } from "./LoadingSkeleton";
+import { ErrorDisplay } from "./ErrorDisplay";
 import {
   ProductStatusIndicator,
   StockStatusIndicator,
@@ -111,6 +123,10 @@ export function ProductManagerNew() {
   );
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: "",
     status: "all",
@@ -281,14 +297,24 @@ export function ProductManagerNew() {
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
-    if (!confirm("Вы уверены, что хотите удалить этот продукт?")) {
-      return;
-    }
+  const handleDeleteClick = (productId: string) => {
+    setProductToDelete(productId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
 
     try {
-      await deleteProductMutation.mutateAsync(productId);
+      await deleteProductMutation.mutateAsync(productToDelete);
       toast.success("Продукт удален");
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+      setSelectedProducts((prev) => {
+        const next = new Set(prev);
+        next.delete(productToDelete);
+        return next;
+      });
     } catch (error) {
       console.error("Error deleting product:", error);
       toast.error(
@@ -296,6 +322,63 @@ export function ProductManagerNew() {
       );
     }
   };
+
+  // Функции для работы с выделением
+  const handleSelectProduct = (productId: string, checked: boolean) => {
+    setSelectedProducts((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(productId);
+      } else {
+        next.delete(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedProducts(new Set(products.map((p) => p.id)));
+    } else {
+      setSelectedProducts(new Set());
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.size === 0) return;
+
+    try {
+      const productIds = Array.from(selectedProducts);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const productId of productIds) {
+        try {
+          await deleteProductMutation.mutateAsync(productId);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Error deleting product ${productId}:`, error);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Успешно удалено товаров: ${successCount}`);
+      }
+      if (errorCount > 0) {
+        toast.error(`Ошибок при удалении: ${errorCount}`);
+      }
+
+      setBulkDeleteDialogOpen(false);
+      setSelectedProducts(new Set());
+    } catch (error) {
+      console.error("Error in bulk delete:", error);
+      toast.error("Ошибка при массовом удалении товаров");
+    }
+  };
+
+  const isAllSelected = products.length > 0 && selectedProducts.size === products.length;
+  const isSomeSelected = selectedProducts.size > 0 && selectedProducts.size < products.length;
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -591,10 +674,15 @@ export function ProductManagerNew() {
       {/* Таблица товаров */}
       <Card className="shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div>
+          <div className="flex-1">
             <CardTitle className="text-lg">Список товаров</CardTitle>
             <CardDescription className="mt-1">
               Найдено <span className="font-semibold text-foreground">{total}</span> товаров
+              {selectedProducts.size > 0 && (
+                <span className="ml-2 text-primary font-semibold">
+                  (Выбрано: {selectedProducts.size})
+                </span>
+              )}
               {isRefreshing && (
                 <span className="ml-2 text-primary flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -603,22 +691,45 @@ export function ProductManagerNew() {
               )}
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={productsLoading || isRefreshing}
-            className="transition-all duration-200"
-          >
-            {isRefreshing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Обновление
-              </>
-            ) : (
-              "Обновить"
+          <div className="flex items-center gap-2">
+            {selectedProducts.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+                disabled={deleteProductMutation.isPending}
+                className="transition-all duration-200"
+              >
+                {deleteProductMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Удаление...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Удалить ({selectedProducts.size})
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={productsLoading || isRefreshing}
+              className="transition-all duration-200"
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Обновление
+                </>
+              ) : (
+                "Обновить"
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent
           className={
@@ -627,8 +738,19 @@ export function ProductManagerNew() {
               : "transition-opacity duration-300"
           }
         >
-          {productsLoading ? (
+          {productsLoading && products.length === 0 ? (
             <LoadingSkeleton rows={5} showFilters={false} />
+          ) : productsError ? (
+            <ErrorDisplay
+              title="Ошибка загрузки товаров"
+              message={
+                productsError instanceof Error
+                  ? productsError.message
+                  : "Неизвестная ошибка"
+              }
+              onRetry={() => refetch()}
+              variant="card"
+            />
           ) : products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
@@ -659,6 +781,14 @@ export function ProductManagerNew() {
                 <Table className="admin-table">
                   <TableHeader>
                     <TableRow className="border-b">
+                      <TableHead className="w-12 text-center bg-muted/50">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                          aria-label="Выбрать все"
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                      </TableHead>
                       <TableHead className="w-16 text-center bg-muted/50">
                         Фото
                       </TableHead>
@@ -689,12 +819,24 @@ export function ProductManagerNew() {
                     {products.map((product, index) => (
                       <TableRow
                         key={product.id}
-                        className="hover:bg-muted/30 transition-all duration-200 animate-in fade-in slide-in-from-top-2"
+                        className={`hover:bg-muted/30 transition-all duration-200 animate-in fade-in slide-in-from-top-2 ${
+                          selectedProducts.has(product.id) ? "bg-muted/50" : ""
+                        }`}
                         style={{
                           animationDelay: `${index * 50}ms`,
                           animationFillMode: "both",
                         }}
                       >
+                        <TableCell className="text-center p-2">
+                          <Checkbox
+                            checked={selectedProducts.has(product.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectProduct(product.id, checked === true)
+                            }
+                            aria-label={`Выбрать ${product.name}`}
+                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          />
+                        </TableCell>
                         <TableCell className="text-center p-2">
                           <div className="flex justify-center">
                             <ProductImageDisplay
@@ -819,15 +961,7 @@ export function ProductManagerNew() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      "Вы уверены, что хотите удалить этот товар?",
-                                    )
-                                  ) {
-                                    handleDeleteProduct(product.id);
-                                  }
-                                }}
+                                onClick={() => handleDeleteClick(product.id)}
                                 className="text-destructive hover:bg-destructive/10 transition-colors duration-200"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -900,6 +1034,66 @@ export function ProductManagerNew() {
           )}
         </CardContent>
       </Card>
+
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить продукт?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить этот продукт? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteProductMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                "Удалить"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert Dialog for Bulk Delete Confirmation */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить выбранные товары?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить {selectedProducts.size} товар(ов)? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkDeleteDialogOpen(false)}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteProductMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                `Удалить (${selectedProducts.size})`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

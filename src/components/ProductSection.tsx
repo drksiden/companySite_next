@@ -223,9 +223,6 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
             console.warn(`Logo dark failed to load: "${brandLogoUrlDark}"`);
             setLogoVisible(false);
           }}
-          onLoad={() =>
-            console.log(`Logo dark loaded successfully: "${brandLogoUrlDark}"`)
-          }
         />
       </motion.div>
     );

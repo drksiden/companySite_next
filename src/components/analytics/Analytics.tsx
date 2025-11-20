@@ -48,6 +48,9 @@ export function Analytics() {
   }, [pathname, gaId]);
 
   // Yandex Metrika - используем официальный код от Яндекс
+  // Примечание: Предупреждения о cookies "Partitioned" и "InstallTrigger is deprecated"
+  // являются нормальными для Yandex Metrica и не влияют на функциональность.
+  // Эти предупреждения исходят от самого скрипта Yandex Metrica.
   useEffect(() => {
     if (typeof window === "undefined") return;
 

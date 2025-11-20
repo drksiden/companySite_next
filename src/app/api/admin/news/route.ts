@@ -4,6 +4,16 @@ import { createServerClient } from "@/lib/supabaseServer";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();
+
+    // Check if user is authenticated and is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
 
     // Параметры запроса
@@ -52,6 +62,16 @@ export async function GET(request: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerClient();
+
+    // Check if user is authenticated and is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
 
     // Получаем данные формы

@@ -72,6 +72,7 @@
     "react-hook-form": "^7.56.1",
     "react-markdown": "^10.1.0",
     "react-slick": "^0.30.3",
+    "recharts": "2.15.4",
     "remark-gfm": "^4.0.1",
     "sharp": "^0.34.3",
     "sitemap": "^9.0.0",

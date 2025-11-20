@@ -71,7 +71,7 @@ export default function CatalogProducts({
 
   // Устанавливаем initialData в кэш при первой загрузке
   React.useEffect(() => {
-    if (initialProducts.length > 0 && !productsData) {
+    if (initialProducts.length > 0 && !productsData && queryClient) {
       queryClient.setQueryData(
         ["catalog", "products", queryParams],
         { data: initialProducts, meta: { total: initialProducts.length, page: 1, limit: 50, totalPages: 1, hasNext: false, hasPrev: false } }

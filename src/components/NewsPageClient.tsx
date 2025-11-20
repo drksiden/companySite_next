@@ -246,7 +246,16 @@ export function NewsPageClient({
                                   fill
                                   className="object-contain p-6 group-hover:scale-105 transition-transform duration-700 ease-out"
                                   sizes="(max-width: 1024px) 100vw, 50vw"
+                                  quality={85}
                                   priority={index === 0}
+                                  loading={index === 0 ? undefined : "lazy"}
+                                  placeholder={index === 0 ? "blur" : "empty"}
+                                  blurDataURL={index === 0 ? "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjgwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjgwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg==" : undefined}
+                                  unoptimized={
+                                    image === "/images/placeholder-product.svg" ||
+                                    image.includes("r2.asia-ntb.kz") ||
+                                    image.includes("r2.dev")
+                                  }
                                 />
                               </div>
                             </CarouselItem>

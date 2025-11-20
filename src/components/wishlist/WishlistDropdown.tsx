@@ -230,6 +230,7 @@ export function WishlistDropdown({ wishlistCount }: WishlistDropdownProps) {
                         fill
                         className="object-contain p-1"
                         sizes="64px"
+                        quality={75}
                         unoptimized={
                           imageSrc === "/images/placeholder-product.svg" ||
                           imageSrc.includes("r2.asia-ntb.kz") ||

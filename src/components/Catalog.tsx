@@ -240,8 +240,17 @@ export function Catalog({
                               src={product.images[0]}
                               alt={product.name}
                               fill
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                              quality={80}
+                              loading="lazy"
+                              placeholder="blur"
+                              blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjwvc3ZnPg=="
                               className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              unoptimized={
+                                product.images[0] === "/images/placeholder-product.svg" ||
+                                product.images[0]?.includes("r2.asia-ntb.kz") ||
+                                product.images[0]?.includes("r2.dev")
+                              }
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full">

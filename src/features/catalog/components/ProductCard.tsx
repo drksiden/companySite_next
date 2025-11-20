@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { catalogKeys } from "@/lib/hooks/useCatalog";
 import { toast } from "sonner";
@@ -145,6 +145,32 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
     }
   }, [isInWishlist, product.id]);
 
+  // Обработчик добавления в корзину
+  const handleAddToCart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isInStock) {
+      toast.error("Товар отсутствует в наличии");
+      return;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const cart = JSON.parse(localStorage.getItem('catalog-cart') || '{}');
+      const currentQty = cart[product.id] || 0;
+      cart[product.id] = currentQty + 1;
+      localStorage.setItem('catalog-cart', JSON.stringify(cart));
+      
+      // Отправляем кастомное событие для обновления счетчика в Header
+      const newCount = Object.values(cart).reduce((sum: number, qty: any) => sum + qty, 0);
+      window.dispatchEvent(new CustomEvent('cart-updated', { 
+        detail: { count: newCount } 
+      }));
+      
+      toast.success("Товар добавлен в корзину");
+    }
+  }, [isInStock, product.id]);
+
   return (
     <Card 
       className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1"
@@ -159,8 +185,8 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
               alt={product.name}
               fill
               className="object-contain transition-all duration-300 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-              quality={65}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+              quality={80}
               priority={priority}
               loading={priority ? undefined : "lazy"}
               placeholder="blur"
@@ -277,6 +303,18 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
                   </span>
                 </div>
               )}
+
+              {/* Add to Cart Button */}
+              <Button
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+                className="w-full mt-2"
+                size="sm"
+                variant={isInStock ? "default" : "outline"}
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                {isInStock ? "В корзину" : "Нет в наличии"}
+              </Button>
             </div>
           </CardContent>
         </div>
