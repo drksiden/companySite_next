@@ -7,10 +7,11 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { CatalogProduct } from "@/lib/services/catalog";
 import { catalogKeys } from "@/lib/hooks/useCatalog";
 import { toast } from "sonner";
+import { useDisplaySettings } from "@/lib/hooks/useDisplaySettings";
 
 interface ProductCardProps {
   product: CatalogProduct;
@@ -68,6 +69,20 @@ const getFinalImageSrc = (product: CatalogProduct): string => {
 function ProductCard({ product, priority = false }: ProductCardProps) {
   const queryClient = useQueryClient();
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const { settings: displaySettings } = useDisplaySettings();
+  
+  // Дефолтные настройки на случай если они еще не загружены
+  const safeDisplaySettings = displaySettings || {
+    show_stock_status: true,
+    show_quantity: true,
+    show_made_to_order: true,
+    made_to_order_text: "На заказ",
+    in_stock_text: "В наличии",
+    out_of_stock_text: "Нет в наличии",
+    low_stock_threshold: 5,
+    show_low_stock_warning: true,
+    low_stock_text: "Осталось мало",
+  };
   
   // Проверяем избранное из localStorage
   useEffect(() => {
@@ -96,13 +111,36 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
     });
   }, [product.slug, queryClient]);
 
-  const { finalPrice, isOnSale, discountPercentage, isInStock, formattedPrice, oldPrice } = useMemo(() => {
+  const { finalPrice, isOnSale, discountPercentage, isInStock, isMadeToOrder, formattedPrice, oldPrice } = useMemo(() => {
     const final = product.sale_price || product.base_price;
     const onSale = !!(product.sale_price && product.sale_price < product.base_price);
     const discount = onSale
       ? Math.round(((product.base_price - product.sale_price!) / product.base_price) * 100)
       : 0;
-    const inStock = product.track_inventory ? product.inventory_quantity > 0 : true;
+    
+    // Определяем наличие товара с учетом track_inventory, inventory_quantity и status
+    const inStock = (() => {
+      // Если статус made_to_order - это отдельный статус, не "в наличии"
+      if (product.status === 'made_to_order') {
+        return false; // made_to_order - это не "в наличии", это отдельный статус
+      }
+      
+      // Если статус out_of_stock, draft или archived - товар не в наличии
+      if (product.status === 'out_of_stock' || product.status === 'draft' || product.status === 'archived') {
+        return false;
+      }
+      
+      // Если не отслеживается наличие (track_inventory = false), товар всегда в наличии
+      if (!product.track_inventory) {
+        return true;
+      }
+      
+      // Если отслеживается наличие, проверяем количество
+      return (product.inventory_quantity || 0) > 0;
+    })();
+    
+    const isMadeToOrder = product.status === 'made_to_order';
+    
     const formatPrice = (price: number) => `${price.toLocaleString("kk-KZ")} ₸`;
     
     return {
@@ -110,10 +148,11 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
       isOnSale: onSale,
       discountPercentage: discount,
       isInStock: inStock,
+      isMadeToOrder: isMadeToOrder,
       formattedPrice: formatPrice(final),
       oldPrice: onSale ? formatPrice(product.base_price) : null,
     };
-  }, [product.sale_price, product.base_price, product.track_inventory, product.inventory_quantity]);
+  }, [product.sale_price, product.base_price, product.track_inventory, product.inventory_quantity, product.status]);
 
   // Обработчик избранного
   const handleWishlistToggle = useCallback((e: React.MouseEvent) => {
@@ -145,31 +184,6 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
     }
   }, [isInWishlist, product.id]);
 
-  // Обработчик добавления в корзину
-  const handleAddToCart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!isInStock) {
-      toast.error("Товар отсутствует в наличии");
-      return;
-    }
-    
-    if (typeof window !== 'undefined') {
-      const cart = JSON.parse(localStorage.getItem('catalog-cart') || '{}');
-      const currentQty = cart[product.id] || 0;
-      cart[product.id] = currentQty + 1;
-      localStorage.setItem('catalog-cart', JSON.stringify(cart));
-      
-      // Отправляем кастомное событие для обновления счетчика в Header
-      const newCount = Object.values(cart).reduce((sum: number, qty: any) => sum + qty, 0);
-      window.dispatchEvent(new CustomEvent('cart-updated', { 
-        detail: { count: newCount } 
-      }));
-      
-      toast.success("Товар добавлен в корзину");
-    }
-  }, [isInStock, product.id]);
 
   return (
     <Card 
@@ -210,9 +224,9 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
                   ХИТ
                 </Badge>
               )}
-              {!isInStock && (
-                <Badge className="bg-[var(--out-of-stock-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-medium px-2 py-0.5 rounded-full text-xs">
-                  Нет в наличии
+              {isMadeToOrder && safeDisplaySettings.show_made_to_order && (
+                <Badge className="bg-blue-500 text-white shadow-md backdrop-blur-sm border-0 font-medium px-2 py-0.5 rounded-full text-xs">
+                  {safeDisplaySettings.made_to_order_text}
                 </Badge>
               )}
             </div>
@@ -285,36 +299,57 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
               </div>
 
               {/* Stock Information */}
-              {product.track_inventory && (
-                <div className="flex items-center gap-1 bg-[var(--stock-bg)] px-2 py-1 rounded-md">
-                  <div
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isInStock ? "bg-[var(--stock-dot-in)] animate-pulse" : "bg-[var(--stock-dot-out)]"
-                    }`}
-                  />
-                  <span
-                    className={`text-xs font-medium ${
-                      isInStock ? "text-[var(--stock-text-in)]" : "text-[var(--stock-text-out)]"
-                    }`}
-                  >
-                    {isInStock
-                      ? `В наличии: ${product.inventory_quantity} шт.`
-                      : "Нет в наличии"}
-                  </span>
-                </div>
-              )}
+              {safeDisplaySettings.show_stock_status && (() => {
+                const isMadeToOrderValue = product.status === 'made_to_order';
+                const showQuantity = safeDisplaySettings.show_quantity && product.track_inventory;
+                const showMadeToOrder = safeDisplaySettings.show_made_to_order && isMadeToOrderValue;
+                
+                // Определяем текст статуса
+                const statusText = isMadeToOrderValue
+                  ? showMadeToOrder
+                    ? safeDisplaySettings.made_to_order_text
+                    : "" // Если made_to_order, но показ выключен - не показываем статус
+                  : isInStock
+                    ? showQuantity
+                      ? `${safeDisplaySettings.in_stock_text}: ${product.inventory_quantity || 0} шт.`
+                      : safeDisplaySettings.in_stock_text
+                    : product.status === 'out_of_stock'
+                      ? safeDisplaySettings.out_of_stock_text
+                      : product.status === 'draft'
+                        ? "Черновик"
+                        : product.status === 'archived'
+                          ? "Архивирован"
+                          : safeDisplaySettings.out_of_stock_text;
+                
+                // Не показываем блок, если текст пустой
+                if (!statusText) return null;
+                
+                return (
+                  <div className="flex items-center gap-1 bg-[var(--stock-bg)] px-2 py-1 rounded-md">
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isMadeToOrderValue
+                          ? "bg-blue-500 animate-pulse"
+                          : isInStock 
+                            ? "bg-[var(--stock-dot-in)] animate-pulse" 
+                            : "bg-[var(--stock-dot-out)]"
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-medium ${
+                        isMadeToOrderValue
+                          ? "text-blue-600"
+                          : isInStock 
+                            ? "text-[var(--stock-text-in)]" 
+                            : "text-[var(--stock-text-out)]"
+                      }`}
+                    >
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })()}
 
-              {/* Add to Cart Button */}
-              <Button
-                onClick={handleAddToCart}
-                disabled={!isInStock}
-                className="w-full mt-2"
-                size="sm"
-                variant={isInStock ? "default" : "outline"}
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                {isInStock ? "В корзину" : "Нет в наличии"}
-              </Button>
             </div>
           </CardContent>
         </div>

@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
         )
       `,
       )
-      .eq("status", "active")
+      .in("status", ["active", "made_to_order"])
       .or(productSearchConditions)
       .limit(limit)
       .order("is_featured", { ascending: false })

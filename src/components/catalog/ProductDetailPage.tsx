@@ -48,9 +48,21 @@ export function ProductDetailPage({
 
   const images =
     product.images || (product.thumbnail ? [product.thumbnail] : []);
-  const isInStock = product.track_inventory
-    ? (product.inventory_quantity || 0) > 0
-    : true;
+  // Определяем наличие товара с учетом track_inventory, inventory_quantity и status
+  const isInStock = (() => {
+    // Если статус out_of_stock, draft или archived - товар не в наличии
+    if (product.status === 'out_of_stock' || product.status === 'draft' || product.status === 'archived') {
+      return false;
+    }
+    
+    // Если не отслеживается наличие (track_inventory = false), товар всегда в наличии
+    if (!product.track_inventory) {
+      return true;
+    }
+    
+    // Если отслеживается наличие, проверяем количество
+    return (product.inventory_quantity || 0) > 0;
+  })();
   const hasDiscount =
     product.is_on_sale && (product.discount_percentage || 0) > 0;
   const isNew = Boolean(

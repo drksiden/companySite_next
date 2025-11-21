@@ -134,7 +134,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // Проверяем, что продукт действительно доступен через getProduct
       const productData = await getProduct(product.slug);
       
-      if (productData && productData.status === 'active') {
+      if (productData && (productData.status === 'active' || productData.status === 'made_to_order')) {
         validProductPages.push({
           url: `${baseUrl}/catalog/product/${product.slug}`,
           lastModified: product.updated_at ? new Date(product.updated_at) : new Date(product.created_at),

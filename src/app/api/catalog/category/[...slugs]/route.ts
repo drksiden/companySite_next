@@ -76,7 +76,7 @@ async function getProductsByCategory(slugs: string[]): Promise<CatalogProduct[]>
     `
     )
     .in("category_id", Array.from(expandedCategories))
-    .eq("status", "active")
+    .in("status", ["active", "made_to_order"])
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
