@@ -1,6 +1,6 @@
 // src/types/catalog.ts
 
-export type ProductStatus = "draft" | "active" | "archived" | "out_of_stock";
+export type ProductStatus = "draft" | "active" | "archived" | "out_of_stock" | "made_to_order";
 export type AttributeType =
   | "text"
   | "number"
@@ -306,6 +306,7 @@ export interface SearchProductsResult {
   category_name?: string;
   inventory_quantity: number;
   track_inventory: boolean;
+  status?: ProductStatus; // Добавлено поле status
   created_at?: string;
   is_featured?: boolean;
   is_on_sale?: boolean;

@@ -423,7 +423,7 @@ export function ProductManagerClient({
     table.getFilteredSelectedRowModel().rowsById,
   );
   const statuses = useMemo(
-    () => ["draft", "active", "archived", "out_of_stock"],
+    () => ["draft", "active", "archived", "out_of_stock", "made_to_order"],
     [],
   );
 

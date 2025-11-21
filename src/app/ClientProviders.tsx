@@ -7,6 +7,7 @@ import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Toaster } from "@/components/ui/sonner";
 import { usePathname } from 'next/navigation';
 import { Analytics } from '@/components/analytics/Analytics';
+import { AnalyticsStopper } from '@/components/analytics/AnalyticsStopper';
 import { useEffect, useState } from 'react';
 import { registerServiceWorker } from '@/lib/pwa/register-sw';
 import { SkipLinks } from '@/components/accessibility/SkipLinks';
@@ -15,8 +16,9 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   
-  // Определяем isAdminRoute только после монтирования, чтобы избежать гидратации
-  const isAdminRoute = mounted && pathname?.startsWith('/admin');
+  // Определяем isAdminRoute - проверяем сразу, без ожидания монтирования
+  // Это важно для предотвращения загрузки аналитики на админ-роутах
+  const isAdminRoute = pathname?.startsWith('/admin') ?? false;
 
   useEffect(() => {
     setMounted(true);
@@ -64,7 +66,9 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
       {!isAdminRoute && <Footer />}
       {mounted && <ScrollToTopButton />}
       <Toaster richColors />
-      {mounted && !isAdminRoute && <Analytics />}
+      {!isAdminRoute && <Analytics />}
+      {/* Останавливаем аналитику на админ-роутах, даже если она уже была загружена */}
+      {isAdminRoute && <AnalyticsStopper />}
     </ThemeProvider>
   );
 }

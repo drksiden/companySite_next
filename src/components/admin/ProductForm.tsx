@@ -83,7 +83,7 @@ export const formSchema = z.object({
     .int()
     .min(0, "Порядок сортировки не может быть отрицательным")
     .optional(),
-  status: z.enum(["draft", "active", "archived", "out_of_stock"]),
+  status: z.enum(["draft", "active", "archived", "out_of_stock", "made_to_order"]),
   dimensions: z
     .object({
       length: z.coerce.number().optional().nullable(),

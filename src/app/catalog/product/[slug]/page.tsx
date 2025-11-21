@@ -290,7 +290,7 @@ async function ProductPageContent({ slug }: { slug: string }) {
           .from("products")
           .select(selectQuery)
           .eq("category_id", product.categories.id)
-          .eq("status", "active")
+          .in("status", ["active", "made_to_order"])
           .neq("id", product.id)
           .order("is_featured", { ascending: false })
           .order("view_count", { ascending: false })
@@ -310,7 +310,7 @@ async function ProductPageContent({ slug }: { slug: string }) {
           .from("products")
           .select(selectQuery)
           .eq("brand_id", product.brands.id)
-          .eq("status", "active")
+          .in("status", ["active", "made_to_order"])
           .order("is_featured", { ascending: false })
           .order("view_count", { ascending: false })
           .limit(12);
@@ -332,7 +332,7 @@ async function ProductPageContent({ slug }: { slug: string }) {
         const { data: popularData } = await supabase
           .from("products")
           .select(selectQuery)
-          .eq("status", "active")
+          .in("status", ["active", "made_to_order"])
           .order("is_featured", { ascending: false })
           .order("view_count", { ascending: false })
           .order("sales_count", { ascending: false })

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -43,6 +44,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -83,6 +85,18 @@ interface ShippingSettings {
   standardShippingCost: number;
   expressShippingCost: number;
   estimatedDeliveryDays: number;
+}
+
+interface DisplaySettings {
+  show_stock_status: boolean;
+  show_quantity: boolean;
+  show_made_to_order: boolean;
+  made_to_order_text: string;
+  in_stock_text: string;
+  out_of_stock_text: string;
+  low_stock_threshold: number;
+  show_low_stock_warning: boolean;
+  low_stock_text: string;
 }
 
 // Анимационные варианты
@@ -127,8 +141,11 @@ const SettingsSection = ({
   </div>
 );
 
-export default function SettingsPage() {
+function SettingsPageContent() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams?.get("tab") || "general";
   const [saving, setSaving] = useState(false);
+  const [loadingDisplaySettings, setLoadingDisplaySettings] = useState(true);
 
   // Состояния настроек
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
@@ -167,18 +184,166 @@ export default function SettingsPage() {
     estimatedDeliveryDays: 3,
   });
 
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
+    show_stock_status: true,
+    show_quantity: true,
+    show_made_to_order: true,
+    made_to_order_text: "На заказ",
+    in_stock_text: "В наличии",
+    out_of_stock_text: "Нет в наличии",
+    low_stock_threshold: 5,
+    show_low_stock_warning: true,
+    low_stock_text: "Осталось мало",
+  });
+
+  // Загружаем все настройки при монтировании
+  useEffect(() => {
+    const loadAllSettings = async () => {
+      try {
+        // Загружаем настройки отображения
+        const displayResponse = await fetch("/api/admin/settings/display");
+        if (displayResponse.ok) {
+          const data = await displayResponse.json();
+          if (data.success && data.settings) {
+            setDisplaySettings(data.settings);
+          }
+        }
+
+        // Загружаем общие настройки
+        const generalResponse = await fetch("/api/admin/settings/general");
+        if (generalResponse.ok) {
+          const data = await generalResponse.json();
+          if (data.success && data.settings) {
+            setGeneralSettings(data.settings);
+          }
+        }
+
+        // Загружаем настройки уведомлений
+        const notificationsResponse = await fetch("/api/admin/settings/display?key=notifications");
+        if (notificationsResponse.ok) {
+          const data = await notificationsResponse.json();
+          if (data.success && data.settings) {
+            setNotificationSettings(data.settings);
+          }
+        }
+
+        // Загружаем настройки оплаты
+        const paymentsResponse = await fetch("/api/admin/settings/display?key=payments");
+        if (paymentsResponse.ok) {
+          const data = await paymentsResponse.json();
+          if (data.success && data.settings) {
+            setPaymentSettings(data.settings);
+          }
+        }
+
+        // Загружаем настройки доставки
+        const shippingResponse = await fetch("/api/admin/settings/display?key=shipping");
+        if (shippingResponse.ok) {
+          const data = await shippingResponse.json();
+          if (data.success && data.settings) {
+            setShippingSettings(data.settings);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      } finally {
+        setLoadingDisplaySettings(false);
+      }
+    };
+
+    loadAllSettings();
+  }, []);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Здесь будет логика сохранения настроек
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const errors: string[] = [];
+
+      // Сохраняем общие настройки
+      const generalResponse = await fetch("/api/admin/settings/general", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ settings: generalSettings }),
+      });
+
+      if (!generalResponse.ok) {
+        errors.push("Общие настройки");
+      }
+
+      // Сохраняем настройки отображения
+      const displayResponse = await fetch("/api/admin/settings/display", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ settings: displaySettings }),
+      });
+
+      if (!displayResponse.ok) {
+        errors.push("Настройки отображения");
+      }
+
+      // Сохраняем настройки уведомлений (используем display_settings таблицу)
+      const notificationsResponse = await fetch("/api/admin/settings/display", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          settings: notificationSettings,
+          setting_key: "notifications" 
+        }),
+      });
+
+      if (!notificationsResponse.ok) {
+        errors.push("Настройки уведомлений");
+      }
+
+      // Сохраняем настройки оплаты
+      const paymentsResponse = await fetch("/api/admin/settings/display", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          settings: paymentSettings,
+          setting_key: "payments" 
+        }),
+      });
+
+      if (!paymentsResponse.ok) {
+        errors.push("Настройки оплаты");
+      }
+
+      // Сохраняем настройки доставки
+      const shippingResponse = await fetch("/api/admin/settings/display", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          settings: shippingSettings,
+          setting_key: "shipping" 
+        }),
+      });
+
+      if (!shippingResponse.ok) {
+        errors.push("Настройки доставки");
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`Не удалось сохранить: ${errors.join(", ")}`);
+      }
 
       toast.success("Настройки сохранены", {
         description: "Все изменения успешно применены",
       });
     } catch (error) {
+      console.error("Error saving settings:", error);
       toast.error("Ошибка", {
-        description: "Не удалось сохранить настройки",
+        description: error instanceof Error ? error.message : "Не удалось сохранить настройки",
       });
     } finally {
       setSaving(false);
@@ -224,9 +389,10 @@ export default function SettingsPage() {
 
       {/* Основной контент */}
       <motion.div variants={itemVariants}>
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="general">Общие</TabsTrigger>
+            <TabsTrigger value="display">Отображение</TabsTrigger>
             <TabsTrigger value="notifications">Уведомления</TabsTrigger>
             <TabsTrigger value="payments">Оплата</TabsTrigger>
             <TabsTrigger value="shipping">Доставка</TabsTrigger>
@@ -444,6 +610,203 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </SettingsSection>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Настройки отображения */}
+          <TabsContent value="display" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Eye className="mr-2 h-5 w-5" />
+                  Настройки отображения товаров
+                </CardTitle>
+                <CardDescription>
+                  Управление отображением статусов наличия и информации о товарах
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {loadingDisplaySettings ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="h-8 w-8 text-muted-foreground mx-auto mb-4 animate-spin" />
+                    <p className="text-muted-foreground">Загрузка настроек...</p>
+                  </div>
+                ) : (
+                  <>
+                    <SettingsSection
+                      title="Отображение статусов"
+                      description="Настройте, какие статусы и информация отображаются для товаров"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Label>Показывать статус наличия</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Отображать информацию о наличии товара
+                            </p>
+                          </div>
+                          <Switch
+                            checked={displaySettings.show_stock_status}
+                            onCheckedChange={(checked) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                show_stock_status: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Label>Показывать количество</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Отображать количество товара в наличии
+                            </p>
+                          </div>
+                          <Switch
+                            checked={displaySettings.show_quantity}
+                            onCheckedChange={(checked) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                show_quantity: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Label>Показывать статус "На заказ"</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Отображать товары со статусом "На заказ"
+                            </p>
+                          </div>
+                          <Switch
+                            checked={displaySettings.show_made_to_order}
+                            onCheckedChange={(checked) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                show_made_to_order: checked,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Label>Предупреждение о низком остатке</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Показывать предупреждение, когда товара осталось мало
+                            </p>
+                          </div>
+                          <Switch
+                            checked={displaySettings.show_low_stock_warning}
+                            onCheckedChange={(checked) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                show_low_stock_warning: checked,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </SettingsSection>
+
+                    <Separator />
+
+                    <SettingsSection
+                      title="Тексты статусов"
+                      description="Настройте тексты, которые отображаются для различных статусов товаров"
+                    >
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="in_stock_text">Текст "В наличии"</Label>
+                          <Input
+                            id="in_stock_text"
+                            value={displaySettings.in_stock_text}
+                            onChange={(e) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                in_stock_text: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="out_of_stock_text">Текст "Нет в наличии"</Label>
+                          <Input
+                            id="out_of_stock_text"
+                            value={displaySettings.out_of_stock_text}
+                            onChange={(e) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                out_of_stock_text: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="made_to_order_text">Текст "На заказ"</Label>
+                          <Input
+                            id="made_to_order_text"
+                            value={displaySettings.made_to_order_text}
+                            onChange={(e) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                made_to_order_text: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="low_stock_text">Текст "Осталось мало"</Label>
+                          <Input
+                            id="low_stock_text"
+                            value={displaySettings.low_stock_text}
+                            onChange={(e) =>
+                              setDisplaySettings((prev) => ({
+                                ...prev,
+                                low_stock_text: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </SettingsSection>
+
+                    <Separator />
+
+                    <SettingsSection
+                      title="Пороги и лимиты"
+                      description="Настройте пороговые значения для предупреждений"
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="low_stock_threshold">
+                          Порог низкого остатка (шт.)
+                        </Label>
+                        <Input
+                          id="low_stock_threshold"
+                          type="number"
+                          min="0"
+                          value={displaySettings.low_stock_threshold}
+                          onChange={(e) =>
+                            setDisplaySettings((prev) => ({
+                              ...prev,
+                              low_stock_threshold: parseInt(e.target.value) || 0,
+                            }))
+                          }
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          При остатке ниже этого значения будет показываться предупреждение
+                        </p>
+                      </div>
+                    </SettingsSection>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -843,5 +1206,19 @@ export default function SettingsPage() {
       </motion.div>
     </motion.div>
     </ContentLayout>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <ContentLayout title="Настройки">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin" />
+        </div>
+      </ContentLayout>
+    }>
+      <SettingsPageContent />
+    </Suspense>
   );
 }

@@ -17,7 +17,13 @@ import {
   Shield,
   Newspaper,
   MessageSquare,
-  Warehouse
+  Warehouse,
+  FileSpreadsheet,
+  Eye,
+  Globe,
+  CreditCard,
+  Truck,
+  Database
 } from "lucide-react";
 
 type Submenu = {
@@ -84,6 +90,11 @@ export function getMenuList(pathname: string): Group[] {
               href: "/admin/catalog/collections",
               label: "Коллекции",
               icon: Palette
+            },
+            {
+              href: "/admin/catalog/bulk-price-update",
+              label: "Обновление цен",
+              icon: FileSpreadsheet
             }
           ]
         },
@@ -92,15 +103,13 @@ export function getMenuList(pathname: string): Group[] {
     {
       groupLabel: "",
       menus: [
-//        { label: "Заказы", href: "/admin/orders", icon: FileText },
         { label: "Новости", href: "/admin/news", icon: Newspaper },
         { label: "Склад", href: "/admin/warehouse", icon: Warehouse },
         { label: "Запросы клиентов", href: "/admin/contact-requests", icon: MessageSquare },
         { label: "Пользователи", href: "/admin/users", icon: Users },
-//        { label: "Аналитика", href: "/admin/analytics", icon: BarChart3 },
       ]
     },
-/*    {
+    {
       groupLabel: "",
       menus: [
         {
@@ -108,16 +117,16 @@ export function getMenuList(pathname: string): Group[] {
           label: "Настройки",
           icon: Settings,
           submenus: [
-            { label: "Общие", href: "/admin/settings", icon: Settings },
-            {
-              label: "Уведомления",
-              href: "/admin/settings/notifications",
-              icon: Bell,
-            },
-            { label: "Безопасность", href: "/admin/settings/security", icon: Shield },
-                ]
-              },
+            { label: "Общие", href: "/admin/settings?tab=general", icon: Globe },
+            { label: "Отображение", href: "/admin/settings?tab=display", icon: Eye },
+            { label: "Уведомления", href: "/admin/settings?tab=notifications", icon: Bell },
+            { label: "Оплата", href: "/admin/settings?tab=payments", icon: CreditCard },
+            { label: "Доставка", href: "/admin/settings?tab=shipping", icon: Truck },
+            { label: "Безопасность", href: "/admin/settings?tab=security", icon: Shield },
+            { label: "Админка", href: "/admin/settings?tab=admin", icon: Database },
+          ]
+        },
       ]
-    }*/
+    }
   ];
 }

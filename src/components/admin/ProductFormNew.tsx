@@ -138,7 +138,7 @@ const productSchema = z.object({
     })
     .optional(),
   status: z
-    .enum(["draft", "active", "archived", "out_of_stock"], {
+    .enum(["draft", "active", "archived", "out_of_stock", "made_to_order"], {
       message: "Некорректный статус товара.",
     })
     .optional()
@@ -1167,7 +1167,7 @@ export function ProductFormNew({
                       render={({ field }) => {
                         // Убеждаемся, что value это строка и валидное значение статуса
                         const statusValue = field.value ? String(field.value) : "draft";
-                        const validStatuses = ["draft", "active", "archived", "out_of_stock"];
+                        const validStatuses = ["draft", "active", "archived", "out_of_stock", "made_to_order"];
                         const displayValue = validStatuses.includes(statusValue) ? statusValue : "draft";
                         
                         return (
@@ -1190,6 +1190,9 @@ export function ProductFormNew({
                                 </SelectItem>
                                 <SelectItem value="out_of_stock">
                                   Нет в наличии
+                                </SelectItem>
+                                <SelectItem value="made_to_order">
+                                  На заказ
                                 </SelectItem>
                               </SelectContent>
                             </Select>

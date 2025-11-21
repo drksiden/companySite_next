@@ -198,8 +198,8 @@ export async function listProducts(
     { count: "exact" },
   );
 
-  // Apply status filter (only active products)
-  query = query.eq("status", "active");
+  // Apply status filter (active and made_to_order products)
+  query = query.in("status", ["active", "made_to_order"]);
 
   // Apply filters - include child categories
   if (categories.length > 0) {
@@ -735,7 +735,7 @@ export async function getProductsCount(filters?: {
   let query = supabase
     .from("products")
     .select("id", { count: "exact", head: true })
-    .eq("status", "active");
+    .in("status", ["active", "made_to_order"]);
 
   if (filters?.categoryId) {
     query = query.eq("category_id", filters.categoryId);

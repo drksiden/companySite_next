@@ -15,10 +15,11 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  ShoppingCart,
 } from "lucide-react";
 
 interface ProductStatusIndicatorProps {
-  status: "draft" | "active" | "archived" | "out_of_stock";
+  status: "draft" | "active" | "archived" | "out_of_stock" | "made_to_order";
   size?: "sm" | "md" | "lg";
   showIcon?: boolean;
   className?: string;
@@ -76,9 +77,22 @@ export function ProductStatusIndicator({
       variant: "destructive" as const,
       className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
     },
+    made_to_order: {
+      label: "На заказ",
+      icon: ShoppingCart,
+      variant: "default" as const,
+      className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
+    },
   };
 
   const config = statusConfig[status];
+  
+  // Защита от undefined (на случай если статус не найден)
+  if (!config) {
+    console.warn(`Unknown status: ${status}`);
+    return null;
+  }
+  
   const Icon = config.icon;
 
   const sizeClasses = {
@@ -293,7 +307,7 @@ export function ProductStatusGroup({
   isDigital,
   className,
 }: {
-  status: "draft" | "active" | "archived" | "out_of_stock";
+  status: "draft" | "active" | "archived" | "out_of_stock" | "made_to_order";
   quantity: number;
   minStockLevel?: number;
   isFeatured?: boolean;

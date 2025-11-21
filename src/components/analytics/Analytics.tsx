@@ -18,9 +18,12 @@ export function Analytics() {
   // ID вашего счетчика Яндекс Метрики: 105401761
   const yandexId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID || "105401761";
 
+  // Проверяем, не находимся ли мы на админ-роуте
+  const isAdminRoute = pathname?.startsWith('/admin');
+
   // Google Analytics
   useEffect(() => {
-    if (!gaId) return;
+    if (!gaId || isAdminRoute) return;
 
     // Инициализация GA
     if (typeof window !== "undefined" && !window.gtag) {
@@ -45,14 +48,14 @@ export function Analytics() {
         page_path: pathname,
       });
     }
-  }, [pathname, gaId]);
+  }, [pathname, gaId, isAdminRoute]);
 
   // Yandex Metrika - используем официальный код от Яндекс
   // Примечание: Предупреждения о cookies "Partitioned" и "InstallTrigger is deprecated"
   // являются нормальными для Yandex Metrica и не влияют на функциональность.
   // Эти предупреждения исходят от самого скрипта Yandex Metrica.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isAdminRoute) return;
 
     const metrikaId = Number(yandexId);
 
@@ -118,14 +121,16 @@ export function Analytics() {
       noscript.innerHTML = `<div><img src="https://mc.yandex.ru/watch/${yandexId}" style="position:absolute; left:-9999px;" alt="" /></div>`;
       document.body.appendChild(noscript);
     }
-  }, []); // Загружаем только один раз при монтировании
+  }, [isAdminRoute, yandexId]); // Загружаем только один раз при монтировании, если не админка
 
   // Отправляем hit при изменении пути (для SPA навигации)
   useEffect(() => {
+    if (isAdminRoute || typeof window === 'undefined') return; // Не отправляем события на админ-роутах
+    
     if (window.ym && yandexId) {
       window.ym(Number(yandexId), "hit", pathname);
     }
-  }, [pathname, yandexId]);
+  }, [pathname, yandexId, isAdminRoute]);
 
   return null;
 }

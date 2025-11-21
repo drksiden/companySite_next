@@ -17,7 +17,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   X,
   Heart,
-  ShoppingCart,
   Star,
   Eye,
   Share2,
@@ -30,12 +29,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SearchProductsResult } from "@/types/catalog";
+import { useDisplaySettings } from "@/lib/hooks/useDisplaySettings";
 
 interface QuickViewProps {
   product: SearchProductsResult | null;
   isOpen: boolean;
   onClose: () => void;
-  onAddToCart?: (product: SearchProductsResult) => void;
   onAddToWishlist?: (product: SearchProductsResult) => void;
 }
 
@@ -43,18 +42,52 @@ export function QuickView({
   product,
   isOpen,
   onClose,
-  onAddToCart,
   onAddToWishlist,
 }: QuickViewProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageError, setImageError] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const { settings: displaySettings } = useDisplaySettings();
+  
+  // Дефолтные настройки на случай если они еще не загружены
+  const safeDisplaySettings = displaySettings || {
+    show_stock_status: true,
+    show_quantity: true,
+    show_made_to_order: true,
+    made_to_order_text: "На заказ",
+    in_stock_text: "В наличии",
+    out_of_stock_text: "Нет в наличии",
+    low_stock_threshold: 5,
+    show_low_stock_warning: true,
+    low_stock_text: "Осталось мало",
+  };
 
   if (!product) return null;
 
   const images =
     product.images || (product.thumbnail ? [product.thumbnail] : []);
-  const isInStock = (product.inventory_quantity || 0) > 0;
+  // Определяем наличие товара с учетом track_inventory, inventory_quantity и status
+  const isInStock = (() => {
+    // Если статус made_to_order - это отдельный статус, не "в наличии"
+    if (product.status === 'made_to_order') {
+      return false; // made_to_order - это не "в наличии", это отдельный статус
+    }
+    
+    // Если статус out_of_stock, draft или archived - товар не в наличии
+    if (product.status === 'out_of_stock' || product.status === 'draft' || product.status === 'archived') {
+      return false;
+    }
+    
+    // Если не отслеживается наличие (track_inventory = false), товар всегда в наличии
+    if (!product.track_inventory) {
+      return true;
+    }
+    
+    // Если отслеживается наличие, проверяем количество
+    return (product.inventory_quantity || 0) > 0;
+  })();
+  
+  const isMadeToOrder = product.status === 'made_to_order';
   const hasDiscount =
     product.is_on_sale && (product.discount_percentage || 0) > 0;
   const isNew =
@@ -62,10 +95,6 @@ export function QuickView({
     new Date(product.created_at) >
       new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const handleAddToCart = () => {
-    onAddToCart?.(product);
-    onClose();
-  };
 
   const handleAddToWishlist = () => {
     setIsInWishlist(!isInWishlist);
@@ -345,23 +374,53 @@ export function QuickView({
                 </Button>
               </div>
 
-              {/* Add to Cart */}
-              <Button
-                onClick={handleAddToCart}
-                disabled={!isInStock}
-                className="w-full"
-                size="lg"
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                {isInStock ? "Добавить в корзину" : "Товара нет в наличии"}
-              </Button>
-
-              {/* Additional Info */}
-              <div className="text-xs text-muted-foreground text-center">
-                {isInStock
-                  ? "Быстрая доставка • Гарантия качества"
-                  : "Уведомим о поступлении товара"}
-              </div>
+              {/* Stock Status */}
+              {safeDisplaySettings.show_stock_status && (() => {
+                // Определяем текст статуса
+                const statusText = isMadeToOrder
+                  ? safeDisplaySettings.show_made_to_order
+                    ? safeDisplaySettings.made_to_order_text
+                    : "" // Если made_to_order, но показ выключен - не показываем статус
+                  : isInStock
+                    ? product.track_inventory && safeDisplaySettings.show_quantity
+                      ? `${safeDisplaySettings.in_stock_text} (${product.inventory_quantity || 0} шт.)`
+                      : safeDisplaySettings.in_stock_text
+                    : product.status === 'out_of_stock'
+                      ? safeDisplaySettings.out_of_stock_text
+                      : product.status === 'draft'
+                        ? "Черновик"
+                        : product.status === 'archived'
+                          ? "Архивирован"
+                          : safeDisplaySettings.out_of_stock_text;
+                
+                // Не показываем блок, если текст пустой
+                if (!statusText) return null;
+                
+                return (
+                  <div className="flex items-center justify-center gap-2">
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        isMadeToOrder 
+                          ? "bg-blue-500" 
+                          : isInStock 
+                            ? "bg-green-500" 
+                            : "bg-red-500"
+                      }`}
+                    />
+                    <span
+                      className={`font-medium text-sm ${
+                        isMadeToOrder
+                          ? "text-blue-600"
+                          : isInStock 
+                            ? "text-green-600" 
+                            : "text-red-600"
+                      }`}
+                    >
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
