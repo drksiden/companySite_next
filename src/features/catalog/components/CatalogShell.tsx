@@ -27,6 +27,7 @@ import {
   Plug,
   Download,
   ChevronDown,
+  Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,6 +100,12 @@ const staticCategories = [
     slug: "cables",
     Icon: Plug,
     color: "bg-fuchsia-100 text-fuchsia-600",
+  },
+  {
+    name: "Автоматизация",
+    slug: "automation",
+    Icon: Cpu,
+    color: "bg-blue-100 text-blue-600",
   },
 ];
 
