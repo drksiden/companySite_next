@@ -29,6 +29,11 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["framer-motion"],
   },
+  // Отключаем агрессивное кэширование для предотвращения проблем с устаревшим контентом
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
 };
 
 module.exports = nextConfig;

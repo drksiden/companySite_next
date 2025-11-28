@@ -1,6 +1,7 @@
 // Service Worker для PWA
-const CACHE_NAME = 'asia-ntb-v1';
-const RUNTIME_CACHE = 'asia-ntb-runtime-v1';
+// Обновляем версию кэша при каждом изменении для принудительного обновления
+const CACHE_NAME = 'asia-ntb-v2';
+const RUNTIME_CACHE = 'asia-ntb-runtime-v2';
 
 // Ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -71,41 +72,33 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Возвращаем из кэша, если есть
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        // Иначе загружаем из сети
-        return fetch(event.request)
-          .then((response) => {
-            // Кэшируем только успешные ответы
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Клонируем ответ для кэширования
-            const responseToCache = response.clone();
-
-            caches.open(RUNTIME_CACHE)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Если сеть недоступна, возвращаем офлайн-страницу для документов
-            if (event.request.destination === 'document') {
-              return caches.match('/').then((offlinePage) => {
-                return offlinePage || new Response('Offline', { status: 503 });
-              });
-            }
-            // Для других ресурсов возвращаем пустой ответ
-            return new Response('', { status: 503 });
+    // Используем стратегию Network First для HTML страниц - всегда проверяем сеть сначала
+    fetch(event.request)
+      .then((response) => {
+        // Если запрос успешен, обновляем кэш и возвращаем свежий ответ
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => {
+            cache.put(event.request, responseToCache);
           });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Если сеть недоступна, пытаемся вернуть из кэша
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          // Если сеть недоступна и нет кэша, возвращаем офлайн-страницу для документов
+          if (event.request.destination === 'document') {
+            return caches.match('/').then((offlinePage) => {
+              return offlinePage || new Response('Offline', { status: 503 });
+            });
+          }
+          // Для других ресурсов возвращаем пустой ответ
+          return new Response('', { status: 503 });
+        });
       })
   );
 });
