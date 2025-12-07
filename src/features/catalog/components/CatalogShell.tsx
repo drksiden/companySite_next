@@ -120,7 +120,7 @@ async function fetchData({
 
   const params = {
     page: 1,
-    limit: 50,
+    limit: 200, // Увеличено с 50 до 200 для показа большего количества товаров
     sort: "name.asc",
     categories: [], // не фильтруем по категориям на главной!
     brands: brand ? brand.split(",").filter(Boolean) : [],
@@ -128,11 +128,47 @@ async function fetchData({
     search: query || undefined,
   };
 
-  const [productsResult, categories, brands] = await Promise.all([
-    listProducts(params),
-    listCategories(),
-    listBrands(),
-  ]);
+  // Обрабатываем ошибки БД, чтобы приложение не падало при недоступности Supabase
+  let productsResult: { data: any[]; meta: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean } };
+  let categories: any[] = [];
+  let brands: any[] = [];
+
+  try {
+    const results = await Promise.allSettled([
+      listProducts(params),
+      listCategories(),
+      listBrands(),
+    ]);
+
+    if (results[0].status === 'fulfilled') {
+      productsResult = results[0].value;
+    } else {
+      console.error("Error loading products:", results[0].reason);
+      productsResult = { 
+        data: [], 
+        meta: { total: 0, page: 1, limit: 200, totalPages: 0, hasNext: false, hasPrev: false } 
+      };
+    }
+
+    if (results[1].status === 'fulfilled') {
+      categories = results[1].value;
+    } else {
+      console.error("Error loading categories:", results[1].reason);
+    }
+
+    if (results[2].status === 'fulfilled') {
+      brands = results[2].value;
+    } else {
+      console.error("Error loading brands:", results[2].reason);
+    }
+  } catch (error) {
+    console.error("Error in fetchData:", error);
+    // Продолжаем с пустыми данными, чтобы приложение не падало
+    productsResult = { 
+      data: [], 
+      meta: { total: 0, page: 1, limit: 200, totalPages: 0, hasNext: false, hasPrev: false } 
+    };
+  }
 
   const topLevelCategories = staticCategories.map((staticCat) => {
     const dbCat = categories.find(

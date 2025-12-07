@@ -52,7 +52,7 @@ export default function CatalogProducts({
 
     return {
       page: 1,
-      limit: 50,
+      limit: 200, // Увеличено с 50 до 200 для показа большего количества товаров
       sort: "name.asc",
       search: currentFilters.query || undefined,
       categories: categories.length > 0 ? categories : undefined,
@@ -74,7 +74,7 @@ export default function CatalogProducts({
     if (initialProducts.length > 0 && !productsData && queryClient) {
       queryClient.setQueryData(
         ["catalog", "products", queryParams],
-        { data: initialProducts, meta: { total: initialProducts.length, page: 1, limit: 50, totalPages: 1, hasNext: false, hasPrev: false } }
+        { data: initialProducts, meta: { total: initialProducts.length, page: 1, limit: 200, totalPages: 1, hasNext: false, hasPrev: false } }
       );
     }
   }, [initialProducts.length, productsData, queryParams, queryClient]); // Только при монтировании или если нет данных

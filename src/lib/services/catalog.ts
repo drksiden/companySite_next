@@ -372,6 +372,22 @@ export async function listProducts(
 
   if (error) {
     console.error("Supabase error in listProducts:", error);
+    // Возвращаем пустой результат вместо ошибки, чтобы приложение не падало
+    // Это особенно важно при проблемах с подключением к Supabase (522 ошибка)
+    if (error.message?.includes('522') || error.message?.includes('Connection timed out')) {
+      console.warn("Supabase connection timeout, returning empty products");
+      return {
+        data: [],
+        meta: {
+          page: params.page,
+          limit: params.limit,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
     throw new Error("Database error");
   }
 
@@ -517,6 +533,12 @@ export async function listCategories(): Promise<CategoryItem[]> {
 
   if (error) {
     console.error("Supabase error in listCategories:", error);
+    // Возвращаем пустой массив вместо ошибки, чтобы приложение не падало
+    // Это особенно важно при проблемах с подключением к Supabase (522 ошибка)
+    if (error.message?.includes('522') || error.message?.includes('Connection timed out')) {
+      console.warn("Supabase connection timeout, returning empty categories");
+      return [];
+    }
     throw new Error("Database error");
   }
 
@@ -537,6 +559,11 @@ export async function listBrands(): Promise<BrandItem[]> {
 
   if (error) {
     console.error("Supabase error in listBrands:", error);
+    // Возвращаем пустой массив вместо ошибки, чтобы приложение не падало
+    if (error.message?.includes('522') || error.message?.includes('Connection timed out')) {
+      console.warn("Supabase connection timeout, returning empty brands");
+      return [];
+    }
     throw new Error("Database error");
   }
 

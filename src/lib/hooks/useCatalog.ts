@@ -60,8 +60,8 @@ export function useProducts(params?: {
       }
       return { data: result.data, meta: result.meta };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - товары не меняются часто
-    gcTime: 10 * 60 * 1000, // 10 minutes - хранить в кэше дольше
+    staleTime: 0, // Не кэшируем - всегда загружаем свежие данные
+    gcTime: 0, // Не храним в кэше
   });
 }
 
@@ -79,8 +79,8 @@ export function useProduct(slug: string) {
       return result.product || null;
     },
     enabled: !!slug,
-    staleTime: 5 * 60 * 1000, // 5 minutes - товары не меняются часто
-    gcTime: 10 * 60 * 1000, // 10 minutes - хранить в кэше дольше
+    staleTime: 0, // Не кэшируем - всегда загружаем свежие данные
+    gcTime: 0, // Не храним в кэше
   });
 }
 
@@ -96,7 +96,7 @@ export function useCategories() {
       const result = await response.json();
       return result.data || [];
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes - категории редко меняются
+    staleTime: 0, // Не кэшируем - всегда загружаем свежие данные
   });
 }
 
@@ -112,7 +112,7 @@ export function useBrands() {
       const result = await response.json();
       return result.data || [];
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes - бренды редко меняются
+    staleTime: 0, // Не кэшируем - всегда загружаем свежие данные
   });
 }
 

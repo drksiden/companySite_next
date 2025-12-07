@@ -98,7 +98,17 @@ export function middleware(request: NextRequest) {
   // В production применяем полные оптимизации
   setSecurityHeaders(response, request);
 
-  // Кэширование статических ресурсов
+  // Отключаем кэширование для HTML страниц - всегда загружаем свежие
+  if (pathname.match(/^\/[^.]*$/) && !pathname.startsWith('/api') && !pathname.startsWith('/_next')) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, max-age=0",
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+  }
+
+  // Кэширование статических ресурсов (только для реально статических файлов)
   if (STATIC_PATHS.some((path) => pathname.startsWith(path))) {
     response.headers.set(
       "Cache-Control",
@@ -107,13 +117,21 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // Кэширование изображений
+  // Кэширование изображений (уменьшено до 1 часа вместо 1 дня)
   if (pathname.match(/\.(jpg|jpeg|png|gif|svg|webp|avif)$/)) {
     response.headers.set(
       "Cache-Control",
-      `public, max-age=${IMAGE_CACHE_DURATION}`,
+      `public, max-age=3600`, // 1 час вместо 1 дня
     );
     return response;
+  }
+
+  // Отключаем кэширование для API роутов
+  if (pathname.startsWith('/api')) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, max-age=0",
+    );
   }
 
   // Проверка авторизации для админских путей

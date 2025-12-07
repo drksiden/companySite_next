@@ -1,7 +1,7 @@
 // Service Worker для PWA
 // Обновляем версию кэша при каждом изменении для принудительного обновления
-const CACHE_NAME = 'asia-ntb-v2';
-const RUNTIME_CACHE = 'asia-ntb-runtime-v2';
+const CACHE_NAME = 'asia-ntb-v3';
+const RUNTIME_CACHE = 'asia-ntb-runtime-v3';
 
 // Ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -71,12 +71,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Для HTML страниц - НЕ кэшируем, всегда загружаем свежие
+  if (event.request.destination === 'document' || event.request.headers.get('accept')?.includes('text/html')) {
+    // Просто пропускаем запрос, не кэшируем HTML
+    return;
+  }
+
+  // Для статических ресурсов (изображения, CSS, JS) - минимальное кэширование
   event.respondWith(
-    // Используем стратегию Network First для HTML страниц - всегда проверяем сеть сначала
     fetch(event.request)
       .then((response) => {
-        // Если запрос успешен, обновляем кэш и возвращаем свежий ответ
-        if (response && response.status === 200 && response.type === 'basic') {
+        // Кэшируем только статические ресурсы, не HTML
+        if (response && response.status === 200 && 
+            (event.request.url.match(/\.(jpg|jpeg|png|gif|svg|webp|css|js|woff|woff2|ttf|eot)$/i))) {
           const responseToCache = response.clone();
           caches.open(RUNTIME_CACHE).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -85,20 +92,11 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Если сеть недоступна, пытаемся вернуть из кэша
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Если сеть недоступна и нет кэша, возвращаем офлайн-страницу для документов
-          if (event.request.destination === 'document') {
-            return caches.match('/').then((offlinePage) => {
-              return offlinePage || new Response('Offline', { status: 503 });
-            });
-          }
-          // Для других ресурсов возвращаем пустой ответ
-          return new Response('', { status: 503 });
-        });
+        // Только для статических ресурсов пытаемся вернуть из кэша
+        if (event.request.url.match(/\.(jpg|jpeg|png|gif|svg|webp|css|js|woff|woff2|ttf|eot)$/i)) {
+          return caches.match(event.request);
+        }
+        return new Response('', { status: 503 });
       })
   );
 });
