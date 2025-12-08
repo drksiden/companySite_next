@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
         success: true,
         data: products.data,
         meta: products.meta,
+      }, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", // Отключаем кэширование
+        },
       });
     }
 
@@ -59,7 +63,7 @@ export async function GET(req: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=300", // Cache for 5 minutes
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", // Отключаем кэширование
         },
       },
     );
