@@ -160,11 +160,12 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
       brandTagline = "Надежные Системы Безопасности";
       description =
         'Полный спектр оборудования НПО "ТЕКО" в Казахстане. От радиоканальных систем "Астра" до адресных решений для защиты вашего объекта.';
-      catalogLink = "/catalog/manufacturer/teko";
+      catalogLink = "catalog?brand=23adccf8-4c06-4b61-9fcd-513351a6758e";
       badgeText = "Официальный дилер";
       sectionBgClass = "bg-gray-50 dark:bg-gray-900";
       break;
     case "flexem":
+      //TODO:Исправить в будущем ссылку и внешний вид
       slides = flexemSlides;
       brandName = "FLEXEM";
       brandLogoUrl = "/images/logos/flexem-logo-white.png";
@@ -177,6 +178,7 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
       sectionBgClass = "bg-white dark:bg-gray-800";
       break;
     case "ant":
+      //TODO:Исправить в будущем ссылку и внешний вид
       slides = antSlides;
       brandName = "ANT";
       brandLogoUrl = "/images/logos/ant-logo-light.svg";
