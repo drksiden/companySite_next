@@ -106,7 +106,21 @@ export function ContactForm({ className }: ContactFormProps) {
         setIsSuccess(false);
       }, 3000);
     } catch (error) {
-      console.error("Error submitting contact form:", error);
+      // Логируем ошибку отправки формы
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('Failed to submit contact form', error, {
+          formData: {
+            firstName: data.first_name,
+            lastName: data.last_name,
+            hasPhone: !!data.phone,
+            hasEmail: !!data.email,
+            messageLength: data.message.length,
+          },
+          errorType: 'contact-form-error',
+          component: 'ContactForm',
+        });
+      });
+      
       toast.error(
         error instanceof Error
           ? error.message

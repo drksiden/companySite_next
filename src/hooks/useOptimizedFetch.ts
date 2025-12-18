@@ -130,7 +130,21 @@ export function useOptimizedFetch<T>(
         .then(async (response) => {
           if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            const error = new Error(`HTTP ${response.status}: ${errorText}`);
+            
+            // Логируем HTTP ошибки
+            import('@/lib/logger/client').then(({ clientLogger }) => {
+              clientLogger.error('HTTP error in fetch', error, {
+                url,
+                method,
+                status: response.status,
+                statusText: response.statusText,
+                errorType: 'http-error',
+                component: 'useOptimizedFetch',
+              });
+            });
+            
+            throw error;
           }
           return response.json();
         })
@@ -199,6 +213,16 @@ export function useOptimizedFetch<T>(
       }
     } catch (error: any) {
       if (mountedRef.current && error.name !== "AbortError") {
+        // Логируем ошибку при refetch
+        import('@/lib/logger/client').then(({ clientLogger }) => {
+          clientLogger.error('Failed to refetch data', error, {
+            url,
+            method,
+            errorType: 'refetch-error',
+            component: 'useOptimizedFetch',
+          });
+        });
+        
         setState({
           data: null,
           loading: false,
@@ -255,6 +279,16 @@ export function useOptimizedFetch<T>(
       })
       .catch((error: any) => {
         if (mountedRef.current && error.name !== "AbortError") {
+          // Логируем ошибку загрузки
+          import('@/lib/logger/client').then(({ clientLogger }) => {
+            clientLogger.error('Failed to fetch data', error, {
+              url,
+              method,
+              errorType: 'fetch-error',
+              component: 'useOptimizedFetch',
+            });
+          });
+          
           setState({
             data: null,
             loading: false,

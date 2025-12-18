@@ -165,7 +165,7 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
       sectionBgClass = "bg-gray-50 dark:bg-gray-900";
       break;
     case "flexem":
-      //TODO:Исправить в будущем ссылку и внешний вид
+      //TODO: Добавить ссылку и изменить фотки
       slides = flexemSlides;
       brandName = "FLEXEM";
       brandLogoUrl = "/images/logos/flexem-logo-white.png";
@@ -178,7 +178,7 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
       sectionBgClass = "bg-white dark:bg-gray-800";
       break;
     case "ant":
-      //TODO:Исправить в будущем ссылку и внешний вид
+      //TODO: Так же добавить ссылки на рабочий каталог и изменить вид
       slides = antSlides;
       brandName = "ANT";
       brandLogoUrl = "/images/logos/ant-logo-light.svg";

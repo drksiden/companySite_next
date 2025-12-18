@@ -220,7 +220,9 @@ export function ProductManagerNew() {
 
       toast.success(message);
       // Очищаем автосохранение после успешного создания
-      localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      }
       handleCloseDialog();
     } catch (error) {
       console.error("Error creating product:", error);
@@ -273,7 +275,9 @@ export function ProductManagerNew() {
 
       toast.success(message);
       // Очищаем автосохранение после успешного обновления
-      localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+      }
       handleCloseDialog();
     } catch (error) {
       console.error("Error updating product:", error);
@@ -434,7 +438,9 @@ export function ProductManagerNew() {
               onClick={() => {
                 setEditingProduct(null);
                 // Очищаем автосохранение при создании нового товара
-                localStorage.removeItem("product-form-draft-new");
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem("product-form-draft-new");
+                }
               }}
               className="enhanced-shadow"
             >
@@ -452,7 +458,9 @@ export function ProductManagerNew() {
                 e.preventDefault();
                 if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
                   // Очищаем автосохранение при подтверждении закрытия
-                  localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  }
                   handleCloseDialog();
                 }
               }
@@ -464,7 +472,9 @@ export function ProductManagerNew() {
                 e.preventDefault();
                 if (confirm("У вас есть несохраненные изменения. Вы уверены, что хотите закрыть форму?")) {
                   // Очищаем автосохранение при подтверждении закрытия
-                  localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem(`product-form-draft-${editingProduct?.id || 'new'}`);
+                  }
                   handleCloseDialog();
                 }
               }

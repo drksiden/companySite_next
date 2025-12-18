@@ -28,12 +28,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Логируем ошибку для мониторинга
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
-    
-    // Здесь можно отправить ошибку в сервис мониторинга (Sentry, LogRocket и т.д.)
-    // if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    //   Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
-    // }
+    if (typeof window !== 'undefined') {
+      // На клиенте используем clientLogger
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('ErrorBoundary caught an error', error, {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: true,
+        });
+      });
+    } else {
+      // На сервере используем обычный logger
+      import('@/lib/logger').then(({ logError }) => {
+        logError('ErrorBoundary caught an error', error, {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: true,
+        });
+      });
+    }
   }
 
   handleReset = () => {

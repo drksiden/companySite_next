@@ -15,7 +15,15 @@ interface ErrorProps {
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
     // Логируем ошибку
-    console.error("Application error:", error);
+    import('@/lib/logger/client').then(({ clientLogger }) => {
+      clientLogger.error('Page error occurred', error, {
+        errorType: 'page-error',
+        digest: error.digest,
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
+        pathname: typeof window !== 'undefined' ? window.location.pathname : undefined,
+        timestamp: new Date().toISOString(),
+      });
+    });
     
     // Добавляем мета-тег noindex для предотвращения индексации страниц ошибок
     const metaRobots = document.querySelector('meta[name="robots"]');

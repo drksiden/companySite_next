@@ -586,33 +586,35 @@ export function ProductFormNew({
       // Восстановление данных из localStorage при монтировании (только для новых товаров)
     } else {
       // Восстанавливаем данные только для новых товаров
-      try {
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          const parsed = JSON.parse(savedData);
-          // Проверяем, не слишком ли старые данные (более 7 дней)
-          if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
-            // Восстанавливаем только текстовые поля, не файлы
-            const { specifications: savedSpecs, documentGroups: savedDocs, timestamp, ...formData } = parsed;
-            
-            if (savedSpecs) setSpecifications(savedSpecs);
-            if (savedDocs) setDocumentGroups(savedDocs);
-            
-            // Восстанавливаем значения формы
-            setTimeout(() => {
-              Object.entries(formData).forEach(([key, value]) => {
-                if (value !== null && value !== undefined && value !== "" && key !== 'timestamp') {
-                  form.setValue(key as any, value, { shouldDirty: false });
-                }
-              });
-            }, 100);
-          } else {
-            // Удаляем устаревшие данные
-            localStorage.removeItem(storageKey);
+      if (typeof window !== 'undefined') {
+        try {
+          const savedData = localStorage.getItem(storageKey);
+          if (savedData) {
+            const parsed = JSON.parse(savedData);
+            // Проверяем, не слишком ли старые данные (более 7 дней)
+            if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
+              // Восстанавливаем только текстовые поля, не файлы
+              const { specifications: savedSpecs, documentGroups: savedDocs, timestamp, ...formData } = parsed;
+              
+              if (savedSpecs) setSpecifications(savedSpecs);
+              if (savedDocs) setDocumentGroups(savedDocs);
+              
+              // Восстанавливаем значения формы
+              setTimeout(() => {
+                Object.entries(formData).forEach(([key, value]) => {
+                  if (value !== null && value !== undefined && value !== "" && key !== 'timestamp') {
+                    form.setValue(key as any, value, { shouldDirty: false });
+                  }
+                });
+              }, 100);
+            } else {
+              // Удаляем устаревшие данные
+              localStorage.removeItem(storageKey);
+            }
           }
+        } catch (error) {
+          console.error("Error loading from localStorage:", error);
         }
-      } catch (error) {
-        console.error("Error loading from localStorage:", error);
       }
     }
     
@@ -624,6 +626,7 @@ export function ProductFormNew({
   
   // Автосохранение в localStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return; // Не выполняем на сервере
     if (isSubmittingRef.current || initialData?.id) return; // Не сохраняем во время отправки и для редактирования
     
     // Не сохраняем сразу после загрузки (первые 2 секунды)
@@ -898,7 +901,9 @@ export function ProductFormNew({
     }
 
     // Очищаем автосохранение после успешной отправки
-    localStorage.removeItem(storageKey);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(storageKey);
+    }
     setHasUnsavedChanges(false);
     
     onSubmit(formData);
