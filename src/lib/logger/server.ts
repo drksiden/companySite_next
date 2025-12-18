@@ -63,14 +63,26 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
     const lokiLabels = JSON.parse(process.env.GRAFANA_LOKI_LABELS);
     console.log('[Logger] Loki labels:', lokiLabels);
     
+    // winston-loki ожидает базовый URL без пути /loki/api/v1/push
+    // Для Grafana Cloud нужно использовать базовый URL стека
+    let lokiHost = process.env.GRAFANA_LOKI_URL;
+    if (lokiHost.includes('/loki/api/v1/push')) {
+      // Убираем путь, оставляем только базовый URL
+      lokiHost = lokiHost.replace('/loki/api/v1/push', '');
+      console.log('[Logger] Adjusted Loki URL:', lokiHost);
+    }
+    
     const lokiConfig: any = {
-      host: process.env.GRAFANA_LOKI_URL,
+      host: lokiHost,
       labels: lokiLabels,
       json: true,
       format: logFormat,
       replaceTimestamp: true,
       onConnectionError: (err: Error) => {
-        console.error('[Logger] Loki connection error:', err.message, err.stack);
+        console.error('[Logger] Loki connection error:', err.message);
+        if (err.stack) {
+          console.error('[Logger] Stack:', err.stack);
+        }
       },
       gracefulShutdown: true,
     };
