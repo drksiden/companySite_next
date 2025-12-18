@@ -53,7 +53,8 @@ const transports: winston.transport[] = [
 
 // Добавляем транспорт для Grafana Loki, если настроен
 // Загружаем winston-loki только здесь, на сервере
-if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
+// Для Grafana Cloud нужен базовый host (без пути) и basicAuth как строка "instance_id:token"
+if (process.env.GRAFANA_LOKI_HOST && process.env.GRAFANA_LOKI_LABELS) {
   try {
     console.log('[Logger] Attempting to load winston-loki...');
     // Динамический require только на сервере
@@ -63,13 +64,14 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
     const lokiLabels = JSON.parse(process.env.GRAFANA_LOKI_LABELS);
     console.log('[Logger] Loki labels:', lokiLabels);
     
-    // winston-loki ожидает базовый URL без пути /loki/api/v1/push
-    // Для Grafana Cloud нужно использовать базовый URL стека
-    let lokiHost = process.env.GRAFANA_LOKI_URL;
+    // Для Grafana Cloud используем базовый host (без пути /loki/api/v1/push)
+    // winston-loki сам добавит нужный путь
+    let lokiHost = process.env.GRAFANA_LOKI_HOST;
+    
+    // Если передан полный URL с путем, убираем путь
     if (lokiHost.includes('/loki/api/v1/push')) {
-      // Убираем путь, оставляем только базовый URL
       lokiHost = lokiHost.replace('/loki/api/v1/push', '');
-      console.log('[Logger] Adjusted Loki URL:', lokiHost);
+      console.log('[Logger] Adjusted Loki host (removed path):', lokiHost);
     }
     
     const lokiConfig: any = {
@@ -88,22 +90,21 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
     };
     
     // Поддержка Basic Auth для Grafana Cloud
-    // Формат: INSTANCE_ID:API_TOKEN
-    if (process.env.GRAFANA_LOKI_BASIC_AUTH) {
-      const [username, password] = process.env.GRAFANA_LOKI_BASIC_AUTH.split(':');
-      if (username && password) {
-        lokiConfig.basicAuth = { username, password };
-        console.log('[Logger] Basic Auth configured (username:', username.substring(0, 4) + '...)');
-      } else {
-        // Fallback: если формат неверный, используем как есть (для совместимости)
-        lokiConfig.basicAuth = process.env.GRAFANA_LOKI_BASIC_AUTH;
-        console.warn('[Logger] Basic Auth format may be incorrect');
-      }
+    // Формат 1: через GRAFANA_LOKI_BASIC_AUTH (строка "instance_id:token")
+    // Формат 2: через GRAFANA_INSTANCE_ID и GRAFANA_API_TOKEN (рекомендуется)
+    if (process.env.GRAFANA_INSTANCE_ID && process.env.GRAFANA_API_TOKEN) {
+      lokiConfig.basicAuth = `${process.env.GRAFANA_INSTANCE_ID}:${process.env.GRAFANA_API_TOKEN}`;
+      console.log('[Logger] Basic Auth configured from INSTANCE_ID and API_TOKEN (username:', process.env.GRAFANA_INSTANCE_ID.substring(0, 4) + '...)');
+    } else if (process.env.GRAFANA_LOKI_BASIC_AUTH) {
+      // Fallback: используем готовую строку из переменной окружения
+      lokiConfig.basicAuth = process.env.GRAFANA_LOKI_BASIC_AUTH;
+      const [username] = process.env.GRAFANA_LOKI_BASIC_AUTH.split(':');
+      console.log('[Logger] Basic Auth configured from GRAFANA_LOKI_BASIC_AUTH (username:', username.substring(0, 4) + '...)');
     }
     
     const lokiTransport = new LokiTransport(lokiConfig);
     transports.push(lokiTransport);
-    console.log('[Logger] Loki transport added successfully. URL:', process.env.GRAFANA_LOKI_URL);
+    console.log('[Logger] Loki transport added successfully. Host:', lokiHost);
   } catch (error) {
     // Логируем ошибки загрузки winston-loki
     console.error('[Logger] Failed to load winston-loki:', error instanceof Error ? error.message : error);
@@ -112,7 +113,7 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
     }
   }
 } else {
-  console.log('[Logger] Grafana Loki not configured (missing GRAFANA_LOKI_URL or GRAFANA_LOKI_LABELS)');
+  console.log('[Logger] Grafana Loki not configured (missing GRAFANA_LOKI_HOST or GRAFANA_LOKI_LABELS)');
 }
 
 // Создаем логгер
