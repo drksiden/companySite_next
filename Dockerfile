@@ -51,8 +51,19 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Копируем winston-loki и его зависимости из node_modules builder stage
 # так как Next.js standalone может не включить динамически загружаемые модули
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/winston-loki ./node_modules/winston-loki
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs 2>/dev/null || true
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/snappy ./node_modules/snappy 2>/dev/null || true
+
+# Копируем опциональные зависимости winston-loki (если они существуют)
+# Используем RUN для проверки существования перед копированием
+USER root
+RUN mkdir -p ./node_modules && \
+    if [ -d /app/node_modules/@napi-rs ]; then \
+      cp -r /app/node_modules/@napi-rs ./node_modules/ 2>/dev/null || true; \
+    fi && \
+    if [ -d /app/node_modules/snappy ]; then \
+      cp -r /app/node_modules/snappy ./node_modules/ 2>/dev/null || true; \
+    fi && \
+    chown -R nextjs:nodejs ./node_modules
+USER nextjs
 
 USER nextjs
 
