@@ -55,9 +55,13 @@ const transports: winston.transport[] = [
 // Загружаем winston-loki только здесь, на сервере
 if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
   try {
+    console.log('[Logger] Attempting to load winston-loki...');
     // Динамический require только на сервере
     const LokiTransport = require('winston-loki').default || require('winston-loki');
+    console.log('[Logger] winston-loki loaded successfully');
+    
     const lokiLabels = JSON.parse(process.env.GRAFANA_LOKI_LABELS);
+    console.log('[Logger] Loki labels:', lokiLabels);
     
     const lokiConfig: any = {
       host: process.env.GRAFANA_LOKI_URL,
@@ -66,7 +70,7 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
       format: logFormat,
       replaceTimestamp: true,
       onConnectionError: (err: Error) => {
-        console.error('Loki connection error:', err);
+        console.error('[Logger] Loki connection error:', err.message, err.stack);
       },
       gracefulShutdown: true,
     };
@@ -77,19 +81,26 @@ if (process.env.GRAFANA_LOKI_URL && process.env.GRAFANA_LOKI_LABELS) {
       const [username, password] = process.env.GRAFANA_LOKI_BASIC_AUTH.split(':');
       if (username && password) {
         lokiConfig.basicAuth = { username, password };
+        console.log('[Logger] Basic Auth configured (username:', username.substring(0, 4) + '...)');
       } else {
         // Fallback: если формат неверный, используем как есть (для совместимости)
         lokiConfig.basicAuth = process.env.GRAFANA_LOKI_BASIC_AUTH;
+        console.warn('[Logger] Basic Auth format may be incorrect');
       }
     }
     
-    transports.push(new LokiTransport(lokiConfig));
+    const lokiTransport = new LokiTransport(lokiConfig);
+    transports.push(lokiTransport);
+    console.log('[Logger] Loki transport added successfully. URL:', process.env.GRAFANA_LOKI_URL);
   } catch (error) {
-    // Игнорируем ошибки загрузки winston-loki
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('winston-loki not available (this is OK if not using Loki):', error);
+    // Логируем ошибки загрузки winston-loki
+    console.error('[Logger] Failed to load winston-loki:', error instanceof Error ? error.message : error);
+    if (error instanceof Error && error.stack) {
+      console.error('[Logger] Stack:', error.stack);
     }
   }
+} else {
+  console.log('[Logger] Grafana Loki not configured (missing GRAFANA_LOKI_URL or GRAFANA_LOKI_LABELS)');
 }
 
 // Создаем логгер
