@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listProducts } from "@/lib/services/catalog";
+import { logError, logInfo, logHttp } from "@/lib/logger/server";
 
 export async function GET(req: NextRequest) {
+  const startTime = Date.now();
   try {
     const { searchParams } = new URL(req.url);
+    
+    logHttp('GET /api/catalog/products', {
+      method: 'GET',
+      endpoint: '/api/catalog/products',
+      queryParams: Object.fromEntries(searchParams),
+    });
 
     // Convert URLSearchParams to plain object for zod parsing
     const queryParams: Record<string, string> = {};
@@ -12,6 +20,16 @@ export async function GET(req: NextRequest) {
     });
 
     const result = await listProducts(queryParams);
+
+    const duration = Date.now() - startTime;
+    logInfo('Products fetched successfully', {
+      endpoint: '/api/catalog/products',
+      method: 'GET',
+      totalProducts: result.meta.total,
+      returnedProducts: result.data.length,
+      duration: `${duration}ms`,
+      queryParams: Object.fromEntries(searchParams),
+    });
 
     return NextResponse.json(
       {
@@ -27,7 +45,11 @@ export async function GET(req: NextRequest) {
       },
     );
   } catch (error) {
-    console.error("Catalog products API error:", error);
+    logError("Catalog products API error", error as Error, {
+      endpoint: '/api/catalog/products',
+      method: 'GET',
+      errorType: 'catalog-products-api-error',
+    });
 
     return NextResponse.json(
       {

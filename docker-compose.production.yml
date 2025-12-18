@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Основное приложение
+  asia-ntb:
+    container_name: asia-ntb
+    build: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "22742:3000"
+    networks:
+      - app-network
+      - logging-network
+    depends_on:
+      - loki
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Grafana Loki для сбора логов
+  loki:
+    image: grafana/loki:latest
+    container_name: company-site-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    networks:
+      - logging-network
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+
+  # Promtail для отправки логов в Loki
+  promtail:
+    image: grafana/promtail:latest
+    container_name: company-site-promtail
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - logging-network
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # Grafana для визуализации логов
+  grafana:
+    image: grafana/grafana:latest
+    container_name: company-site-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3001}
+      - GF_INSTALL_PLUGINS=
+      - GF_SECURITY_COOKIE_SECURE=${GRAFANA_COOKIE_SECURE:-false}
+      - GF_SECURITY_COOKIE_SAMESITE=${GRAFANA_COOKIE_SAMESITE:-lax}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - logging-network
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+volumes:
+  loki-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+  logging-network:
+    driver: bridge
+

@@ -89,6 +89,17 @@ export function OptimizedImage({
   const handleError = () => {
     setIsLoading(false);
     setHasError(true);
+    
+    // Логируем ошибку загрузки изображения
+    import('@/lib/logger/client').then(({ clientLogger }) => {
+      clientLogger.error('Failed to load image', new Error(`Image load failed: ${src}`), {
+        imageSrc: src,
+        alt,
+        errorType: 'image-load-error',
+        component: 'OptimizedImage',
+      });
+    });
+    
     onError?.();
   };
 

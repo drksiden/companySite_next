@@ -195,30 +195,40 @@ export default function FilterSidebar({
   const router = useRouter();
   const params = useSearchParams();
   
-  // Загружаем сохраненные фильтры из localStorage
-  const getSavedFilters = () => {
-    if (typeof window === 'undefined') return { query: '', categories: [], brands: [] };
+  // Инициализируем состояние без localStorage (безопасно для SSR)
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams?.query || ""
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    searchParams?.category?.split(",").filter(Boolean) || [],
+  );
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(
+    searchParams?.brand?.split(",").filter(Boolean) || [],
+  );
+
+  // Загружаем сохраненные фильтры из localStorage только на клиенте
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const saved = localStorage.getItem('catalog-filters');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Применяем сохраненные фильтры только если нет параметров в URL
+        if (!searchParams?.query && parsed.query) {
+          setSearchQuery(parsed.query);
+        }
+        if (!searchParams?.category && parsed.categories?.length > 0) {
+          setSelectedCategories(parsed.categories);
+        }
+        if (!searchParams?.brand && parsed.brands?.length > 0) {
+          setSelectedBrands(parsed.brands);
+        }
       }
     } catch (e) {
       console.error('Error loading saved filters:', e);
     }
-    return { query: '', categories: [], brands: [] };
-  };
-
-  const savedFilters = getSavedFilters();
-  const [searchQuery, setSearchQuery] = useState(
-    searchParams?.query || savedFilters.query || ""
-  );
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    searchParams?.category?.split(",").filter(Boolean) || savedFilters.categories || [],
-  );
-  const [selectedBrands, setSelectedBrands] = useState<string[]>(
-    searchParams?.brand?.split(",").filter(Boolean) || savedFilters.brands || [],
-  );
+  }, []); // Загружаем только один раз при монтировании
 
   // Сохраняем фильтры в localStorage
   const saveFilters = useCallback((query: string, categories: string[], brands: string[]) => {

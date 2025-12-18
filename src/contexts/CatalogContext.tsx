@@ -408,7 +408,20 @@ export function CatalogProvider({
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         dispatch({ type: "SET_ERROR", payload: errorMessage });
-        console.error("Error fetching products:", error);
+        
+        // Логируем ошибку загрузки продуктов
+        import('@/lib/logger/client').then(({ clientLogger }) => {
+          clientLogger.error('Failed to fetch products', error, {
+            filters: state.filters,
+            pagination: {
+              page: state.pagination.page,
+              limit: state.pagination.limit,
+            },
+            sortBy: state.sortBy,
+            errorType: 'catalog-fetch-error',
+            component: 'CatalogContext',
+          });
+        });
       }
     },
     [
@@ -428,7 +441,12 @@ export function CatalogProvider({
         dispatch({ type: "SET_CATEGORIES", payload: data.data });
       }
     } catch (error) {
-      console.error("Error fetching categories:", error);
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('Failed to fetch categories', error, {
+          errorType: 'catalog-categories-error',
+          component: 'CatalogContext',
+        });
+      });
     }
   }, []);
 
@@ -441,7 +459,12 @@ export function CatalogProvider({
         dispatch({ type: "SET_BRANDS", payload: data.data });
       }
     } catch (error) {
-      console.error("Error fetching brands:", error);
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('Failed to fetch brands', error, {
+          errorType: 'catalog-brands-error',
+          component: 'CatalogContext',
+        });
+      });
     }
   }, []);
 
@@ -454,7 +477,12 @@ export function CatalogProvider({
         dispatch({ type: "SET_COLLECTIONS", payload: data.data });
       }
     } catch (error) {
-      console.error("Error fetching collections:", error);
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('Failed to fetch collections', error, {
+          errorType: 'catalog-collections-error',
+          component: 'CatalogContext',
+        });
+      });
     }
   }, []);
 

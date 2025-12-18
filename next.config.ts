@@ -34,6 +34,40 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
+  // Игнорируем нативные модули winston-loki при сборке
+  webpack: (config: any, { isServer }: { isServer: boolean }) => {
+    if (!isServer) {
+      // На клиенте игнорируем winston-loki и связанные нативные модули
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+      
+      // Игнорируем winston-loki и snappy на клиенте
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'winston-loki': false,
+        'snappy': false,
+        '@napi-rs/snappy': false,
+      };
+    }
+    
+    // Игнорируем нативные модули (.node файлы)
+    config.module.rules.push({
+      test: /\.node$/,
+      use: 'ignore-loader',
+    });
+    
+    // Игнорируем проблемные модули snappy
+    config.module.rules.push({
+      test: /node_modules[\\/]snappy[\\/]/,
+      use: 'ignore-loader',
+    });
+    
+    return config;
+  },
 };
 
 module.exports = nextConfig;

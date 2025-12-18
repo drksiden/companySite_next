@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabaseServer";
+import { logger, logError, logHttp } from "@/lib/logger/server";
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
   try {
+    logHttp('GET /api/admin/products', {
+      query: Object.fromEntries(request.nextUrl.searchParams),
+    });
+    
     const supabase = await createServerClient();
 
     // Get query parameters
@@ -50,7 +56,11 @@ export async function GET(request: NextRequest) {
     const { data: products, error } = await query;
 
     if (error) {
-      console.error("Error fetching products:", error);
+      logError("Error fetching products", error, {
+        endpoint: '/api/admin/products',
+        method: 'GET',
+        query: Object.fromEntries(request.nextUrl.searchParams),
+      });
       return NextResponse.json(
         { error: "Failed to fetch products" },
         { status: 500 },
@@ -83,6 +93,15 @@ export async function GET(request: NextRequest) {
     const { count } = await countQuery;
     const total = count || 0;
     const hasMore = total > offset + limit;
+
+    const duration = Date.now() - startTime;
+    logger.info('Products fetched successfully', {
+      endpoint: '/api/admin/products',
+      method: 'GET',
+      count: products?.length || 0,
+      total,
+      duration: `${duration}ms`,
+    });
 
     return NextResponse.json({
       products: products || [],

@@ -15,7 +15,15 @@ interface GlobalErrorProps {
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
     // Логируем критическую ошибку
-    console.error("Critical application error:", error);
+    import('@/lib/logger/client').then(({ clientLogger }) => {
+      clientLogger.error('Global error occurred', error, {
+        errorType: 'global-error',
+        digest: error.digest,
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+        timestamp: new Date().toISOString(),
+      });
+    });
     
     // Добавляем мета-тег noindex для предотвращения индексации страниц ошибок
     const metaRobots = document.querySelector('meta[name="robots"]');

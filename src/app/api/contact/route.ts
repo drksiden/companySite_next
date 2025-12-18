@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { logError, logInfo, logHttp } from "@/lib/logger/server";
 
 // Используем admin клиент (service role key) для публичного endpoint
 // Это безопасно, так как:
@@ -28,7 +29,13 @@ function getAdminClient() {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
+    logHttp('POST /api/contact', {
+      method: 'POST',
+      endpoint: '/api/contact',
+    });
+    
     const body = await req.json();
     const { first_name, last_name, phone, email, message } = body;
 
@@ -75,19 +82,37 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Error inserting client request:", error);
+      logError("Error inserting client request", error, {
+        endpoint: '/api/contact',
+        method: 'POST',
+        operation: 'insert_client_request',
+      });
       return NextResponse.json(
         { error: "Ошибка при сохранении запроса" },
         { status: 500 }
       );
     }
 
+    const duration = Date.now() - startTime;
+    logInfo('Contact form submitted successfully', {
+      endpoint: '/api/contact',
+      method: 'POST',
+      requestId: data?.id,
+      duration: `${duration}ms`,
+      hasPhone: !!phone,
+      hasEmail: !!email,
+    });
+
     return NextResponse.json(
       { success: true, data },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error in contact API:", error);
+    logError("Error in contact API", error as Error, {
+      endpoint: '/api/contact',
+      method: 'POST',
+      errorType: 'contact-api-error',
+    });
     return NextResponse.json(
       { error: "Внутренняя ошибка сервера" },
       { status: 500 }

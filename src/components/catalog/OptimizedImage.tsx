@@ -89,7 +89,21 @@ const OptimizedImage = forwardRef<HTMLDivElement, OptimizedImageProps>(
 
     // Обработка ошибки загрузки изображения
     const handleImageError = useCallback(() => {
-      console.warn(`Failed to load image: ${allImages[currentImageIndex]}`);
+      const failedImage = allImages[currentImageIndex];
+      
+      // Логируем ошибку загрузки изображения
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.warn('Failed to load image, trying fallback', {
+          imageSrc: failedImage,
+          alt,
+          currentIndex: currentImageIndex,
+          totalImages: allImages.length,
+          hasFallback: currentImageIndex < allImages.length - 1,
+          errorType: 'image-load-error',
+          component: 'OptimizedImage',
+          error: `Image load failed: ${failedImage}`,
+        });
+      });
 
       // Пробуем следующее изображение из списка
       if (currentImageIndex < allImages.length - 1) {
@@ -101,8 +115,21 @@ const OptimizedImage = forwardRef<HTMLDivElement, OptimizedImageProps>(
       // Если все изображения не загрузились
       setHasError(true);
       setIsLoading(false);
+      
+      // Логируем критическую ошибку - все изображения не загрузились
+      import('@/lib/logger/client').then(({ clientLogger }) => {
+        clientLogger.error('All image fallbacks failed', new Error('All images failed to load'), {
+          imageSrc: src,
+          alt,
+          fallbackImages,
+          allAttemptedImages: allImages,
+          errorType: 'image-all-failed',
+          component: 'OptimizedImage',
+        });
+      });
+      
       onError?.();
-    }, [currentImageIndex, allImages, onError]);
+    }, [currentImageIndex, allImages, onError, src, alt, fallbackImages]);
 
     // Обработка успешной загрузки
     const handleImageLoad = useCallback(() => {
