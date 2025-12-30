@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     canonical: '/catalog',
   },
   openGraph: {
-    title: `Каталог товаров - ${COMPANY_NAME_SHORT}`,
+    title: "Каталог товаров",
     description: "Каталог систем безопасности, автоматизации и сетевого оборудования. Официальные дилеры ведущих производителей.",
     url: '/catalog',
     siteName: COMPANY_NAME_SHORT,
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `Каталог товаров - ${COMPANY_NAME_SHORT}`,
+    title: "Каталог товаров",
     description: "Каталог систем безопасности, автоматизации и сетевого оборудования.",
   },
 };

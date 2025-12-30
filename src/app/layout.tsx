@@ -12,10 +12,7 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteBaseUrl),
-  title: {
-    default: COMPANY_NAME, // Заголовок по умолчанию
-    template: `%s | ${COMPANY_NAME_SHORT}`, // Шаблон для заголовков страниц
-  },
+  title: COMPANY_NAME, // Заголовок по умолчанию
   description: 'Ваш надежный системный интегратор в области безопасности и автоматизации в Казахстане. Комплексные решения, монтаж, обслуживание, официальные дилеры.',
   keywords: [
     'системная интеграция',

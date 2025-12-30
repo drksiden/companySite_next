@@ -187,20 +187,20 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
 
   return (
     <Card 
-      className="group relative bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all overflow-hidden rounded-lg product-card hover:-translate-y-1"
+      className="group relative bg-card border-2 border-transparent hover:border-primary/50 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden rounded-xl product-card hover:-translate-y-2 py-0 gap-0"
       onMouseEnter={handleMouseEnter}
     >
       <Link href={`/catalog/product/${product.slug}`} prefetch className="block h-full">
         <div className="relative h-full flex flex-col">
           {/* Image Section */}
-          <div className="relative w-full h-48 overflow-hidden bg-[var(--image-bg)] rounded-t-lg">
+          <div className="relative w-full h-40 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
             <Image
               src={imageSrc}
               alt={product.name}
               fill
-              className="object-contain transition-all duration-300 group-hover:scale-105"
+              className="object-contain transition-all duration-500 group-hover:scale-110"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
-              quality={80}
+              quality={85}
               priority={priority}
               loading={priority ? undefined : "lazy"}
               placeholder="blur"
@@ -212,86 +212,92 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
               }
             />
 
+            {/* Simple dark overlay on hover */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
+
             {/* Badges */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+            <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-20">
               {isOnSale && (
-                <Badge className="bg-[var(--sale-bg)] hover:bg-[var(--sale-hover-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-bold px-2 py-0.5 rounded-full text-xs">
+                <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg backdrop-blur-sm border-0 font-bold px-3 py-1 rounded-full text-xs animate-pulse">
                   -{discountPercentage}%
                 </Badge>
               )}
               {product.is_featured && (
-                <Badge className="bg-[var(--featured-bg)] text-[var(--badge-text)] shadow-md backdrop-blur-sm border-0 font-bold px-2 py-0.5 rounded-full text-xs">
-                  ХИТ
+                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg backdrop-blur-sm border-0 font-bold px-3 py-1 rounded-full text-xs">
+                  ⭐ ХИТ
                 </Badge>
               )}
               {isMadeToOrder && safeDisplaySettings.show_made_to_order && (
-                <Badge className="bg-blue-500 text-white shadow-md backdrop-blur-sm border-0 font-medium px-2 py-0.5 rounded-full text-xs">
+                <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg backdrop-blur-sm border-0 font-medium px-3 py-1 rounded-full text-xs">
                   {safeDisplaySettings.made_to_order_text}
                 </Badge>
               )}
             </div>
 
-            {/* Wishlist Button - moved to top with higher z-index */}
-            <div className="absolute top-2 right-2 z-30">
+            {/* Wishlist Button - появляется при наведении или если товар в избранном */}
+            <div className={`absolute top-2 right-2 z-30 transition-opacity duration-300 ${
+              isInWishlist ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-8 w-8 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-all shadow-sm ${
-                  isInWishlist ? 'text-red-500' : 'text-foreground dark:text-muted-foreground'
+                className={`h-8 w-8 rounded-full bg-background/95 backdrop-blur-md hover:bg-background transition-all duration-300 shadow-lg hover:scale-110 ${
+                  isInWishlist ? 'text-red-500 bg-red-50 dark:bg-red-950' : 'text-foreground'
                 }`}
                 onClick={handleWishlistToggle}
                 aria-label={isInWishlist ? "Удалить из избранного" : "Добавить в избранное"}
               >
-                <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
+                <Heart className={`h-4 w-4 transition-all duration-300 ${isInWishlist ? 'fill-current scale-110' : ''}`} />
               </Button>
             </div>
 
             {/* Quick View Overlay */}
-            <div className="absolute inset-0 bg-white/70 dark:bg-black/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm z-20">
-              <div className="text-center text-[var(--overlay-text)] p-3 max-w-[90%]">
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center z-20 pb-4">
+              <div className="text-center p-3 max-w-[85%]">
                 {product.short_description && (
-                  <p className="text-xs leading-relaxed line-clamp-2 opacity-90 mb-1">
+                  <p className="text-sm leading-relaxed line-clamp-2 mb-2 font-medium text-white drop-shadow-lg">
                     {product.short_description}
                   </p>
                 )}
-                <div className="mt-1 inline-flex items-center text-xs font-medium bg-[var(--overlay-button-bg)] px-2 py-1 rounded-full hover:bg-[var(--overlay-button-hover-bg)] transition-colors">
-                  Подробнее →
+                <div className="inline-flex items-center gap-2 text-sm font-semibold bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-full transition-all duration-300 border border-white/30 text-white">
+                  Подробнее
+                  <span className="text-lg">→</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Content Section */}
-          <CardContent className="p-3 flex-1 flex flex-col justify-between">
-            <div className="space-y-1">
+          <CardContent className="px-3 pt-3 pb-3 flex flex-col bg-card !px-3">
+            <div className="space-y-1.5 mb-2">
               {/* Brand */}
               {product.brands?.name && (
-                <p className="text-xs text-black dark:text-white font-semibold uppercase tracking-wider bg-[var(--brand-bg)] px-1.5 py-0.5 rounded-md inline-block">
+                <p className="text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary dark:text-primary px-2 py-0.5 rounded-md inline-block">
                   {product.brands.name}
                 </p>
               )}
               {/* Title */}
-              <h3 className="font-bold text-sm leading-tight text-black dark:text-white group-hover:text-[var(--title-hover-text)] transition-colors duration-300">
+              <h3 className="font-bold text-sm leading-tight text-gray-900 dark:text-white group-hover:text-primary transition-colors duration-300 line-clamp-2">
                 {product.name}
               </h3>
               {/* Category */}
               {product.categories?.name && (
-                <p className="text-xs text-black dark:text-white font-medium">
+                <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
                   {product.categories.name}
                 </p>
               )}
             </div>
 
             {/* Bottom Section */}
-            <div className="mt-2 space-y-2">
+            <div className="space-y-1.5 pt-2 border-t border-gray-200 dark:border-gray-700">
               {/* Price Section */}
               <div className="flex items-center justify-between">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-bold text-black dark:text-white">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
                     {formattedPrice}
                   </span>
                   {isOnSale && oldPrice && (
-                    <span className="text-xs text-[var(--price-old-text)] line-through font-medium">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 line-through font-medium">
                       {oldPrice}
                     </span>
                   )}
@@ -308,7 +314,7 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
                 const statusText = isMadeToOrderValue
                   ? showMadeToOrder
                     ? safeDisplaySettings.made_to_order_text
-                    : "" // Если made_to_order, но показ выключен - не показываем статус
+                    : ""
                   : isInStock
                     ? showQuantity
                       ? `${safeDisplaySettings.in_stock_text}: ${product.inventory_quantity || 0} шт.`
@@ -325,23 +331,23 @@ function ProductCard({ product, priority = false }: ProductCardProps) {
                 if (!statusText) return null;
                 
                 return (
-                  <div className="flex items-center gap-1 bg-[var(--stock-bg)] px-2 py-1 rounded-md">
+                  <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
                     <div
-                      className={`w-1.5 h-1.5 rounded-full ${
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                         isMadeToOrderValue
                           ? "bg-blue-500 animate-pulse"
                           : isInStock 
-                            ? "bg-[var(--stock-dot-in)] animate-pulse" 
-                            : "bg-[var(--stock-dot-out)]"
+                            ? "bg-green-500 animate-pulse" 
+                            : "bg-red-500"
                       }`}
                     />
                     <span
                       className={`text-xs font-medium ${
                         isMadeToOrderValue
-                          ? "text-blue-600"
+                          ? "text-blue-700 dark:text-blue-400"
                           : isInStock 
-                            ? "text-[var(--stock-text-in)]" 
-                            : "text-[var(--stock-text-out)]"
+                            ? "text-green-700 dark:text-green-400" 
+                            : "text-red-700 dark:text-red-400"
                       }`}
                     >
                       {statusText}
