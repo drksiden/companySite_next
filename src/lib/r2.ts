@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -215,8 +216,19 @@ export function generateFileKey({
  * Get public URL for a file key
  */
 export function getPublicUrl(key: string): string {
-  const baseUrl = R2_PUBLIC_BASE_URL.replace(/\/$/, "");
-  return `${baseUrl}/${key}`;
+  // Проверяем, есть ли кастомный домен для R2
+  const customDomain = process.env.R2_CUSTOM_DOMAIN || "https://r2.asia-ntb.kz";
+  
+  // Если ключ уже содержит полный URL, возвращаем как есть
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+  
+  // Используем кастомный домен если доступен, иначе стандартный R2 URL
+  const baseUrl = customDomain.replace(/\/$/, "");
+  // Убираем двойные слэши
+  const cleanKey = key.replace(/^\/+/, "");
+  return `${baseUrl}/${cleanKey}`;
 }
 
 /**
@@ -330,6 +342,68 @@ export function isValidR2Url(url: string): boolean {
 
   const baseUrl = R2_PUBLIC_BASE_URL.replace(/\/$/, "");
   return url.startsWith(baseUrl);
+}
+
+/**
+ * List files from a specific folder in R2
+ */
+export async function listFilesFromR2Folder(
+  folder: string,
+  bucket: string = DEFAULT_BUCKET,
+): Promise<Array<{ key: string; name: string; url: string; size?: number; lastModified?: Date }>> {
+  // Нормализуем путь: убираем начальный слэш, добавляем конечный если нужно
+  const normalizedFolder = folder.replace(/^\/+/, '').replace(/\/+$/, '');
+  const prefix = normalizedFolder ? `${normalizedFolder}/` : '';
+  
+  const command = new ListObjectsV2Command({
+    Bucket: bucket,
+    Prefix: prefix,
+  });
+
+  try {
+    const response = await r2.send(command);
+    
+    if (!response.Contents || response.Contents.length === 0) {
+      return [];
+    }
+
+    return response.Contents
+      .filter((item) => item.Key && !item.Key.endsWith('/')) // Исключаем папки
+      .map((item) => {
+        const key = item.Key!;
+        // Получаем имя файла из ключа
+        const fileName = prefix ? key.substring(prefix.length) : key;
+        // Декодируем имя файла (на случай если оно было закодировано)
+        let decodedName = fileName;
+        try {
+          decodedName = decodeURIComponent(fileName);
+        } catch {
+          // Если не удалось декодировать, используем как есть
+          decodedName = fileName;
+        }
+        
+        const publicUrl = getPublicUrl(key);
+        
+        return {
+          key,
+          name: decodedName,
+          url: publicUrl,
+          size: item.Size,
+          lastModified: item.LastModified,
+        };
+      })
+      .sort((a, b) => {
+        // Сортируем по дате изменения (новые сначала)
+        if (a.lastModified && b.lastModified) {
+          return b.lastModified.getTime() - a.lastModified.getTime();
+        }
+        // Если нет даты, сортируем по имени
+        return a.name.localeCompare(b.name, 'ru');
+      });
+  } catch (error) {
+    console.error('Error listing files from R2:', error);
+    return [];
+  }
 }
 
 // Default bucket and max upload size
