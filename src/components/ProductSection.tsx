@@ -232,60 +232,78 @@ export function ProductSection({ sectionType }: ProductSectionProps) {
 
   return (
     <section
-      className={`py-16 lg:py-24 px-4 ${sectionBgClass} w-full overflow-hidden`}
+      className={`py-20 lg:py-28 px-4 ${sectionBgClass} w-full overflow-hidden relative`}
     >
-      <div className="max-w-7xl mx-auto">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl opacity-50" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <motion.div
             className="space-y-6 text-center lg:text-left"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
           >
             <div className="flex flex-col items-center lg:items-start space-y-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.5 }}
               >
-                <Badge className="bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                <Badge className="bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 px-4 py-1.5 text-sm font-semibold shadow-sm">
                   {badgeText}
                 </Badge>
               </motion.div>
               {renderBrandLogo()}
             </div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+            <motion.h2
+              className="text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 dark:text-white leading-tight"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
               {brandTagline}{" "}
-              <span className="text-blue-700 dark:text-blue-300">
+              <span className="bg-gradient-to-r from-blue-700 to-purple-700 dark:from-blue-300 dark:to-purple-300 bg-clip-text text-transparent">
                 {brandName}
               </span>
-            </h2>
+            </motion.h2>
             <motion.p
-              className="text-base text-gray-600 dark:text-blue-100 leading-relaxed"
+              className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed"
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 0.5 }}
             >
               {description}
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5, duration: 0.5 }}
             >
-              <Button asChild className="group">
+              <Button 
+                asChild 
+                className="group rounded-full px-8 py-6 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
                 <Link href={catalogLink} className="inline-flex items-center">
                   Смотреть продукцию {brandName}
-                  <ExternalLink className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                  <ExternalLink className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
                 </Link>
               </Button>
             </motion.div>
           </motion.div>
           <motion.div
             className="w-full"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
           >
             <Carousel slides={slides} />
           </motion.div>

@@ -56,6 +56,18 @@ const Services = dynamic(
   }
 );
 
+const WhyUs = dynamic(
+  () => import("@/components/WhyUs").then((mod) => ({ default: mod.WhyUs })),
+  {
+    loading: () => (
+      <div className="w-full py-8">
+        <Skeleton className="h-96 w-full" />
+      </div>
+    ),
+    ssr: true,
+  }
+);
+
 interface HomeClientProps {
   newsSlot: React.ReactNode;
 }
@@ -73,6 +85,12 @@ export function HomeClient({ newsSlot }: HomeClientProps) {
         
         <SectionWrapper className="w-full">
           {newsSlot}
+        </SectionWrapper>
+
+        <SectionWrapper className="w-full">
+          <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <WhyUs />
+          </Suspense>
         </SectionWrapper>
         
         <SectionWrapper className="w-full">

@@ -112,9 +112,11 @@ const staticCategories = [
 async function fetchData({
   query = "",
   brand = "",
+  category = "",
 }: {
   query?: string;
   brand?: string;
+  category?: string;
 }) {
   const supabase = await createServerClient();
 
@@ -122,7 +124,7 @@ async function fetchData({
     page: 1,
     limit: 200, // Увеличено с 50 до 200 для показа большего количества товаров
     sort: "name.asc",
-    categories: [], // не фильтруем по категориям на главной!
+    categories: category ? category.split(",").filter(Boolean) : [], // Фильтруем по категории, если выбрана
     brands: brand ? brand.split(",").filter(Boolean) : [],
     collections: [],
     search: query || undefined,
@@ -179,6 +181,7 @@ async function fetchData({
       ...staticCat,
       id: dbCat?.id || staticCat.slug,
       product_count: dbCat?.product_count || 0,
+      dbId: dbCat?.id, // Сохраняем реальный ID из БД для фильтрации
     };
   });
 
@@ -194,7 +197,59 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
   const { products, categories, brands, topLevelCategories } = await fetchData({
     query: searchParams?.query,
     brand: searchParams?.brand,
+    category: searchParams?.category,
   });
+
+  // Если выбрана категория, загружаем информацию о ней
+  let selectedCategory: any = null;
+  let childCategories: any[] = [];
+  let categoryProducts: any[] = products;
+  let subcategories: Array<{ id: string; name: string }> = [];
+
+  if (searchParams?.category) {
+    const supabase = await createServerClient();
+    try {
+      // Получаем категорию по ID
+      const categoryId = searchParams.category;
+      const { data: categoryData, error: categoryError } = await supabase
+        .from("categories")
+        .select("id, name, slug, description, description_html, meta_description, image_url")
+        .eq("id", categoryId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!categoryError && categoryData) {
+        selectedCategory = categoryData;
+
+        // Получаем подкатегории
+        const { data: childData } = await supabase
+          .from("categories")
+          .select("id, name, slug, description, image_url")
+          .eq("parent_id", categoryId)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true });
+
+        childCategories = childData || [];
+        subcategories = childCategories.map(cat => ({ id: cat.id, name: cat.name }));
+
+        // Загружаем товары для выбранной категории
+        const { listProducts } = await import("@/lib/services/catalog");
+        const productsResult = await listProducts({
+          page: 1,
+          limit: 200,
+          sort: "name.asc",
+          categories: [categoryId],
+          brands: searchParams?.brand ? searchParams.brand.split(",").filter(Boolean) : [],
+          collections: [],
+          search: searchParams?.query || undefined,
+        });
+        categoryProducts = productsResult.data || [];
+      }
+    } catch (error) {
+      console.error("Error loading category:", error);
+    }
+  }
 
   return (
     <>
@@ -206,7 +261,10 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
               key={category.slug}
               className="group relative p-2 sm:p-3 flex flex-col items-center justify-center gap-3 border hover:border-primary hover:shadow transition-all duration-200 cursor-pointer min-h-[120px]"
             >
-              <Link href={`/catalog/${category.slug}`} className="flex flex-col items-center w-full h-full">
+              <Link 
+                href={`/catalog/${category.slug}`} 
+                className="flex flex-col items-center w-full h-full"
+              >
                 <div className={`rounded-full flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 text-2xl sm:text-3xl shadow ${category.color} group-hover:bg-opacity-50 group-hover:scale-105 transition-transform`}>
                   {category.Icon && <category.Icon className="w-7 h-7" />}
                 </div>
@@ -225,6 +283,54 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
       </section>
 
       <Separator className="my-6 bg-[var(--card-border)]" />
+
+      {/* Контент выбранной категории */}
+      {selectedCategory && (
+        <>
+          {/* Заголовок и описание категории */}
+          <section className="mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              {selectedCategory.name}
+            </h2>
+            {(selectedCategory.meta_description || selectedCategory.description) && (
+              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl">
+                {selectedCategory.meta_description || 
+                 (selectedCategory.description && selectedCategory.description.length > 200 
+                   ? selectedCategory.description.substring(0, 200).trim() + "..." 
+                   : selectedCategory.description)}
+              </p>
+            )}
+          </section>
+
+          {/* Подкатегории */}
+          {childCategories.length > 0 && (
+            <section className="mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Подкатегории
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {childCategories.map((childCat: any) => (
+                  <Card
+                    key={childCat.id}
+                    className="group relative p-3 flex flex-col items-center justify-center gap-3 border hover:border-primary hover:shadow transition-all duration-200 cursor-pointer min-h-[100px]"
+                  >
+                    <Link 
+                      href={`/catalog/${childCat.slug}`} 
+                      className="flex flex-col items-center w-full h-full"
+                    >
+                      <span className="text-sm text-center font-medium text-black dark:text-white group-hover:text-primary transition-colors duration-150 line-clamp-2">
+                        {childCat.name}
+                      </span>
+                    </Link>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <Separator className="my-6 bg-[var(--card-border)]" />
+        </>
+      )}
 
       {/* Мобильные фильтры */}
       <div className="lg:hidden mb-4">
@@ -247,8 +353,9 @@ async function CatalogContent({ searchParams }: CatalogShellProps) {
         {/* Товары */}
         <div className="min-w-0">
           <CatalogProducts
-            initialProducts={products}
+            initialProducts={selectedCategory ? categoryProducts : products}
             searchParams={searchParams}
+            subcategories={subcategories}
           />
         </div>
       </div>

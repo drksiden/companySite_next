@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabaseServer";
 import NewsArticleClient from "@/components/NewsArticleClient";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Metadata } from "next";
 import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
@@ -101,10 +102,16 @@ export async function generateMetadata({
     };
   }
 
+  // Получаем текущий хост из headers для правильного формирования URL
+  const headersList = await headers();
+  const host = headersList.get('host') || 'asia-ntb.kz';
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const currentBaseUrl = `${protocol}://${host}`;
+
   // Формируем абсолютный URL для Open Graph изображения
   const imageUrl =
     article.images && article.images.length > 0
-      ? `${BASE_URL}${article.images[0]}`
+      ? `${currentBaseUrl}${article.images[0]}`
       : undefined;
 
   return {
@@ -112,12 +119,12 @@ export async function generateMetadata({
     description: article.description,
     keywords: article.tags?.join(", ") || article.category,
     alternates: {
-      canonical: `/news/${article.id}`,
+      canonical: `/news/${article.id}`, // Относительный путь - Next.js автоматически добавит правильный домен
     },
     openGraph: {
       title: article.title,
       description: article.description,
-      url: `${BASE_URL}/news/${article.id}`,
+      url: `${currentBaseUrl}/news/${article.id}`, // Абсолютный URL с текущим хостом
       siteName: 'Азия NTB',
       images: imageUrl
         ? [

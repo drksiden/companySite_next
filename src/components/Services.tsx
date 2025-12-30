@@ -76,16 +76,52 @@ const cardVariants: any = {
 
 export function Services() {
   return (
-    <section className="py-16 lg:py-20 px-4 bg-gray-50 dark:bg-gray-900 w-full">
-      <div className="max-w-6xl mx-auto">
-        <motion.h2
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-10 md:mb-12 text-center"
+    <section className="py-20 lg:py-28 px-4 bg-gradient-to-b from-white via-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 w-full relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
         >
-          Наши Услуги
-        </motion.h2>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-sm font-medium"
+          >
+            <Shield className="w-4 h-4" />
+            <span>Наши услуги</span>
+          </motion.div>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6"
+          >
+            Что мы предлагаем
+          </motion.h2>
+          <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full mb-6" />
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed"
+          >
+            Комплексные решения для безопасности, автоматизации и инженерных систем
+          </motion.p>
+        </motion.div>
+
+        {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, index) => {
             const Icon = service.icon;
@@ -97,30 +133,54 @@ export function Services() {
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true, amount: 0.2 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                transition={{ duration: 0.3 }}
+                className="group"
               >
-                <Card className="flex flex-col h-full">
-                  <CardHeader>
-                    <div className="flex items-center">
-                      <Icon className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-4 shrink-0" />
-                      <CardTitle className="text-xl">{service.title}</CardTitle>
+                <Card className="flex flex-col h-full border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-300 shadow-lg hover:shadow-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start gap-4">
+                      <motion.div
+                        className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-lg group-hover:scale-110 transition-transform duration-300"
+                        whileHover={{ rotate: 5 }}
+                      >
+                        <Icon className="h-6 w-6" />
+                      </motion.div>
+                      <CardTitle className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {service.title}
+                      </CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="flex flex-col flex-grow">
-                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed flex-grow mb-4">
+                  <CardContent className="flex flex-col flex-grow pt-0">
+                    <p className="text-gray-600 dark:text-gray-300 text-base leading-relaxed flex-grow mb-4">
                       {service.description}
                     </p>
                     {service.subcategories && (
-                      <div className="mt-auto border-t pt-3">
-                        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                      <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-3">
                           Направления:
                         </h4>
-                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                        <ul className="space-y-2">
                           {service.subcategories.map((sub, idx) => (
-                            <li key={idx}>• {sub}</li>
+                            <motion.li
+                              key={idx}
+                              initial={{ opacity: 0, x: -10 }}
+                              whileInView={{ opacity: 1, x: 0 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: idx * 0.1 }}
+                              className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300"
+                            >
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              {sub}
+                            </motion.li>
                           ))}
                         </ul>
                       </div>
                     )}
+                    {/* Hover indicator */}
+                    <motion.div
+                      className="mt-4 h-1 w-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full group-hover:w-full transition-all duration-300"
+                    />
                   </CardContent>
                 </Card>
               </motion.div>

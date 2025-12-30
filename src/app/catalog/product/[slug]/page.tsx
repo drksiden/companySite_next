@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import { getProduct } from "@/lib/services/catalog";
 import ProductDetailShell from "@/features/catalog/components/ProductDetailShell";
@@ -32,22 +33,26 @@ export async function generateMetadata({
       };
     }
 
-    const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://asia-ntb.kz';
-    const productUrl = `${siteBaseUrl}/catalog/product/${slug}`;
+    // Получаем текущий хост из headers для правильного формирования URL
+    const headersList = await headers();
+    const host = headersList.get('host') || 'asia-ntb.kz';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const currentBaseUrl = `${protocol}://${host}`;
+    const productUrl = `${currentBaseUrl}/catalog/product/${slug}`;
     
     // Получаем изображение товара (абсолютный URL для OG)
     let productImage: string | null = product.thumbnail || (product.images && product.images.length > 0 ? product.images[0] : null);
     if (productImage && !productImage.startsWith('http')) {
       // Если относительный URL, делаем абсолютным
       productImage = productImage.startsWith('/') 
-        ? `${siteBaseUrl}${productImage}`
-        : `${siteBaseUrl}/${productImage}`;
+        ? `${currentBaseUrl}${productImage}`
+        : `${currentBaseUrl}/${productImage}`;
     }
     
     const description = product.short_description || product.description || `${product.name}. ${product.brands?.name ? `Бренд ${product.brands.name}. ` : ''}Купить в Казахстане.`;
 
     return {
-      title: `${product.name} | Каталог`,
+      title: product.name,
       description,
       keywords: [
         product.name,
@@ -59,12 +64,12 @@ export async function generateMetadata({
         "автоматизация",
       ].filter(Boolean) as string[],
       alternates: {
-        canonical: `/catalog/product/${slug}`,
+        canonical: `/catalog/product/${slug}`, // Относительный путь - Next.js автоматически добавит правильный домен
       },
       openGraph: {
         title: product.name,
         description,
-        url: productUrl,
+        url: productUrl, // Абсолютный URL с текущим хостом
         siteName: 'Азия NTB',
         type: 'website',
         locale: 'ru_RU',

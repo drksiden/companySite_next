@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import ProductGrid from "./ProductGrid";
+import ProductGridGrouped from "./ProductGridGrouped";
 import EmptyState from "./EmptyState";
 import LoadingSkeletons from "./LoadingSkeletons";
 import SimpleLoadingIndicator from "./SimpleLoadingIndicator";
@@ -20,12 +20,14 @@ interface CatalogProductsProps {
     brand?: string;
   };
   useSimpleLoader?: boolean;
+  subcategories?: Array<{ id: string; name: string }>; // Подкатегории для группировки
 }
 
 export default function CatalogProducts({
   initialProducts,
   searchParams,
   useSimpleLoader = false,
+  subcategories = [],
 }: CatalogProductsProps) {
   const router = useRouter();
   const params = useSearchParams();
@@ -181,7 +183,12 @@ export default function CatalogProducts({
 
       {/* Products grid with smooth animation */}
       <div className="catalog-animate-fade-in">
-        <ProductGrid products={products} />
+        <ProductGridGrouped 
+          products={products} 
+          loading={loading}
+          selectedCategories={currentFilters.category ? currentFilters.category.split(",").filter(Boolean) : []}
+          subcategories={subcategories}
+        />
       </div>
     </div>
   );
